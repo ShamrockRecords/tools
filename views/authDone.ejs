@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+	<head>
+		<%- include('parts/head', {title: 'node-tmp'}) %>
+	</head>
+	<body>
+		<div class="container p-2">
+			<h1>Please wait...</h1>
+			<a href="/">If this page was not changed, please click this link.</a>
+
+			<script src="https://www.gstatic.com/firebasejs/5.8.1/firebase-app.js"></script>
+			<script src="https://www.gstatic.com/firebasejs/5.8.1/firebase-auth.js"></script>
+			<script src="https://www.gstatic.com/firebasejs/ui/3.5.2/firebase-ui-auth__ja.js"></script>
+			
+			<script>
+				$(window).on('load', async function() {		
+					let config = {
+						apiKey: "<%= config.apiKey %>",
+						authDomain: "<%= config.authDomain %>",
+						projectId: "<%= config.projectId %>",
+						storageBucket: "<%= config.storageBucket %>",
+						messagingSenderId: "<%= config.messagingSenderId %>",
+						appId: "<%= config.appId %>",
+						measurementId: "<%= config.measurementId %>"
+					};
+
+					firebase.initializeApp(config);
+
+					firebase.auth().onAuthStateChanged(async (user) => {
+						let uid = user.uid ;
+						
+						firebase.auth().signOut() ;
+
+						let URL = '/authDone/verify?uid=' + uid ;
+
+						await fetch(URL).then(response => response.json()) ;
+
+						location.href = "/" ;
+					});
+				}) ;
+			</script>
+		</div>
+	</body>
+</html>
