@@ -2,6 +2,12 @@
 <html lang="ja">
 	<head>
 		<%- include('../../parts/head', {title: '単語に読み振り'}) %>
+		<meta property="og:site_name" content="単語に読み振り - UDトークツールズ"/>
+		<meta property="og:url" content="<%= rootURL %>"/>
+		<meta property="og:title" content="単語に読み振り - UDトークツールズ"/>
+		<meta property="og:type" content="Website" />
+		<meta property="og:description" content=""/>
+
 		<style>
 			h1 {
 			position: relative;
@@ -86,7 +92,7 @@
 
 						<div class="tab-pane fade p-3" id="fromText" role="tabpanel" aria-labelledby="fromText-tab">
 							<div class="mb-3">
-								改行区切りで読みを振る単語や文章を入力してください。
+								改行区切りで読みを振る単語を入力してください。
 							</div>
 							<div class="mb-3">
 								<textarea class="form-control" id="input" name="input" style="height:300px"></textarea>
