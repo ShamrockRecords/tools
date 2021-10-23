@@ -42,8 +42,8 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/srt_to_csv', srtToCsvIndexRouter);
-app.use('/gen_reading', genReadingIndexRouter);
+app.use('/srt2csv', srtToCsvIndexRouter);
+app.use('/yomifuri', genReadingIndexRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

@@ -1,17 +1,345 @@
 <!DOCTYPE html>
 <html lang="ja">
 	<head>
-		<%- include('../../parts/head', {title: '読みを振る'}) %>
+		<%- include('../../parts/head', {title: '単語に読み振り'}) %>
+		<style>
+			h1 {
+			position: relative;
+			line-height: 1.4;
+			padding:0.25em 1em;
+			display: inline-block;
+			top:0;
+			}
+
+			h1:before, h1:after { 
+			position: absolute;
+			top: 0;
+			content:'';
+			width: 8px;
+			height: 100%;
+			display: inline-block;
+			}
+
+			h1:before {
+			border-left: solid 1px black;
+			border-top: solid 1px black;
+			border-bottom: solid 1px black;
+			left: 0;
+			}
+
+			h1:after {
+			content: '';
+			border-top: solid 1px black;
+			border-right: solid 1px black;
+			border-bottom: solid 1px black;
+			right: 0;
+			}
+
+			h2 {
+			padding: 0.4em 0.5em;/*文字の上下 左右の余白*/
+			color: #494949;/*文字色*/
+			background: #f4f4f4;/*背景色*/
+			border-left: solid 5px #7db4e6;/*左線*/
+			border-bottom: solid 3px #d7d7d7;/*下線*/
+			}
+		</style>
 	</head>
-	<body>
-		<div class="container p-2">
+	<body class="p-3">
+		<div class="container">
+			<div class="mb-3">
+				<a href="/">トップに戻る</a>
+			</div>
+			<h1 class="mb-3">単語に読み振り</h1>
+					
+			<div class="mb-3">
+				単語登録用に単語の読みを自動的に振ります。
+			</div>
 
-			<h1>読みを振る</h1>
+			<div class="mb-3">
+				
+				<div class="mb-5">
+					<div class="mb-3">
+						<h2>データを読み込み</h2>
+					</div>
 
-			<div class="row">
-				<div class="col">
+					<div class="ms-3">
+						<div class="mb-3">
+							<label for="csvFile" class="form-label">単語ファイル（.csv）を選択</label>
+							<input class="form-control" id="csvFile" type="file" accept=".csv"/>
+						</div>
+						
+						<div class="mb-3">
+							1列目が書き表記のCSVファイル（文字コードはUTF-8）をアップロードしてください。<br>
+							2列目に読み表記が記述してある場合は結果を表示でそれを残すか上書きするかを選べます。
+						</div>
+
+						<div class="mb-3">
+							<div id="spinner"></div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="mb-3">
+					<h2>結果を表示</h2>
+				</div>
+
+				<div class="ms-3 mb-3">
+					<div class="row g-2">
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="separator" id="separator" value="0" checked>
+								<label class="form-check-label" for="separator">カンマ区切り</label>
+							</div>		
+						</div>
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="separator" id="separator" value="1">
+								<label class="form-check-label" for="separator">タブ区切り</label>
+							</div>		
+						</div>
+					</div>
+				</div>
+
+				<div class="ms-3 mb-3">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" value="" id="useOriginalSpokenForm" name="useOriginalSpokenForm" value="" checked>
+						<label class="form-check-label" for="useOriginalSpokenForm">読み込みデータの2列目の読みを残す</label>
+					</div>
+				</div>
+
+				<div class="ms-3">
+					<div class="mb-3">
+						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.csvで保存します。）</label>
+					</div>
+					
+					<div class="mb-3">
+						<div class="row g-2">
+							<div class="col">
+								<input class="form-control" id="fileTitle" type="text" name="fileTitle" value="" />
+							</div>
+							<div class="col-auto">
+								<input class="btn btn-primary" id="saveAsFileButton" type="button" value="ファイルで保存" name="saveAsFileButton" />
+							</div>
+						</div>
+					</div>
+									
+					<div class="mb-3">
+						<textarea class="form-control" id="output" name="output" style="height:500px" readonly></textarea><br />
+					</div>
 				</div>
 			</div>
+			<div class="mb-3" style="text-align: center;">
+				Copyright © UDトーク. All Rights Reserved.
+			</div>
 		</div>
+
+		<script>
+			let lines = null ;
+			
+			$("#csvFile").on('click', () => {
+				$("#csvFile").val("") ;
+			}) ;
+
+			$("#saveAsFileButton").on('click', () => {
+				saveAsFile($("#output").text(), $("#fileTitle").val()) ;
+			}) ;
+			
+			function eventListener(e) {
+				updateResult() ;
+			} ;
+
+			$('[id="separator"]').on('change', eventListener) ;
+			$("#useOriginalSpokenForm").on('change', eventListener) ;
+
+			$("#csvFile").on('change', (e) => {
+				$("#output").text("") ;
+				$("#detectedVersion").text("") ;
+				
+				let fileList = $('#csvFile').get(0).files;
+				let result = fileList[0];
+
+				let reader = new FileReader() ;
+
+				$("#fileTitle").val(result.name.split('.')[0] + ".csv") ;
+
+				reader.readAsText(result) ;
+			
+				let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+				$("#spinner").empty() ;
+				$("#spinner").append(spinner) ;
+
+				reader.addEventListener('load', async function() {
+					let content = reader.result ;
+					lines = convert(content) ;
+
+					const headers = {
+						'Accept': 'application/json',
+  						'Content-Type': 'application/json'
+					};
+
+					const param = {
+						method: "POST",
+						headers: headers,
+						body: JSON.stringify({lines: lines}),
+					}
+
+					await fetch("/yomifuri/data", param)
+						.then(response => response.json())
+						.then(data => {
+							lines = data ;
+						});
+
+					$("#spinner").empty() ;
+
+					updateResult() ;
+				}) ;
+
+				$("#csvFile").val("") ;
+			})
+
+			function updateResult() {
+				if (lines == null) {
+					return ;
+				}
+
+				let result = "" ;
+				let type = $('[id="separator"]:checked').val();
+				let useOriginalSpokenForm = $('#useOriginalSpokenForm').prop("checked") ;
+
+				if (type == 0) {
+					for (let key in lines) {
+						let spoken = lines[key]["as"] ;
+
+						if (useOriginalSpokenForm && lines[key]["s"] != "") {
+							spoken = lines[key]["s"] ;
+						}
+
+						result += "\"" + lines[key]["w"] + "\",\"" + spoken + "\"\r\n" ;
+					}
+				} else {
+					for (let key in lines) {
+						let spoken = lines[key]["as"] ;
+
+						if (useOriginalSpokenForm && lines[key]["s"] != "") {
+							spoken = lines[key]["s"] ;
+						}
+
+						result += lines[key]["w"] + "\t" + spoken + "\r\n" ;
+					}
+				}
+
+				$("#output").text(result) ;
+			}
+
+			// CSV -> Array
+			function convert(fileContent) {
+				fileContent = fileContent.replaceAll("\r\n", "\n") ;
+				var rawLines = parseToLines(fileContent) ;
+
+				var ignoreCamma = false ;
+				var element = "" ;
+				var elements = {} ;
+
+				var lines = [] ;
+				let col = 0 ;
+
+				for (var i=0; i<rawLines.length; i++) {
+					col = 0 ;
+
+					var rawLine = rawLines[i] ;
+			
+					if (rawLine == "") {
+						continue ;
+					}
+					
+					if (rawLine.startsWith("#")) {
+						continue ;
+					}
+
+					for (var x=0; x<rawLine.length; x++) {
+						var c = rawLine[x] ;
+
+						if (c == '"') {
+							ignoreCamma = !ignoreCamma ;
+						} else if (c == ',' && !ignoreCamma) {
+							if (col == 0) {
+								elements["w"] = element ;
+							} else if (col == 1) {
+								elements["s"] = element ;
+							}
+
+							col++ ;
+							element = "" ;
+						} else {
+							element += c ;
+						}
+					}
+
+					if (!ignoreCamma) {
+						if (col == 0) {
+							elements["w"] = element ;
+						} else if (col == 1) {
+							elements["s"] = element ;
+						}
+
+						col++ ;
+
+						lines.push(elements) ;
+
+						element = "" ;
+						elements = {} ;
+					} else {
+						element += '\n' ;
+					}
+				}
+
+				return lines ;
+			}
+
+			function parseToLines(contents) {
+				var lines = new Array() ;
+				var ignoreCamma = false ;
+				var line = "" ;
+
+				for (var x=0; x<contents.length; x++) {
+					var c = contents[x] ;
+
+					if (c == '"') {
+						ignoreCamma = !ignoreCamma ;
+						line += c ;
+					} else if (c == '\n' && !ignoreCamma) {
+						lines.push(line) ;
+						line = "" ;
+					} else {
+						line += c ;
+					}
+				}
+
+				if (line != "") {
+					lines.push(line) ;
+				}
+
+				return lines ;
+			}
+
+			function saveAsFile(contents, fileName) { 
+				if (contents == "") {
+					return ;
+				}
+				
+				var blob = new Blob([contents], {type: "text/plain"}); 
+
+				if(window.navigator.msSaveBlob) {
+					window.navigator.msSaveBlob(blob, fileName);
+				} else {
+					var a = document.createElement("a");
+					a.href = URL.createObjectURL(blob);
+					a.target = '_blank';
+					a.download = fileName;
+					a.click();
+				}
+			}
+		</script>
 	</body>
 </html>
