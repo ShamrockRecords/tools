@@ -62,23 +62,45 @@
 						<h2>データを読み込み</h2>
 					</div>
 
-					<div class="ms-3">
-						<div class="mb-3">
-							<label for="csvFile" class="form-label">単語ファイル（.csv）を選択</label>
-							<input class="form-control" id="csvFile" type="file" accept=".csv"/>
-						</div>
-						
-						<div class="mb-3">
-							1列目が書き表記のCSVファイル（文字コードはUTF-8）をアップロードしてください。<br>
-							2列目に読み表記が記述してある場合は結果を表示でそれを残すか上書きするかを選べます。
+					<ul class="nav nav-tabs" id="myTab" role="tablist">
+						<li class="nav-item" role="presentation">
+						  <a class="nav-link active" id="fromFile-tab" data-bs-toggle="tab" href="#fromFile" role="tab" aria-controls="fromFile" aria-selected="true">ファイルから</a>
+						</li>
+						<li class="nav-item" role="presentation">
+						  <a class="nav-link" id="fromText-tab" data-bs-toggle="tab" href="#fromText" role="tab" aria-controls="romText" aria-selected="false">直接入力</a>
+						</li>
+					</ul>
+
+					<div class="tab-content" id="myTabContent">
+						<div class="tab-pane fade show active p-3" id="fromFile" role="tabpanel" aria-labelledby="fromFile-tab">
+							<div class="mb-3">
+								<label for="csvFile" class="form-label">単語ファイル（.csv）を選択</label>
+								<input class="form-control" id="csvFile" type="file" accept=".csv"/>
+							</div>
+							
+							<div class="mb-3">
+								1列目が書き表記のCSVファイル（文字コードはUTF-8）をアップロードしてください。<br>
+								2列目に読み表記が記述してある場合は結果を表示でそれを残すか上書きするかを選べます。
+							</div>
 						</div>
 
-						<div class="mb-3">
-							<div id="spinner"></div>
+						<div class="tab-pane fade p-3" id="fromText" role="tabpanel" aria-labelledby="fromText-tab">
+							<div class="mb-3">
+								改行区切りで読みを振る単語や文章を入力してください。
+							</div>
+							<div class="mb-3">
+								<textarea class="form-control" id="input" name="input" style="height:300px"></textarea>
+							</div>
+							<div class="mb-3">
+								<input class="btn btn-primary" id="uploadFromTextButton" type="button" name="uploadFromTextButton" value="読み込み" />
+							</div>
 						</div>
 					</div>
-				</div>
-				
+
+					<div class="mb-3">
+						<div id="spinner"></div>
+					</div>
+						
 				<div class="mb-3">
 					<h2>結果を表示</h2>
 				</div>
@@ -87,14 +109,14 @@
 					<div class="row g-2">
 						<div class="col-auto">
 							<div class="form-check">
-								<input class="form-check-input" type="radio" name="separator" id="separator" value="0" checked>
-								<label class="form-check-label" for="separator">カンマ区切り</label>
+								<input class="form-check-input" type="radio" name="separatorType" id="separatorType" value="0" checked>
+								<label class="form-check-label" for="separatorType">カンマ区切り</label>
 							</div>		
 						</div>
 						<div class="col-auto">
 							<div class="form-check">
-								<input class="form-check-input" type="radio" name="separator" id="separator" value="1">
-								<label class="form-check-label" for="separator">タブ区切り</label>
+								<input class="form-check-input" type="radio" name="separatorType" id="separatorType" value="1">
+								<label class="form-check-label" for="separatorType">タブ区切り</label>
 							</div>		
 						</div>
 					</div>
@@ -124,7 +146,7 @@
 					</div>
 									
 					<div class="mb-3">
-						<textarea class="form-control" id="output" name="output" style="height:500px" readonly></textarea><br />
+						<textarea class="form-control" id="output" name="output" style="height:500px" readonly></textarea>
 					</div>
 				</div>
 			</div>
@@ -134,6 +156,21 @@
 		</div>
 
 		<script>
+			$(function () {
+				let useOriginalSpokenForm = localStorage.getItem("useOriginalSpokenForm") ;
+
+				if (useOriginalSpokenForm != undefined) {
+					$('#useOriginalSpokenForm').prop("checked", useOriginalSpokenForm == "true") ;
+				}
+
+				let separatorType = localStorage.getItem("separatorType") ;
+				console.log(separatorType) ;
+
+				if (separatorType != undefined) {
+					$('[id="separatorType"]').val([separatorType]) ;
+				}
+			}) ;
+
 			let lines = null ;
 			
 			$("#csvFile").on('click', () => {
@@ -146,9 +183,18 @@
 			
 			function eventListener(e) {
 				updateResult() ;
+
+				localStorage.setItem("useOriginalSpokenForm", $('#useOriginalSpokenForm').prop("checked")) ;
+				localStorage.setItem("separatorType", $('[id="separatorType"]:checked').val()) ;
+
+				console.log($('[id="separatorType"]:checked').val()) ;
 			} ;
 
-			$('[id="separator"]').on('change', eventListener) ;
+			$('#uploadFromTextButton').on('click', async (e) => {
+				await doAction($('#input').val(), "読み振りデータ.csv") ;
+			}) ;
+
+			$('[id="separatorType"]').on('change', eventListener) ;
 			$("#useOriginalSpokenForm").on('change', eventListener) ;
 
 			$("#csvFile").on('change', (e) => {
@@ -159,44 +205,52 @@
 				let result = fileList[0];
 
 				let reader = new FileReader() ;
+				let fileName = result.name.split('.')[0] + ".csv" ;
 
-				$("#fileTitle").val(result.name.split('.')[0] + ".csv") ;
+				
 
 				reader.readAsText(result) ;
-			
+
+				reader.addEventListener('load', async function() {
+					let content = reader.result ;
+					
+					await doAction(content, fileName) ;
+				}) ;
+
+				$("#csvFile").val("") ;
+			})
+
+			async function doAction(content, fileName) {
 				let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
 				
 				$("#spinner").empty() ;
 				$("#spinner").append(spinner) ;
 
-				reader.addEventListener('load', async function() {
-					let content = reader.result ;
-					lines = convert(content) ;
+				lines = convert(content) ;
 
-					const headers = {
-						'Accept': 'application/json',
-  						'Content-Type': 'application/json'
-					};
+				const headers = {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				};
 
-					const param = {
-						method: "POST",
-						headers: headers,
-						body: JSON.stringify({lines: lines}),
-					}
+				const param = {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({lines: lines}),
+				}
 
-					await fetch("/yomifuri/data", param)
-						.then(response => response.json())
-						.then(data => {
-							lines = data ;
-						});
+				await fetch("/yomifuri/data", param)
+					.then(response => response.json())
+					.then(data => {
+						lines = data ;
+					});
 
-					$("#spinner").empty() ;
+				$("#spinner").empty() ;
 
-					updateResult() ;
-				}) ;
+				$("#fileTitle").val(fileName) ;
 
-				$("#csvFile").val("") ;
-			})
+				updateResult() ;
+			}
 
 			function updateResult() {
 				if (lines == null) {
@@ -204,14 +258,14 @@
 				}
 
 				let result = "" ;
-				let type = $('[id="separator"]:checked').val();
+				let separatorType = $('[id="separatorType"]:checked').val();
 				let useOriginalSpokenForm = $('#useOriginalSpokenForm').prop("checked") ;
 
-				if (type == 0) {
+				if (separatorType == 0) {
 					for (let key in lines) {
 						let spoken = lines[key]["as"] ;
 
-						if (useOriginalSpokenForm && lines[key]["s"] != "") {
+						if (useOriginalSpokenForm && lines[key]["s"] != "" && lines[key]["s"] != undefined) {
 							spoken = lines[key]["s"] ;
 						}
 
@@ -221,7 +275,7 @@
 					for (let key in lines) {
 						let spoken = lines[key]["as"] ;
 
-						if (useOriginalSpokenForm && lines[key]["s"] != "") {
+						if (useOriginalSpokenForm && lines[key]["s"] != "" && lines[key]["s"] != undefined) {
 							spoken = lines[key]["s"] ;
 						}
 
@@ -328,6 +382,10 @@
 					return ;
 				}
 				
+				if (fileName == "" || fileName == undefined) {
+					fileName = "読み振りデータ.csv" ;
+				}
+
 				var blob = new Blob([contents], {type: "text/plain"}); 
 
 				if(window.navigator.msSaveBlob) {
