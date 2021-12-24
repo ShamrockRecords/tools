@@ -135,6 +135,23 @@
 					</div>
 				</div>
 
+				<div class="ms-3 mb-3">
+					<div class="row g-2">
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="resultType" id="resultType" value="0" checked>
+								<label class="form-check-label" for="resultType">書き＋読み</label>
+							</div>		
+						</div>
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="resultType" id="resultType" value="1">
+								<label class="form-check-label" for="resultType">読みのみ</label>
+							</div>		
+						</div>
+					</div>
+				</div>
+
 				<div class="ms-3">
 					<div class="mb-3">
 						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.csvで保存します。）</label>
@@ -170,10 +187,15 @@
 				}
 
 				let separatorType = localStorage.getItem("separatorType") ;
-				console.log(separatorType) ;
 
 				if (separatorType != undefined) {
 					$('[id="separatorType"]').val([separatorType]) ;
+				}
+
+				let resultType = localStorage.getItem("resultType") ;
+
+				if (resultType != undefined) {
+					$('[id="resultType"]').val([resultType]) ;
 				}
 			}) ;
 
@@ -192,16 +214,17 @@
 
 				localStorage.setItem("useOriginalSpokenForm", $('#useOriginalSpokenForm').prop("checked")) ;
 				localStorage.setItem("separatorType", $('[id="separatorType"]:checked').val()) ;
-
-				console.log($('[id="separatorType"]:checked').val()) ;
+				localStorage.setItem("resultType", $('[id="resultType"]:checked').val()) ;
 			} ;
 
 			$('#uploadFromTextButton').on('click', async (e) => {
 				await doAction($('#input').val(), "読み振りデータ.csv") ;
 			}) ;
 
+			
 			$('[id="separatorType"]').on('change', eventListener) ;
 			$("#useOriginalSpokenForm").on('change', eventListener) ;
+			$('[id="resultType"]').on('change', eventListener) ;
 
 			$("#csvFile").on('change', (e) => {
 				$("#output").text("") ;
@@ -264,6 +287,7 @@
 				let result = "" ;
 				let separatorType = $('[id="separatorType"]:checked').val();
 				let useOriginalSpokenForm = $('#useOriginalSpokenForm').prop("checked") ;
+				let resultType = $('[id="resultType"]:checked').val();
 
 				if (separatorType == 0) {
 					for (let key in lines) {
@@ -273,7 +297,11 @@
 							spoken = lines[key]["s"] ;
 						}
 
-						result += "\"" + lines[key]["w"] + "\",\"" + spoken + "\"\r\n" ;
+						if (resultType == 0) {
+							result += "\"" + lines[key]["w"] + "\",\"" + spoken + "\"\r\n" ;
+						} else {
+							result += spoken + "\r\n" ;
+						}
 					}
 				} else {
 					for (let key in lines) {
@@ -283,7 +311,11 @@
 							spoken = lines[key]["s"] ;
 						}
 
-						result += lines[key]["w"] + "\t" + spoken + "\r\n" ;
+						if (resultType == 0) {
+							result += lines[key]["w"] + "\t" + spoken + "\r\n" ;
+						} else {
+							result += spoken + "\r\n" ;
+						}
 					}
 				}
 
