@@ -7,6 +7,48 @@
 		<meta property="og:title" content="SRTをCSVに変換 - UDトークツールズ"/>
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
+		
+		<style>
+			h1 {
+			position: relative;
+			line-height: 1.4;
+			padding:0.25em 1em;
+			display: inline-block;
+			top:0;
+			}
+
+			h1:before, h1:after { 
+			position: absolute;
+			top: 0;
+			content:'';
+			width: 8px;
+			height: 100%;
+			display: inline-block;
+			}
+
+			h1:before {
+			border-left: solid 1px black;
+			border-top: solid 1px black;
+			border-bottom: solid 1px black;
+			left: 0;
+			}
+
+			h1:after {
+			content: '';
+			border-top: solid 1px black;
+			border-right: solid 1px black;
+			border-bottom: solid 1px black;
+			right: 0;
+			}
+
+			h2 {
+			padding: 0.4em 0.5em;/*文字の上下 左右の余白*/
+			color: #494949;/*文字色*/
+			background: #f4f4f4;/*背景色*/
+			border-left: solid 5px #7db4e6;/*左線*/
+			border-bottom: solid 3px #d7d7d7;/*下線*/
+			}
+		</style>
 	</head>
 	<body>
 		<div class="container p-2">
@@ -16,11 +58,212 @@
 
 			<h1>SRTをCSVに変換</h1>
 
-			<div class="row">
-				<div class="col">
-					Coming soon...
+			<div class="mb-3">
+				SRTファイルを編集しやすいようにCSVファイルに変換します。変換したCSVファイルは「<a href="https://jimakudata.udtalk.jp">字幕データ変換くん</a>」でSRTファイルを作成することができます。
+			</div>
+
+			<div class="mb-3">
+				
+				<div class="mb-5">
+					<div class="mb-3">
+						<h2>データを読み込み</h2>
+					</div>
+
+					<div class="mb-3">
+						<label for="srtFile" class="form-label">字幕ファイル（.srt）を選択</label>
+						<input class="form-control" id="srtFile" type="file" accept=".srt"/>
+					</div>
 				</div>
+			
+				<div class="mb-3">
+					<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.csvで保存します。）</label>
+				</div>
+
+				<div class="mb-3">
+					<div class="row g-2">
+						<div class="col">
+							<input class="form-control" id="fileTitle" type="text" name="fileTitle" value="" />
+						</div>
+						<div class="col-auto">
+							<input class="btn btn-primary" id="saveAsFileButton" type="button" value="ファイルで保存" name="saveAsFileButton" />
+						</div>
+					</div>
+				</div>
+								
+				<div class="ms-3 mb-3">
+					<div class="row g-2">
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="separatorType" id="separatorType" value="0" checked>
+								<label class="form-check-label" for="separatorType">カンマ区切り</label>
+							</div>		
+						</div>
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="separatorType" id="separatorType" value="1">
+								<label class="form-check-label" for="separatorType">タブ区切り</label>
+							</div>		
+						</div>
+					</div>
+				</div>
+
+				<div class="mb-3">
+					<textarea class="form-control" id="output" name="output" style="height:500px" readonly></textarea>
+				</div>
+				
 			</div>
 		</div>
+
+		<script>
+			let data = null ;
+
+			$(function () {
+				let separatorType = localStorage.getItem("separatorType") ;
+				console.log(separatorType) ;
+
+				if (separatorType != undefined) {
+					$('[id="separatorType"]').val([separatorType]) ;
+				}
+			}) ;
+
+			$("#srtFile").on('click', () => {
+				$("#srtFile").val("") ;
+			}) ;
+
+			$("#saveAsFileButton").on('click', () => {
+				saveAsFile($("#output").text(), $("#fileTitle").val()) ;
+			}) ;
+			
+			function eventListener(e) {
+				updateResult() ;
+
+				localStorage.setItem("separatorType", $('[id="separatorType"]:checked').val()) ;
+
+				console.log($('[id="separatorType"]:checked').val()) ;
+			} ;
+
+			$('[id="separatorType"]').on('change', eventListener) ;
+
+			$("#srtFile").on('change', (e) => {
+				$("#output").text("") ;
+
+				let fileList = $('#srtFile').get(0).files;
+				let result = fileList[0];
+				let fileName = result.name.split('.')[0] + ".csv" ;
+
+				let reader = new FileReader() ;
+
+				reader.readAsText(result) ;
+
+				reader.addEventListener('load', async function() {
+					let content = reader.result ;
+
+					data = loadSrtFile(content) ;
+
+					updateResult() ;
+				}) ;
+
+				$("#srtFile").val("") ;
+				$("#fileTitle").val(fileName) ;
+			})
+
+			function updateResult() {
+				if (data == null) {
+					return ;
+				}
+
+				let output = "" ;
+				let separatorType = $('[id="separatorType"]:checked').val();
+				let separator = '' ;
+
+				if (separatorType == 0) {
+					separator = ',' ;
+				} else {
+					separator = '\t' ;
+				}
+
+				for (let i=0; i<data.length; i++) {
+					let element = data[i] ;
+					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '') ;
+
+					output += secToTime(element.time.start, '.') + separator + secToTime(element.time.end, '.') + separator + '"' + text + '"' + '\r\n';
+				}
+
+				$("#output").text(output) ;
+			}
+
+			function loadSrtFile(contents) {
+				data = []
+				subtitleIndex = 0 ;
+
+				contents = contents.replaceAll("\r\n", "\n") ;
+
+				contents.replace(
+					/\d+\n^(\d+:.*)\n((?:(?!\d+:\d+:\d+).*\n*)+)\n$/gm,
+					(string, time, text) => {
+						if (time != "" && text != "") {
+							data.push({
+								time: {
+								start: timeToSec(time.split(' --> ')[0].replaceAll(",", ".")),
+								end: timeToSec(time.split(' --> ')[1].replaceAll(",", "."))
+								},
+								text: text.trim()
+							}) ;
+						}
+					}
+				) ;
+
+				return data ;
+			}
+
+			function timeToSec(time) {
+				var elements = time.split(':') ;
+				var millisec = 0 ;
+
+				millisec += Number(elements[0] * 60 * 60) ;
+				millisec += Number(elements[1] * 60) ;
+				millisec += Number(elements[2]) ;
+
+				return millisec ;
+			}
+
+			function secToTime(millisec, separator) {
+				if (millisec < 0) {
+					return "" ;
+				}
+
+				millisec *= 1000 ;
+
+				var ms = millisec % 1000 ;
+				var totalSeconds = Math.floor(millisec / 1000) ;
+				var s = totalSeconds % 60 ;
+				var m = Math.floor(totalSeconds / 60) % 60 ;
+				var h = Math.floor(totalSeconds / (60 * 60)) ;
+
+				return  ('00' + h).slice(-2) + ":" + ('00' + m).slice(-2) + ":" + ('00' + s).slice(-2) + separator + ('000' + ms).slice(-3) ;
+			}
+
+			function saveAsFile(contents, fileName) { 
+				if (contents == "") {
+					return ;
+				}
+				
+				if (fileName == "" || fileName == undefined) {
+					fileName = "字幕データ.csv" ;
+				}
+
+				var blob = new Blob([contents], {type: "text/plain"}); 
+
+				if(window.navigator.msSaveBlob) {
+					window.navigator.msSaveBlob(blob, fileName);
+				} else {
+					var a = document.createElement("a");
+					a.href = URL.createObjectURL(blob);
+					a.target = '_blank';
+					a.download = fileName;
+					a.click();
+				}
+			}
+		</script>
 	</body>
 </html>
