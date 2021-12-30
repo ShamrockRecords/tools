@@ -7,6 +7,7 @@ var logger = require('morgan');
 var indexRouter = require('./routes/index');
 var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
 var genReadingIndexRouter = require('./routes/genReading/index');
+var captionEditorIndexRouter = require('./routes/captionEditor/index');
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
@@ -44,6 +45,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/srt2csv', srtToCsvIndexRouter);
 app.use('/yomifuri', genReadingIndexRouter);
+app.use('/caption_editor', captionEditorIndexRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

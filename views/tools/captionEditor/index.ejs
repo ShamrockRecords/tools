@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<%- include('../../parts/head', {title: '字幕データ編集 - UDトークツールズ'}) %>
+		<meta property="og:site_name" content="字幕データ編集 - UDトークツールズ"/>
+		<meta property="og:url" content="<%= rootURL %>"/>
+		<meta property="og:title" content="字幕データ編集 - UDトークツールズ"/>
+		<meta property="og:type" content="Website" />
+		<meta property="og:description" content=""/>
+
+		<style>
+			h1 {
+			position: relative;
+			line-height: 1.4;
+			padding:0.25em 1em;
+			display: inline-block;
+			top:0;
+			}
+
+			h1:before, h1:after { 
+			position: absolute;
+			top: 0;
+			content:'';
+			width: 8px;
+			height: 100%;
+			display: inline-block;
+			}
+
+			h1:before {
+			border-left: solid 1px black;
+			border-top: solid 1px black;
+			border-bottom: solid 1px black;
+			left: 0;
+			}
+
+			h1:after {
+			content: '';
+			border-top: solid 1px black;
+			border-right: solid 1px black;
+			border-bottom: solid 1px black;
+			right: 0;
+			}
+
+			h2 {
+			padding: 0.4em 0.5em;/*文字の上下 左右の余白*/
+			color: #494949;/*文字色*/
+			background: #f4f4f4;/*背景色*/
+			border-left: solid 5px #7db4e6;/*左線*/
+			border-bottom: solid 3px #d7d7d7;/*下線*/
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container p-2">
+			<div class="mb-3">
+				<a href="/">トップに戻る</a>
+			</div>
+
+			<h1>字幕データ編集 - UDトークツールズ</h1>
+	</body>
+</html>
