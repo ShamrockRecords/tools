@@ -192,13 +192,13 @@
 											<div class="row">
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord1" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+1</span></label>
+														<label for="shortcutWord1" class="me-3 col-form-label"><span class="small ms-3">F1</span></label>
 														<input id="shortcutWord1" name="shortcutWord1" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord2" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+2</span></label>
+														<label for="shortcutWord2" class="me-3 col-form-label"><span class="small ms-3">F2</span></label>
 														<input id="shortcutWord2" name="shortcutWord2" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
@@ -206,26 +206,26 @@
 											<div class="row">
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord3" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+3</span></label>
+														<label for="shortcutWord3" class="me-3 col-form-label"><span class="small ms-3">F3</span></label>
 														<input id="shortcutWord3" name="shortcutWord3" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord4" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+4</span></label>
+														<label for="shortcutWord4" class="me-3 col-form-label"><span class="small ms-3">F4</span></label>
 														<input id="shortcutWord4" name="shortcutWord4" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
 											</div><div class="row">
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord5" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+5</span></label>
+														<label for="shortcutWord5" class="me-3 col-form-label"><span class="small ms-3">F5</span></label>
 														<input id="shortcutWord5" name="shortcutWord5" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
 												<div class="col p-1">
 													<div class="input-group">
-														<label for="shortcutWord6" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+6</span></label>
+														<label for="shortcutWord6" class="me-3 col-form-label"><span class="small ms-3">F6</span></label>
 														<input id="shortcutWord6" name="shortcutWord6" type="text" class="form-control" value="" placeholder="" aria-label="">
 													</div>
 												</div>
@@ -316,6 +316,17 @@
 
 					return "" ;
 				});
+
+				$(window).keydown(function(e){
+					if (e.originalEvent.code == "F1" ||
+					e.originalEvent.code == "F2" ||
+					e.originalEvent.code == "F3" ||
+					e.originalEvent.code == "F4" ||
+					e.originalEvent.code == "F5" ||
+					e.originalEvent.code == "F6") {
+						return false ;
+					}
+				}) ;
 
 				$("#videoLoadButton").on("click", (e) => {
 					let videoURL = $("#videoURL").val() ;
@@ -520,8 +531,6 @@
 			function updateSubtitleData() {
 				let offsetTime = Number($("#offsetTimeLength").val()) ;
 
-				console.log(offsetTime) ;
-
 				$("#subtitles").empty() ;
 
 				for (let key in lines) {
@@ -686,7 +695,6 @@
 			function onPlayerReady(event) {				
 				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
 				$("#videoId").val(ytPlayer.getVideoData().video_id) ;
-				console.log(ytPlayer.getVideoData()) ;
 
 				if ($("#appDataFileName").val() == "") {
 					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".captionEditor") ;
