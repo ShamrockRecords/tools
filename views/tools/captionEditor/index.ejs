@@ -303,6 +303,7 @@
 		<script>
 			let ytPlayer = null ;
 			let lines = [] ;
+			let details = [] ;
 
 			$(function () {
 				var tag = document.createElement('script');
@@ -351,7 +352,8 @@
 						let content = reader.result ;
 						
 						lines = convertToArray(content) ;
-
+						details = [] ;
+						
 						let isFirstLine = true ;
 
 						let relativeStartTime = 0 ;
@@ -369,10 +371,10 @@
 					
 							line[0] -= relativeStartTime ;
 							line[1] -= relativeStartTime ;
+
+							details.push({}) ;
 						}
 						
-						
-
 						updateSubtitleData() ;
 					}) ;
 
@@ -469,6 +471,7 @@
 
 					appData["videoURL"] = $("#videoURL").val() ;
 					appData["lines"] = lines ;
+					appData["details"] = details ;
 					appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
 
 					let shortcutWords = {} ;
@@ -504,6 +507,16 @@
 
 						let videoURL = appData["videoURL"] ;
 						lines = appData["lines"] ;
+						details= appData["details"] ;
+
+						if (details == undefined) {
+							details = [] ;
+
+							for (let key in lines) {
+								details.push({}) ;
+							}
+						}
+
 						let offsetTimeLength = appData["offsetTimeLength"] ;
 						let shortcutWords = appData["shortcutWords"] ;
 
