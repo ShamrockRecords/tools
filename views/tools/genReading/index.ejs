@@ -8,6 +8,8 @@
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
+		<script type="text/javascript" src="/javascripts/functions.js"></script>
+
 		<style>
 			h1 {
 			position: relative;
@@ -125,6 +127,12 @@
 								<label class="form-check-label" for="separatorType">タブ区切り</label>
 							</div>		
 						</div>
+						<div class="col-auto">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="separatorType" id="separatorType" value="2">
+								<label class="form-check-label" for="separatorType">縦棒区切り</label>
+							</div>		
+						</div>
 					</div>
 				</div>
 
@@ -206,7 +214,13 @@
 			}) ;
 
 			$("#saveAsFileButton").on('click', () => {
-				saveAsFile($("#output").text(), $("#fileTitle").val()) ;
+				let fileName = $("#fileTitle").val() ;
+
+				if (fileName == "" || fileName == undefined) {
+					fileName = "読み振りデータ.csv" ;
+				}
+
+				saveAsFile($("#output").text(), fileName) ;
 			}) ;
 			
 			function eventListener(e) {
@@ -253,7 +267,23 @@
 				$("#spinner").empty() ;
 				$("#spinner").append(spinner) ;
 
-				lines = convert(content) ;
+				rawLines = convertToArray(content) ;
+
+				lines = [] ;
+
+				for (let key in rawLines) {
+					let rawLine = rawLines[key] ;
+
+					let element = {} ;
+
+					element['w'] = rawLine[0] ;
+
+					if (rawLine.length >= 2) {
+						element['s'] = rawLine[1] ;
+					}
+
+					lines.push(element) ;
+				}
 
 				const headers = {
 					'Accept': 'application/json',
@@ -304,6 +334,14 @@
 						}
 					}
 				} else {
+					let sp = "" ;
+
+					if (separatorType == 1) {
+						sp = "\t" ;
+					} else {
+						sp = "|" ;
+					}
+
 					for (let key in lines) {
 						let spoken = lines[key]["as"] ;
 
@@ -312,7 +350,7 @@
 						}
 
 						if (resultType == 0) {
-							result += lines[key]["w"] + "\t" + spoken + "\r\n" ;
+							result += lines[key]["w"] + sp + spoken + "\r\n" ;
 						} else {
 							result += spoken + "\r\n" ;
 						}
@@ -320,119 +358,6 @@
 				}
 
 				$("#output").text(result) ;
-			}
-
-			// CSV -> Array
-			function convert(fileContent) {
-				fileContent = fileContent.replaceAll("\r\n", "\n") ;
-				var rawLines = parseToLines(fileContent) ;
-
-				var ignoreCamma = false ;
-				var element = "" ;
-				var elements = {} ;
-
-				var lines = [] ;
-				let col = 0 ;
-
-				for (var i=0; i<rawLines.length; i++) {
-					col = 0 ;
-
-					var rawLine = rawLines[i] ;
-			
-					if (rawLine == "") {
-						continue ;
-					}
-					
-					if (rawLine.startsWith("#")) {
-						continue ;
-					}
-
-					for (var x=0; x<rawLine.length; x++) {
-						var c = rawLine[x] ;
-
-						if (c == '"') {
-							ignoreCamma = !ignoreCamma ;
-						} else if (c == ',' && !ignoreCamma) {
-							if (col == 0) {
-								elements["w"] = element ;
-							} else if (col == 1) {
-								elements["s"] = element ;
-							}
-
-							col++ ;
-							element = "" ;
-						} else {
-							element += c ;
-						}
-					}
-
-					if (!ignoreCamma) {
-						if (col == 0) {
-							elements["w"] = element ;
-						} else if (col == 1) {
-							elements["s"] = element ;
-						}
-
-						col++ ;
-
-						lines.push(elements) ;
-
-						element = "" ;
-						elements = {} ;
-					} else {
-						element += '\n' ;
-					}
-				}
-
-				return lines ;
-			}
-
-			function parseToLines(contents) {
-				var lines = new Array() ;
-				var ignoreCamma = false ;
-				var line = "" ;
-
-				for (var x=0; x<contents.length; x++) {
-					var c = contents[x] ;
-
-					if (c == '"') {
-						ignoreCamma = !ignoreCamma ;
-						line += c ;
-					} else if (c == '\n' && !ignoreCamma) {
-						lines.push(line) ;
-						line = "" ;
-					} else {
-						line += c ;
-					}
-				}
-
-				if (line != "") {
-					lines.push(line) ;
-				}
-
-				return lines ;
-			}
-
-			function saveAsFile(contents, fileName) { 
-				if (contents == "") {
-					return ;
-				}
-				
-				if (fileName == "" || fileName == undefined) {
-					fileName = "読み振りデータ.csv" ;
-				}
-
-				var blob = new Blob([contents], {type: "text/plain"}); 
-
-				if(window.navigator.msSaveBlob) {
-					window.navigator.msSaveBlob(blob, fileName);
-				} else {
-					var a = document.createElement("a");
-					a.href = URL.createObjectURL(blob);
-					a.target = '_blank';
-					a.download = fileName;
-					a.click();
-				}
 			}
 		</script>
 	</body>

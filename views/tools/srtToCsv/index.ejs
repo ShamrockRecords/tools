@@ -8,6 +8,8 @@
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
+		<script type="text/javascript" src="/javascripts/functions.js"></script>
+
 		<style>
 			h1 {
 			position: relative;
@@ -135,7 +137,13 @@
 			}) ;
 
 			$("#saveAsFileButton").on('click', () => {
-				saveAsFile($("#output").text(), $("#fileTitle").val()) ;
+				let fileName = $("#fileTitle").val() ;
+
+				if (fileName == "" || fileName == undefined) {
+					fileName = "字幕データ.csv" ;
+				}
+
+				saveAsFile($("#output").text(), fileName) ;
 			}) ;
 			
 			function eventListener(e) {
@@ -218,55 +226,6 @@
 				) ;
 
 				return data ;
-			}
-
-			function timeToSec(time) {
-				var elements = time.split(':') ;
-				var millisec = 0 ;
-
-				millisec += Number(elements[0] * 60 * 60) ;
-				millisec += Number(elements[1] * 60) ;
-				millisec += Number(elements[2]) ;
-
-				return millisec ;
-			}
-
-			function secToTime(millisec, separator) {
-				if (millisec < 0) {
-					return "" ;
-				}
-
-				millisec *= 1000 ;
-
-				var ms = millisec % 1000 ;
-				var totalSeconds = Math.floor(millisec / 1000) ;
-				var s = totalSeconds % 60 ;
-				var m = Math.floor(totalSeconds / 60) % 60 ;
-				var h = Math.floor(totalSeconds / (60 * 60)) ;
-
-				return  ('00' + h).slice(-2) + ":" + ('00' + m).slice(-2) + ":" + ('00' + s).slice(-2) + separator + ('000' + ms).slice(-3) ;
-			}
-
-			function saveAsFile(contents, fileName) { 
-				if (contents == "") {
-					return ;
-				}
-				
-				if (fileName == "" || fileName == undefined) {
-					fileName = "字幕データ.csv" ;
-				}
-
-				var blob = new Blob([contents], {type: "text/plain"}); 
-
-				if(window.navigator.msSaveBlob) {
-					window.navigator.msSaveBlob(blob, fileName);
-				} else {
-					var a = document.createElement("a");
-					a.href = URL.createObjectURL(blob);
-					a.target = '_blank';
-					a.download = fileName;
-					a.click();
-				}
 			}
 		</script>
 	</body>

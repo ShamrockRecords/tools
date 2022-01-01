@@ -8,54 +8,792 @@
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
+		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
+		<script type="text/javascript" src="/javascripts/functions.js"></script>
+
 		<style>
-			h1 {
-			position: relative;
-			line-height: 1.4;
-			padding:0.25em 1em;
-			display: inline-block;
-			top:0;
+
+			html,
+			body
+			{
+				height: 100%;
+				background-color:ghostwhite;
 			}
 
-			h1:before, h1:after { 
-			position: absolute;
-			top: 0;
-			content:'';
-			width: 8px;
-			height: 100%;
-			display: inline-block;
+			.box {
+				height: 500px;
+				overflow:hidden;	
+				overflow-y:scroll;
+				padding:10px;
+				border-color: darkgrey;
+				border-radius: 5px;
 			}
 
-			h1:before {
-			border-left: solid 1px black;
-			border-top: solid 1px black;
-			border-bottom: solid 1px black;
-			left: 0;
+			textarea {
+				border-color: darkgrey;
+				border-radius: 5px;
 			}
 
-			h1:after {
-			content: '';
-			border-top: solid 1px black;
-			border-right: solid 1px black;
-			border-bottom: solid 1px black;
-			right: 0;
+			.time {
+				font-family:monospace;
 			}
 
-			h2 {
-			padding: 0.4em 0.5em;/*文字の上下 左右の余白*/
-			color: #494949;/*文字色*/
-			background: #f4f4f4;/*背景色*/
-			border-left: solid 5px #7db4e6;/*左線*/
-			border-bottom: solid 3px #d7d7d7;/*下線*/
+			.cmn-btn {
+				width: 120px;
 			}
+
 		</style>
 	</head>
 	<body>
-		<div class="container p-2">
+		<div class="container">
 			<div class="mb-3">
 				<a href="/">トップに戻る</a>
 			</div>
 
-			<h1>字幕データ編集 - UDトークツールズ</h1>
+			<div class="row">
+				<div class="col-md">
+					<div class="row">
+						<div class="col-md mb-3">
+							<h4>字幕データ編集 - UDトークツールズ</h4>
+						</div>
+					</div>
+
+					<div class="accordion" id="accordionPanelsStayOpenExample">
+						<div class="accordion-item">
+							<h2 class="accordion-header" id="panelsStayOpen-headingOne">
+								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne">
+									操作メニュー（クリックして表示／非表示）
+								</button>
+						  	</h2>
+							<div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show" aria-labelledby="panelsStayOpen-headingOne">
+								<div class="accordion-body">
+									<div class="row p-3">
+										<div class="col-md">
+											<div class="mb-3">
+												<div class="row">	
+													<div class="col">			
+														<label for="csvFile" class="form-label">①YouTubeのURLを入力して読み込みボタンを押してください</label>	
+														<div class="input-group mb-3">
+															<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="" aria-label="">
+															<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
+														</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="csvFile" class="form-label">②UDトークの会話ログ（.csv）を読み込んでください</label>
+													</div>
+												</div>
+												<div class="row">
+													<div class="col">
+														<div class="col-auto mb-1">
+															<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="読み込み" name="loadSubtitleButton" />
+															<input class="form-control" id="subtitleFile" type="file" accept=".csv" style="display:none;"/>
+														</div>
+													</div>
+												</div>
+												<div class="row">
+													<div class="col-auto mb-1">
+														<div class="small ms-3">字幕ファイル（.srt）は<a href="https://tools.udtalk.jp/srt2csv" target="_blank" rel=”noopener”>SRTをCSVに変換</a>でCSVに変換してから読み込ませてください。</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="appDataFileName" class="form-label">③作業中のデータの保存と読込</label>
+													</div>
+												</div>
+				
+												<div class="row">
+													<div class="col-auto mb-1">											
+														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="保存する" name="saveAppDataButton" />
+														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="読み込み" name="loadAppDataButton" />
+														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor" style="display:none;"/>	
+													</div>
+													<div class="col mb-1">
+														<div class="input-group">
+															<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="ファイル名" aria-label="">
+														</div>
+													</div>
+												</div>
+											</div>
+				
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="appDataFileName" class="form-label">④編集したデータエクスポート</label>
+													</div>
+												</div>
+					
+												<div class="row">
+													<div class="col-auto mb-1">		
+														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsCsvButton" type="button" value="CSVで保存" name="saveAsCsvButton" />
+														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsTextButton" type="button" value="テキストで保存" name="saveAsTextButton" />
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col-auto mb-1">
+														<div class="small ms-3">エクスポートしたCSVファイルから<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で字幕ファイル（.srt）を作成することができます。</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="appDataFileName" class="form-label">⑤読み込み後の調整</label>
+													</div>
+												</div>
+												<div class="row">	
+													<div class="col-auto">			
+														<div class="input-group">		
+															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3">動画の開始から最初の字幕までのオフセット（秒）</span></label>	
+															<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
+															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton">更新</button>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>	
+								</div>				
+							</div>
+						</div>
+
+						<div class="accordion-item">
+							<h2 class="accordion-header" id="panelsStayOpen-headingTwo">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseTwo" aria-expanded="false" aria-controls="panelsStayOpen-collapseTwo">
+								ショートカット一覧
+							  	</button>
+							</h2>
+							<div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingTwo">
+							  	<div class="accordion-body">
+									<div class="row">
+										<div class="col-md">
+											<div class="card">
+												<div class="card-body">
+													<strong class="card-title">編集時のショートカットキー</strong>
+													<div class="ms-3">
+														<div class="row"><div class="col">⌘またはCtrl + ↓</div><div class="col">再生/停止</div></div>
+														<div class="row"><div class="col">⌘またはCtrl + ←</div><div class="col">5秒戻す</div></div>
+														<div class="row"><div class="col">⌘またはCtrl + →</div><div class="col">5秒送る</div></div>
+														<div class="row"><div class="col">Enter</div><div class="col">次の字幕データへ移動</div></div>
+													</div>
+												</div>
+											</div>		
+										</div>
+										<div class="col-md">
+											<div class="row">
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord1" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+1</span></label>
+														<input id="shortcutWord1" name="shortcutWord1" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord2" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+2</span></label>
+														<input id="shortcutWord2" name="shortcutWord2" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+											</div>
+											<div class="row">
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord3" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+3</span></label>
+														<input id="shortcutWord3" name="shortcutWord3" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord4" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+4</span></label>
+														<input id="shortcutWord4" name="shortcutWord4" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+											</div><div class="row">
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord5" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+5</span></label>
+														<input id="shortcutWord5" name="shortcutWord5" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+												<div class="col p-1">
+													<div class="input-group">
+														<label for="shortcutWord6" class="me-3 col-form-label"><span class="small ms-3">⌘またはCtrt+6</span></label>
+														<input id="shortcutWord6" name="shortcutWord6" type="text" class="form-control" value="" placeholder="" aria-label="">
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+									
+							  	</div>
+							</div>
+						</div>
+					</div>	
+				</div>
+			</div>
+
+			<hr />
+
+			<div class="row mb-3">	
+				<div class="col-md mb-5">		
+					<div class="row mb-3">
+						<div class="col">
+							<div class="mb-3 fw-bold" id="videoTitle"></div>
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col text-center">
+							<div class="border mb-3" id="videoPreview"></div>
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col text-center">
+							<div class="mb-3 fs-4 time" id="videoTime">00:00:00.000</div>
+							<input type="hidden" id="videoId" name="videoId" value="">
+						</div>
+						<div class="col text-center">
+							<input class="btn btn-success btn-sm" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" value="" id="autoStopWhenEdtingStarted" name="autoStopWhenEdtingStarted" value="" checked>
+								<label class="form-check-label" for="autoStopWhenEdtingStarted">編集開始時に自動的に再生を停止する</label>
+							</div>
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" value="" id="autoPlayWhenEdtingFinished" name="autoPlayWhenEdtingFinished" value="" checked>
+								<label class="form-check-label" for="autoPlayWhenEdtingFinished">編集を完了（エンターキー押下）で自動的に再生を開始する</label>
+							</div>
+						</div>
+					</div>
+					<div class="row mb-3">
+						
+					</div>
+				</div>
+
+				<div class="col-md mb-5">
+					
+
+					<div class="row">
+						<div class="col">
+							<div class="box border">
+								<table class="table" id="subtitles">
+
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			let ytPlayer = null ;
+			let lines = [] ;
+
+			$(function () {
+				var tag = document.createElement('script');
+				tag.src = "https://www.youtube.com/iframe_api";
+				var firstScriptTag = document.getElementsByTagName('script')[0];
+				firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+				
+				$(window).on('beforeunload', function(e) {
+					e.preventDefault();
+    				e.returnValue = 'Check';
+
+					return "" ;
+				});
+
+				$("#videoLoadButton").on("click", (e) => {
+					let videoURL = $("#videoURL").val() ;
+
+					loadVideo(videoURL) ;
+				}) ;
+
+				$("#loadSubtitleButton").on("click", (e) => {
+					$("#subtitleFile").click() ;
+				}) ;
+
+				$("#subtitleFile").on('change', (e) => {
+					let fileList = $('#subtitleFile').get(0).files;
+					let result = fileList[0];
+
+					let reader = new FileReader() ;
+					let fileName = result.name.split('.')[0] + ".csv" ;
+
+					reader.readAsText(result) ;
+
+					reader.addEventListener('load', function() {
+						let content = reader.result ;
+						
+						lines = convertToArray(content) ;
+
+						let isFirstLine = true ;
+
+						let relativeStartTime = 0 ;
+
+						for (let key in lines) {
+							let line = lines[key] ;
+						
+							line[0] = ParseToDate(line[0]) / 1000 ;
+							line[1] = ParseToDate(line[1]) / 1000 ;
+
+							if (isFirstLine) {
+								relativeStartTime = line[0] ;
+								isFirstLine = false ;
+							}
+					
+							line[0] -= relativeStartTime ;
+							line[1] -= relativeStartTime ;
+						}
+						
+						
+
+						updateSubtitleData() ;
+					}) ;
+
+					$("#subtitleFile").val("") ;
+				})
+
+				$("#jumpToSubtitleButton").on("click", (e) => {
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let currentTime = ytPlayer.getCurrentTime();
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						let startTime = line[0] + offsetTime ;
+
+						if (startTime > currentTime) {
+							$("#text" + key)[0].scrollIntoView(true) ;
+							updatePlayingTime(currentTime) ;
+							break ;
+						}
+					}
+				}) ;
+				
+				$("#offsetTimeLengthUpdateButton").on("click", (e) => {
+					updateSubtitleData() ;
+				}) ;
+
+				// Export
+				$("#saveAsCsvButton").on("click", (e) => {
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let content = "" ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						if (line[0] + offsetTime < 0) {
+							continue ;
+						}
+
+						let startTime = secToTime(line[0] + offsetTime, ".") ;
+						let endTime = secToTime(line[1] + offsetTime, ".") ;
+						
+						content += startTime + "," + endTime ;
+						
+						for (let i=2; i<line.length; i++) {
+							content += ",\"" + line[i] + "\"" ;
+						}
+
+						content += "\r\n" ;
+					}
+
+					let fileName = $("#appDataFileName").val() ;
+
+					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName += ".csv" ;
+
+					saveAsFile(content , fileName) ;
+				}) ;
+
+				$("#saveAsTextButton").on("click", (e) => {
+					let content = "" ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						content += line[2] ;
+
+						if (content.endsWith("。")) {
+							content += "\r\n" ;
+						}
+					}
+
+					let fileName = $("#appDataFileName").val() ;
+
+					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName += ".txt" ;
+					
+					saveAsFile(content , fileName) ;
+				}) ;
+
+				// AppData save&load
+				$("#saveAppDataButton").on("click", (e) => {
+					let fileName = $("#appDataFileName").val() ;
+					
+					if (fileName == undefined || fileName == null || fileName == "") {
+						fileName = $("#videoTitle").text() + ".captionEditor" ;
+					}
+
+					let appData = {} ;
+
+					for (let i=0; i<lines.length; i++) {
+						let className = "#text" + Number(i) ;
+						lines[i][2] = $(className).val();
+					}
+
+					appData["videoURL"] = $("#videoURL").val() ;
+					appData["lines"] = lines ;
+					appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
+
+					let shortcutWords = {} ;
+
+					shortcutWords["shortcutWord1"] = $("#shortcutWord1").val() ;
+					shortcutWords["shortcutWord2"] = $("#shortcutWord2").val() ;
+					shortcutWords["shortcutWord3"] = $("#shortcutWord3").val() ;
+					shortcutWords["shortcutWord4"] = $("#shortcutWord4").val() ;
+					shortcutWords["shortcutWord5"] = $("#shortcutWord5").val() ;
+					shortcutWords["shortcutWord6"] = $("#shortcutWord6").val() ;
+
+					appData["shortcutWords"] = shortcutWords ;
+
+					saveAsFile(JSON.stringify(appData) , fileName) ;
+				}) ;
+
+				$("#loadAppDataButton").on("click", (e) => {
+					$("#appDataFile").click() ;
+				}) ;
+
+				$("#appDataFile").on('change', (e) => {
+					let fileList = $('#appDataFile').get(0).files;
+					let result = fileList[0];
+					let reader = new FileReader() ;
+
+					$("#appDataFileName").val(result.name) ;
+
+					reader.readAsText(result) ;
+
+					reader.addEventListener('load', function() {
+						let content = reader.result ;
+						let appData = JSON.parse(content) ;
+
+						let videoURL = appData["videoURL"] ;
+						lines = appData["lines"] ;
+						let offsetTimeLength = appData["offsetTimeLength"] ;
+						let shortcutWords = appData["shortcutWords"] ;
+
+						$("#offsetTimeLength").val(offsetTimeLength) ;
+						$("#videoURL").val(videoURL) ;
+
+						if (shortcutWords != undefined) {
+							$("#shortcutWord1").val(shortcutWords["shortcutWord1"]) ;
+							$("#shortcutWord2").val(shortcutWords["shortcutWord2"]) ;
+							$("#shortcutWord3").val(shortcutWords["shortcutWord3"]) ;
+							$("#shortcutWord4").val(shortcutWords["shortcutWord4"]) ;
+							$("#shortcutWord5").val(shortcutWords["shortcutWord5"]) ;
+							$("#shortcutWord6").val(shortcutWords["shortcutWord6"]) ;
+						}
+
+						loadVideo(videoURL) ;
+						updateSubtitleData() ;
+					}) ;
+				}) ;
+
+				setupShortcuts() ;
+			}) ;
+
+			// Update Subtitls
+			function updateSubtitleData() {
+				let offsetTime = Number($("#offsetTimeLength").val()) ;
+
+				console.log(offsetTime) ;
+
+				$("#subtitles").empty() ;
+
+				for (let key in lines) {
+					let line = lines[key] ;
+
+					let startTime = line[0] ;
+
+					if (startTime + offsetTime < 0) {
+						continue ;
+					}
+
+					$("#subtitles").append(subtitleBlock(key, line, offsetTime)) ;
+
+					let className = "#text" + Number(key) ;
+					let nextClassName = "#text" + (Number(key) + 1) ;
+
+					$(className).height(30);
+					$(className).css("lineHeight","20px");
+					$(className).on("keydown", function(e) {
+						if (e.keyCode == 13) {
+							let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
+
+							if (!playingTimer && autoPlayWhenEdtingFinished) {
+								ytPlayer.playVideo();
+							} else {
+								$(nextClassName).focus() ;
+							}
+
+							return false ;
+						} else {
+							let shortcutClassName = "" ;
+
+							if (e.originalEvent.code == "F1") {
+								shortcutClassName = "#shortcutWord1" ;
+							} else if (e.originalEvent.code == "F2") {
+								shortcutClassName = "#shortcutWord2" ;
+							} else if (e.originalEvent.code == "F3") {
+								shortcutClassName = "#shortcutWord3" ;
+							} else if (e.originalEvent.code == "F4") {
+								shortcutClassName = "#shortcutWord4" ;
+							} else if (e.originalEvent.code == "F5") {
+								shortcutClassName = "#shortcutWord5" ;
+							} else if (e.originalEvent.code == "F6") {
+								shortcutClassName = "#shortcutWord6" ;
+							}
+							
+							if (shortcutClassName != "") {
+								
+								let text = $(className).val() ;
+								let selectionStart = $(className)[0].selectionStart ;
+								let selectionEnd = $(className)[0].selectionEnd ;
+
+								let shortcutWord = $(shortcutClassName).val() ;
+
+								text = text.substr(0, selectionStart) + shortcutWord + text.substr(selectionEnd);
+
+								$(className).val(text) ;
+
+								$(className)[0].selectionStart = selectionStart + shortcutWord.length ;
+								$(className)[0].selectionEnd = selectionStart + shortcutWord.length ;
+							}
+						}
+
+						return true ;
+					}) ;
+
+					$(className).on("input", function(e) {
+						let autoStopWhenEdtingStarted = $("#autoStopWhenEdtingStarted").prop("checked") ;
+
+						if (autoStopWhenEdtingStarted) {
+							ytPlayer.pauseVideo();
+						}
+					}) ;
+
+					$(className).on("autoheight", function(e) {
+						var target = e.target;
+						
+						if (target.scrollHeight > target.offsetHeight) {
+							$(target).height(target.scrollHeight);
+						} else {
+							var lineHeight = Number($(target).css("lineHeight").split("px")[0]);
+							
+							while (true) {
+								$(target).height($(target).height() - lineHeight);
+
+								if (target.scrollHeight > target.offsetHeight) {
+									$(target).height(target.scrollHeight);
+									break;
+								}
+							}
+						}
+					});
+
+					$(className).trigger('autoheight');
+
+					let buttonClassName = "#playStartButton" + Number(key) ;
+
+					$(buttonClassName).on("click", (e) => {
+						let offsetTime = Number($("#offsetTimeLength").val()) ;
+						ytPlayer.seekTo(line[0] + offsetTime) ;
+						ytPlayer.playVideo() ;
+					}) ;
+				}
+			}
+
+			function subtitleBlock(index, subtitleData, offsetTime) {
+				let startTime = subtitleData[0] + offsetTime ;
+				let endTime = subtitleData[1] + offsetTime ;
+				
+				startTime = secToTime(startTime, ".") ;
+				endTime = secToTime(endTime, ".") ;
+
+				return `<tr>
+							<td>
+								<div class="row p-0">
+									<div class="col-auto d-flex align-items-center"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="再生" name="playStartButton${index}" /></div>
+									<div class="col-auto d-flex align-items-center time">${startTime} - ${endTime}</div>
+								</div>
+								<div class="row">
+									<textarea id="text${index}">${subtitleData[2]}</textarea>
+								</div>
+							</td>
+						</tr>` ;
+			}
+
+			// YouTube API
+			function loadVideo(videoURL) {
+				if (videoURL == "") {
+					alert("YouTube動画のURLを入力してください。") ;
+					return ;
+				}
+				
+				let videoId = getVideoIdFromYouTubeURL(videoURL) ;
+
+				if (videoId == "") {
+					alert("YouTube動画のURLではありません。") ;
+					return ;
+				}
+
+				if (ytPlayer != null) {
+					ytPlayer.destroy() ;
+				}
+
+				ytPlayer = new YT.Player(
+					"videoPreview",
+						{
+						width: 16*30,
+						height: 9*30,
+						videoId: videoId,
+						
+						events: {
+							'onReady': onPlayerReady,
+							'onStateChange': onPlayerStateChange,
+							'onError': onPlayerError
+						}
+					}
+				);
+			}
+
+			let playingTimer = null ;
+
+			function onPlayerReady(event) {				
+				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
+				$("#videoId").val(ytPlayer.getVideoData().video_id) ;
+				console.log(ytPlayer.getVideoData()) ;
+
+				if ($("#appDataFileName").val() == "") {
+					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".captionEditor") ;
+				}
+
+				updatePlayingTime(ytPlayer.getCurrentTime()) ;
+			}
+
+			function onPlayerStateChange(event) {
+				switch (event.data) {
+					case YT.PlayerState.ENDED:
+						clearTimeout(playingTimer);
+						playingTimer = null ;
+						console.log("YT.PlayerState.ENDED") ;
+						break ;
+					case YT.PlayerState.PLAYING:
+						clearTimeout(playingTimer);
+						playingTimer = setInterval(onPlaying, 200);
+						console.log("YT.PlayerState.PLAYING") ;
+						break ;
+					case YT.PlayerState.PAUSED:
+						playerPlaying = false ;
+						clearTimeout(playingTimer);
+						playingTimer = null ;
+						console.log("YT.PlayerState.PAUSED") ;
+						break ;
+					case YT.PlayerState.BUFFERING:
+						console.log("YT.PlayerState.BUFFERING") ;
+						break ;
+					case YT.PlayerState.CUED:
+						console.log("YT.PlayerState.CUED") ;
+						break ;
+				}
+			}
+
+			function onPlaying() {
+				updatePlayingTime(ytPlayer.getCurrentTime()) ;
+			}
+
+			function updatePlayingTime(currentTime) {
+				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
+			}
+
+			function onPlayerError(event) {
+
+			}
+
+			function getVideoIdFromYouTubeURL(url) {
+				var parser = new URL(url) ;
+
+				if (parser.hostname == "youtu.be") {
+					return parser.pathname ;
+				} else {
+					if (parser.searchParams.has("v")) {
+						return parser.searchParams.get("v") ;
+					}
+				}
+
+				return "" ;
+			}
+
+			// Shortcut
+			function setupShortcuts() {
+				function playingToggle() {
+					if (!playingTimer) {
+						ytPlayer.playVideo();
+					} else {
+						ytPlayer.pauseVideo();
+					}
+				}
+
+				function playingFastForword() {
+					let currentTime = ytPlayer.getCurrentTime();
+         			ytPlayer.seekTo(currentTime + 5);
+					updatePlayingTime(currentTime + 5) ;
+				}
+
+				function playingRewind() {
+					let currentTime = ytPlayer.getCurrentTime();
+					ytPlayer.seekTo(currentTime - 5);
+					updatePlayingTime(currentTime - 5) ;
+				}
+				
+				shortcut.add("Meta+Down",function() {
+					playingToggle() ;
+				});
+
+				shortcut.add("Ctrl+Down",function() {
+					playingToggle() ;
+				});
+
+				shortcut.add("Meta+Left",function() {
+					playingRewind() ;
+				});
+
+				shortcut.add("Ctrl+Left",function() {
+					playingRewind() ;
+				});
+
+				shortcut.add("Meta+Right",function() {
+					playingFastForword() ;
+				});	
+				
+				shortcut.add("Ctrl+Right",function() {
+					playingFastForword() ;
+				});	
+			}
+		</script>
 	</body>
 </html>
