@@ -353,7 +353,7 @@
 						
 						lines = convertToArray(content) ;
 						details = [] ;
-						
+
 						let isFirstLine = true ;
 
 						let relativeStartTime = 0 ;
@@ -465,8 +465,11 @@
 					let appData = {} ;
 
 					for (let i=0; i<lines.length; i++) {
-						let className = "#text" + Number(i) ;
-						lines[i][2] = $(className).val();
+						let textClassName = "#text" + Number(i) ;
+						let alreadyEditedCheckBoxClassName = "#alreadyEditedCheckBox" + Number(i) ;
+
+						lines[i][2] = $(textClassName).val();
+						details[i]["edited"] = $(alreadyEditedCheckBoxClassName).prop("checked") ;
 					}
 
 					appData["videoURL"] = $("#videoURL").val() ;
@@ -546,8 +549,9 @@
 
 				$("#subtitles").empty() ;
 
-				for (let key in lines) {
-					let line = lines[key] ;
+				for (let i=0; i<lines.length; i++) {
+					let line = lines[i] ;
+					let detail = details[i] ;
 
 					let startTime = line[0] ;
 
@@ -555,21 +559,23 @@
 						continue ;
 					}
 
-					$("#subtitles").append(subtitleBlock(key, line, offsetTime)) ;
+					$("#subtitles").append(subtitleBlock(i, line, detail, offsetTime)) ;
 
-					let className = "#text" + Number(key) ;
-					let nextClassName = "#text" + (Number(key) + 1) ;
+					let textClassName = "#text" + Number(i) ;
+					let nextTextClassName = "#text" + (Number(i) + 1) ;
+					let alreadyEditedCheckBoxClassName = "#alreadyEditedCheckBox" + Number(i) ;
 
-					$(className).height(30);
-					$(className).css("lineHeight","20px");
-					$(className).on("keydown", function(e) {
+					$(textClassName).height(30);
+					$(textClassName).css("lineHeight","20px");
+					$(textClassName).on("keydown", function(e) {
 						if (e.keyCode == 13) {
 							let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
 
 							if (!playingTimer && autoPlayWhenEdtingFinished) {
 								ytPlayer.playVideo();
 							} else {
-								$(nextClassName).focus() ;
+								$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
+								$(nextTextClassName).focus() ;
 							}
 
 							return false ;
@@ -592,25 +598,25 @@
 							
 							if (shortcutClassName != "") {
 								
-								let text = $(className).val() ;
-								let selectionStart = $(className)[0].selectionStart ;
-								let selectionEnd = $(className)[0].selectionEnd ;
+								let text = $(textClassName).val() ;
+								let selectionStart = $(textClassName)[0].selectionStart ;
+								let selectionEnd = $(textClassName)[0].selectionEnd ;
 
 								let shortcutWord = $(shortcutClassName).val() ;
 
 								text = text.substr(0, selectionStart) + shortcutWord + text.substr(selectionEnd);
 
-								$(className).val(text) ;
+								$(textClassName).val(text) ;
 
-								$(className)[0].selectionStart = selectionStart + shortcutWord.length ;
-								$(className)[0].selectionEnd = selectionStart + shortcutWord.length ;
+								$(textClassName)[0].selectionStart = selectionStart + shortcutWord.length ;
+								$(textClassName)[0].selectionEnd = selectionStart + shortcutWord.length ;
 							}
 						}
 
 						return true ;
 					}) ;
 
-					$(className).on("input", function(e) {
+					$(textClassName).on("input", function(e) {
 						let autoStopWhenEdtingStarted = $("#autoStopWhenEdtingStarted").prop("checked") ;
 
 						if (autoStopWhenEdtingStarted) {
@@ -618,7 +624,7 @@
 						}
 					}) ;
 
-					$(className).on("autoheight", function(e) {
+					$(textClassName).on("autoheight", function(e) {
 						var target = e.target;
 						
 						if (target.scrollHeight > target.offsetHeight) {
@@ -637,9 +643,9 @@
 						}
 					});
 
-					$(className).trigger('autoheight');
+					$(textClassName).trigger('autoheight');
 
-					let buttonClassName = "#playStartButton" + Number(key) ;
+					let buttonClassName = "#playStartButton" + Number(i) ;
 
 					$(buttonClassName).on("click", (e) => {
 						let offsetTime = Number($("#offsetTimeLength").val()) ;
@@ -649,18 +655,26 @@
 				}
 			}
 
-			function subtitleBlock(index, subtitleData, offsetTime) {
+			function subtitleBlock(index, subtitleData, detailData, offsetTime) {
 				let startTime = subtitleData[0] + offsetTime ;
 				let endTime = subtitleData[1] + offsetTime ;
-				
+				let checked = detailData["edited"] ? "checked" : "" ;
+
 				startTime = secToTime(startTime, ".") ;
 				endTime = secToTime(endTime, ".") ;
 
 				return `<tr>
 							<td>
 								<div class="row p-0">
+									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
 									<div class="col-auto d-flex align-items-center"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="再生" name="playStartButton${index}" /></div>
 									<div class="col-auto d-flex align-items-center time">${startTime} - ${endTime}</div>
+									<div class="col">
+										<div class="form-check">
+											<label class="form-check-label small" for="alreadyEditedCheckBox">編集済み</label>
+											<input class="form-check-input" type="checkbox" value="" id="alreadyEditedCheckBox${index}" name="alreadyEditedCheckBox${index}" value="" ${checked}>
+										</div>
+									</div>
 								</div>
 								<div class="row">
 									<textarea id="text${index}">${subtitleData[2]}</textarea>
