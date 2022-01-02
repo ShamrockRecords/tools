@@ -745,17 +745,16 @@
 
 					$(textClassName).on("autoheight", function(e) {
 						var target = e.target;
-						
+						var lineHeight = Number($(target).css("lineHeight").split("px")[0]);
+
 						if (target.scrollHeight > target.offsetHeight) {
-							$(target).height(target.scrollHeight);
+							$(target).height(target.scrollHeight + lineHeight);
 						} else {
-							var lineHeight = Number($(target).css("lineHeight").split("px")[0]);
-							
 							while (true) {
 								$(target).height($(target).height() - lineHeight);
 
 								if (target.scrollHeight > target.offsetHeight) {
-									$(target).height(target.scrollHeight);
+									$(target).height(target.scrollHeight + lineHeight);
 									break;
 								}
 							}
