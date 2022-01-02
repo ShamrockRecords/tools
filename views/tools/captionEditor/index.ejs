@@ -90,7 +90,7 @@
 												<div class="row">
 													<div class="col">
 														<div class="col-auto mb-1">
-															<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="読み込み" name="loadSubtitleButton" />
+															<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="ファイルを選択" name="loadSubtitleButton" />
 															<input class="form-control" id="subtitleFile" type="file" accept=".csv" style="display:none;"/>
 														</div>
 													</div>
@@ -105,20 +105,43 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">③作業中のデータの保存と読込</label>
+														<label for="appDataFileName" class="form-label">③作業中のデータの保存</label>
 													</div>
 												</div>
 				
 												<div class="row">
 													<div class="col-auto mb-1">											
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="保存する" name="saveAppDataButton" />
-														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="読み込み" name="loadAppDataButton" />
-														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor" style="display:none;"/>	
+														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="データを保存" name="saveAppDataButton" />
 													</div>
 													<div class="col mb-1">
-														<div class="input-group">
-															<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="ファイル名" aria-label="">
-														</div>
+														<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="ファイル名" aria-label="">
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3">保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="appDataFileName" class="form-label">④作業中のデータの読込</label>
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col-auto mb-1">
+														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="ファイルを選択" name="loadAppDataButton" />
+														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor" style="display:none;"/>	
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3">保存した作業中のデータを読み込んで続きを行うことができます。</div>
 													</div>
 												</div>
 											</div>
@@ -126,7 +149,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">④編集したデータエクスポート</label>
+														<label for="appDataFileName" class="form-label">⑤編集したデータエクスポート</label>
 													</div>
 												</div>
 					
@@ -147,7 +170,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">⑤読み込み後の調整</label>
+														<label for="appDataFileName" class="form-label">⑥読み込み後の調整</label>
 													</div>
 												</div>
 												<div class="row">	
@@ -336,7 +359,13 @@
 				}) ;
 
 				$("#loadSubtitleButton").on("click", (e) => {
-					$("#subtitleFile").click() ;
+					if (lines.length != 0) {
+						if (window.confirm("現在読み込んでいる内容を上書きします。よろしいですか？")) {
+							$("#subtitleFile").click() ;
+						}
+					} else {
+						$("#subtitleFile").click() ;
+					}
 				}) ;
 
 				$("#subtitleFile").on('change', (e) => {
@@ -459,7 +488,8 @@
 					let fileName = $("#appDataFileName").val() ;
 					
 					if (fileName == undefined || fileName == null || fileName == "") {
-						fileName = $("#videoTitle").text() + ".captionEditor" ;
+						alert("ファイル名を入力してください。") ;
+						return ;
 					}
 
 					let appData = {} ;
@@ -476,7 +506,8 @@
 					appData["lines"] = lines ;
 					appData["details"] = details ;
 					appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
-
+					appData["appDataFileName"] = $("#appDataFileName").val() ;
+					
 					let shortcutWords = {} ;
 
 					shortcutWords["shortcutWord1"] = $("#shortcutWord1").val() ;
@@ -492,15 +523,19 @@
 				}) ;
 
 				$("#loadAppDataButton").on("click", (e) => {
-					$("#appDataFile").click() ;
+					if (lines.length != 0) {
+						if (window.confirm("現在作業中のデータがあります。よろしいですか？")) {
+							$("#appDataFile").click() ;
+						}
+					} else {
+						$("#appDataFile").click() ;
+					}
 				}) ;
 
 				$("#appDataFile").on('change', (e) => {
 					let fileList = $('#appDataFile').get(0).files;
 					let result = fileList[0];
 					let reader = new FileReader() ;
-
-					$("#appDataFileName").val(result.name) ;
 
 					reader.readAsText(result) ;
 
@@ -522,9 +557,11 @@
 
 						let offsetTimeLength = appData["offsetTimeLength"] ;
 						let shortcutWords = appData["shortcutWords"] ;
+						let appDataFileName = appData["appDataFileName"] ;
 
 						$("#offsetTimeLength").val(offsetTimeLength) ;
 						$("#videoURL").val(videoURL) ;
+						$("#appDataFileName").val(appDataFileName) ;
 
 						if (shortcutWords != undefined) {
 							$("#shortcutWord1").val(shortcutWords["shortcutWord1"]) ;
