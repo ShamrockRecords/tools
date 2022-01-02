@@ -71,12 +71,18 @@
 										<div class="col-md">
 											<div class="mb-3">
 												<div class="row">	
-													<div class="col">			
-														<label for="csvFile" class="form-label">①YouTubeのURLを入力して読み込みボタンを押してください</label>	
-														<div class="input-group mb-3">
-															<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="" aria-label="">
+													<div class="col mb-1">			
+														<label for="csvFile" class="form-label">①動画を読み込み</label>	
+														<div class="input-group">
+															<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="YouTubeのURLをペーストして読み込みボタンを押してください" aria-label="">
 															<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
 														</div>
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 													</div>
 												</div>
 											</div>
@@ -84,19 +90,19 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="csvFile" class="form-label">②UDトークの会話ログ（.csv）を読み込んでください</label>
-													</div>
-												</div>
-												<div class="row">
-													<div class="col">
-														<div class="col-auto mb-1">
-															<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="ファイルを選択" name="loadSubtitleButton" />
-															<input class="form-control" id="subtitleFile" type="file" accept=".csv" style="display:none;"/>
-														</div>
+														<label for="csvFile" class="form-label">②UDトークの会話ログ（.csv）を読み込み</label>
 													</div>
 												</div>
 												<div class="row">
 													<div class="col-auto mb-1">
+														<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="ファイルを選択" name="loadSubtitleButton" />
+														<input class="form-control" id="subtitleFile" type="file" accept=".csv" style="display:none;"/>
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた会話ログを確認できます。</div>
 														<div class="small ms-3">字幕ファイル（.srt）は<a href="https://tools.udtalk.jp/srt2csv" target="_blank" rel=”noopener”>SRTをCSVに変換</a>でCSVに変換してから読み込ませてください。</div>
 													</div>
 												</div>
@@ -105,7 +111,31 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">③作業中のデータの保存</label>
+														<label for="appDataFileName" class="form-label">③読み込み後の調整</label>
+													</div>
+												</div>
+												<div class="row">	
+													<div class="col-auto mb-1">			
+														<div class="input-group">		
+															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3">字幕の開始時間の調整（秒）</span></label>	
+															<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
+															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton">更新</button>
+														</div>
+													</div>
+												</div>
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3">字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。</div>
+														<div class="small ms-3">時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が00:00:16.128から始まっているときは16.128を入力して更新ボタンを押します。</div>
+														<div class="small ms-3">最初の字幕で調整が難しい時は途中の字幕で時間の調整をしてみてください。</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<label for="appDataFileName" class="form-label">④作業中のデータの保存</label>
 													</div>
 												</div>
 				
@@ -128,7 +158,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">④作業中のデータの読込</label>
+														<label for="appDataFileName" class="form-label">⑤作業中のデータの読み込み</label>
 													</div>
 												</div>
 
@@ -149,7 +179,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">⑤編集したデータエクスポート</label>
+														<label for="appDataFileName" class="form-label">⑥編集したデータエクスポート</label>
 													</div>
 												</div>
 					
@@ -167,22 +197,6 @@
 												</div>
 											</div>
 
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">⑥読み込み後の調整</label>
-													</div>
-												</div>
-												<div class="row">	
-													<div class="col-auto">			
-														<div class="input-group">		
-															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3">動画の開始から最初の字幕までのオフセット（秒）</span></label>	
-															<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
-															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton">更新</button>
-														</div>
-													</div>
-												</div>
-											</div>
 										</div>
 									</div>	
 								</div>				
