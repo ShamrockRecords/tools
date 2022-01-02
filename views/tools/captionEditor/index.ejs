@@ -690,6 +690,7 @@
 							let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
 
 							if (!isPlayingVideo() && autoPlayWhenEdtingFinished) {
+								playingRewind(2) ;
 								playVideo() ;
 							} else {
 								$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
@@ -981,27 +982,27 @@
 				}
 			}
 
-			function playingFastForword() {
+			function playingFastForword(sec) {
 				if (ytPlayer != null) {
 					let currentTime = ytPlayer.getCurrentTime();
-					ytPlayer.seekTo(currentTime + 5);
-					updatePlayingTime(currentTime + 5) ;
+					ytPlayer.seekTo(currentTime + sec);
+					updatePlayingTime(currentTime + sec) ;
 				} else if (localPlayer) {
 					let currentTime = localPlayer.currentTime ;
-					localPlayer.currentTime = currentTime + 5 ;
-					updatePlayingTime(currentTime + 5) ;
+					localPlayer.currentTime = currentTime + sec ;
+					updatePlayingTime(currentTime + sec) ;
 				}
 			}
 
-			function playingRewind() {
+			function playingRewind(sec) {
 				if (ytPlayer != null) {
 					let currentTime = ytPlayer.getCurrentTime();
-					ytPlayer.seekTo(currentTime - 5);
-					updatePlayingTime(currentTime - 5) ;
+					ytPlayer.seekTo(currentTime - sec);
+					updatePlayingTime(currentTime - sec) ;
 				} else if (localPlayer) {
 					let currentTime = localPlayer.currentTime ;
-					localPlayer.currentTime = currentTime - 5 ;
-					updatePlayingTime(currentTime - 5) ;
+					localPlayer.currentTime = currentTime - sec ;
+					updatePlayingTime(currentTime - sec) ;
 				}
 			}
 
@@ -1016,19 +1017,19 @@
 				});
 
 				shortcut.add("Meta+Left",function() {
-					playingRewind() ;
+					playingRewind(5) ;
 				});
 
 				shortcut.add("Ctrl+Left",function() {
-					playingRewind() ;
+					playingRewind(5) ;
 				});
 
 				shortcut.add("Meta+Right",function() {
-					playingFastForword() ;
+					playingFastForword(5) ;
 				});	
 				
 				shortcut.add("Ctrl+Right",function() {
-					playingFastForword() ;
+					playingFastForword(5) ;
 				});	
 			}
 		</script>
