@@ -504,6 +504,14 @@
 							continue ;
 						}
 
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
+
 						let startTime = secToTime(line[0] + offsetTime, ".") ;
 						let endTime = secToTime(line[1] + offsetTime, ".") ;
 						
@@ -529,6 +537,14 @@
 
 					for (let key in lines) {
 						let line = lines[key] ;
+						
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
 						
 						content += line[2] ;
 
