@@ -395,9 +395,7 @@
 
 					$("#mediaFile").val("") ;
 
-					let videoURL = $("#videoURL").val() ;
-
-					$("#onlineVideoPreview").css("display", "initial") ;	
+					let videoURL = $("#videoURL").val() ;	
 					
 					loadOnlineVideo(videoURL) ;
 				}) ;
@@ -412,8 +410,6 @@
 					$("#videoURL").val("") ;
 
 					var file = e.target.files[0]
-
-					$("#localVideoPreview").css("display", "initial") ;	
 
 					loadLocalVideo(file) ;
 				}) ;
@@ -788,6 +784,8 @@
 
 				localPlayer.src = URL.createObjectURL(file) ;	
 				
+				$("#localVideoPreview").css("display", "initial") ;	
+				
 				$("#localVideoPreview").on("timeupdate", function(e) {
 					updatePlayingTime(localPlayer.currentTime) ;
 				}) ;
@@ -821,6 +819,8 @@
 				if (ytPlayer != null) {
 					ytPlayer.destroy() ;
 				}
+
+				$("#onlineVideoPreview").css("display", "initial") ;
 
 				ytPlayer = new YT.Player(
 					"onlineVideoPreview",
