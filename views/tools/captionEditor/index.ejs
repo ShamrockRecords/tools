@@ -70,18 +70,34 @@
 									<div class="row p-3">
 										<div class="col-md">
 											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<div class="form-label">①メディアを読み込み</div>
+													</div>
+												</div>
+
 												<div class="row">	
-													<div class="col mb-1">			
-														<label for="csvFile" class="form-label">①動画を読み込み</label>	
-														<div class="input-group">
+													<div class="col mb-1">	
+														<div class="form-label">YouTube</div>		
+														<div class="input-group">	
 															<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="YouTubeのURLをペーストして読み込みボタンを押してください" aria-label="">
 															<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
 														</div>
 													</div>
 												</div>
 
+												<div class="row">	
+													<div class="col mb-1">		
+														<div class="form-label">動画または音声ファイル</div>			
+														<div class="input-group">
+															<input class="form-control" id="mediaFile" type="file" accept="audio/*,video/*,"/>
+														</div>
+													</div>
+												</div>
+
 												<div class="row">
 													<div class="col mb-1">
+														<div class="small ms-3">YouTubeまたはローカルに保存された動画または音声ファイルを読み込んでください。</div>
 														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 													</div>
 												</div>
@@ -90,7 +106,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="csvFile" class="form-label">②UDトークの会話ログ（.csv）を読み込み</label>
+														<div class="form-label">②UDトークの会話ログ（.csv）を読み込み</div>
 													</div>
 												</div>
 												<div class="row">
@@ -111,7 +127,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">③読み込み後の調整</label>
+														<div class="form-label">③読み込み後の調整</div>
 													</div>
 												</div>
 												<div class="row">	
@@ -135,7 +151,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">④作業中のデータの保存</label>
+														<div class="form-label">④作業中のデータの保存</div>
 													</div>
 												</div>
 				
@@ -151,6 +167,7 @@
 												<div class="row">
 													<div class="col mb-1">
 														<div class="small ms-3">保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。</div>
+														<div class="small ms-3">ローカルに保存された動画または音声ファイルパスは保存されません。編集するたびに都度読み込んでください。</div>
 													</div>
 												</div>
 											</div>
@@ -158,7 +175,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">⑤作業中のデータの読み込み</label>
+														<div class="form-label">⑤作業中のデータの読み込み</div>
 													</div>
 												</div>
 
@@ -179,7 +196,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<label for="appDataFileName" class="form-label">⑥編集したデータエクスポート</label>
+														<div class="form-label">⑥編集したデータエクスポート</div>
 													</div>
 												</div>
 					
@@ -288,13 +305,15 @@
 					</div>
 					<div class="row mb-3">
 						<div class="col text-center">
-							<div class="border mb-3" id="videoPreview"></div>
+							<div class="border mb-3" id="onlineVideoPreview" style="display:none;"></div>
+							<div>
+								<video id="localVideoPreview" width="480px" style="display:none;" controls><p>ご使用のブラウザでは動画再生に対応していません</p></video>
+							</div>
 						</div>
 					</div>
 					<div class="row mb-3">
 						<div class="col text-center">
 							<div class="mb-3 fs-4 time" id="videoTime">00:00:00.000</div>
-							<input type="hidden" id="videoId" name="videoId" value="">
 						</div>
 						<div class="col text-center">
 							<input class="btn btn-success btn-sm" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
@@ -339,6 +358,7 @@
 
 		<script>
 			let ytPlayer = null ;
+			let localPlayer = null ;
 			let lines = [] ;
 			let details = [] ;
 
@@ -367,9 +387,35 @@
 				}) ;
 
 				$("#videoLoadButton").on("click", (e) => {
+					if (localPlayer != null) {
+						localPlayer.src = null ;
+						localPlayer = null ;
+						$("#localVideoPreview").css("display", "none") ;	
+					}
+
+					$("#mediaFile").val("") ;
+
 					let videoURL = $("#videoURL").val() ;
 
-					loadVideo(videoURL) ;
+					$("#onlineVideoPreview").css("display", "initial") ;	
+					
+					loadOnlineVideo(videoURL) ;
+				}) ;
+
+				$("#mediaFile").on('change', (e) => {
+					if (ytPlayer != null) {
+						ytPlayer.destroy() ;
+						ytPlayer = null ;
+						$("#onlineVideoPreview").css("display", "none") ;	
+					}
+
+					$("#videoURL").val("") ;
+
+					var file = e.target.files[0]
+
+					$("#localVideoPreview").css("display", "initial") ;	
+
+					loadLocalVideo(file) ;
 				}) ;
 
 				$("#loadSubtitleButton").on("click", (e) => {
@@ -426,7 +472,7 @@
 
 				$("#jumpToSubtitleButton").on("click", (e) => {
 					let offsetTime = Number($("#offsetTimeLength").val()) ;
-					let currentTime = ytPlayer.getCurrentTime();
+					let currentTime = playingGetCurrentTime() ;
 
 					for (let key in lines) {
 						let line = lines[key] ;
@@ -586,7 +632,10 @@
 							$("#shortcutWord6").val(shortcutWords["shortcutWord6"]) ;
 						}
 
-						loadVideo(videoURL) ;
+						if (videoURL != "") {
+							loadOnlineVideo(videoURL) ;
+						}
+
 						updateSubtitleData() ;
 					}) ;
 				}) ;
@@ -622,8 +671,8 @@
 						if (e.keyCode == 13) {
 							let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
 
-							if (!playingTimer && autoPlayWhenEdtingFinished) {
-								ytPlayer.playVideo();
+							if (!isPlayingVideo() && autoPlayWhenEdtingFinished) {
+								playVideo() ;
 							} else {
 								$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
 								$(nextTextClassName).focus() ;
@@ -671,7 +720,7 @@
 						let autoStopWhenEdtingStarted = $("#autoStopWhenEdtingStarted").prop("checked") ;
 
 						if (autoStopWhenEdtingStarted) {
-							ytPlayer.pauseVideo();
+							pauseVideo() ;
 						}
 					}) ;
 
@@ -700,8 +749,7 @@
 
 					$(buttonClassName).on("click", (e) => {
 						let offsetTime = Number($("#offsetTimeLength").val()) ;
-						ytPlayer.seekTo(line[0] + offsetTime) ;
-						ytPlayer.playVideo() ;
+						seekToVideo(line[0] + offsetTime) ;
 					}) ;
 				}
 			}
@@ -734,8 +782,30 @@
 						</tr>` ;
 			}
 
+			// Local API
+			function loadLocalVideo(file) {
+				localPlayer = $("#localVideoPreview").get(0) ;
+
+				localPlayer.src = URL.createObjectURL(file) ;	
+				
+				$("#localVideoPreview").on("timeupdate", function(e) {
+					updatePlayingTime(localPlayer.currentTime) ;
+				}) ;
+			
+				$("#localVideoPreview").on("loadedmetadata", function(e) {
+					
+				});
+
+				$("#videoTitle").text(file.name) ;
+
+				let fileTitle = file.name.split('.').slice(0, -1).join('.')
+				$("#appDataFileName").val(fileTitle + ".captionEditor") ;
+
+				updatePlayingTime(0) ;
+			}
+
 			// YouTube API
-			function loadVideo(videoURL) {
+			function loadOnlineVideo(videoURL) {
 				if (videoURL == "") {
 					alert("YouTube動画のURLを入力してください。") ;
 					return ;
@@ -753,7 +823,7 @@
 				}
 
 				ytPlayer = new YT.Player(
-					"videoPreview",
+					"onlineVideoPreview",
 						{
 						width: 16*30,
 						height: 9*30,
@@ -772,11 +842,7 @@
 
 			function onPlayerReady(event) {				
 				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
-				$("#videoId").val(ytPlayer.getVideoData().video_id) ;
-
-				if ($("#appDataFileName").val() == "") {
-					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".captionEditor") ;
-				}
+				$("#appDataFileName").val(ytPlayer.getVideoData().title + ".captionEditor") ;
 
 				updatePlayingTime(ytPlayer.getCurrentTime()) ;
 			}
@@ -812,12 +878,12 @@
 				updatePlayingTime(ytPlayer.getCurrentTime()) ;
 			}
 
-			function updatePlayingTime(currentTime) {
-				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
-			}
-
 			function onPlayerError(event) {
 
+			}
+
+			function updatePlayingTime(currentTime) {
+				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
 			}
 
 			function getVideoIdFromYouTubeURL(url) {
@@ -834,28 +900,91 @@
 				return "" ;
 			}
 
-			// Shortcut
-			function setupShortcuts() {
-				function playingToggle() {
+			// Player wrapper
+			function playVideo() {
+				if (ytPlayer) {
+					return ytPlayer.playVideo() ;
+				} else if (localPlayer) {
+					return localPlayer.play() ;
+				}
+			}
+
+			function pauseVideo() {
+				if (ytPlayer) {
+					return ytPlayer.pauseVideo()
+				} else if (localPlayer) {
+					return localPlayer.pause() ;
+				}
+			}
+
+			function isPlayingVideo() {
+				if (ytPlayer) {
+					return playingTimer != null ;
+				} else if (localPlayer) {
+					return localPlayer.paused == false ;
+				}
+			}
+
+			function seekToVideo(time) {
+				if (ytPlayer) {
+					ytPlayer.seekTo(time) ;
+					ytPlayer.playVideo() ;
+				} else if (localPlayer) {
+					localPlayer.currentTime = time ;
+					localPlayer.play() ;
+				}
+			}
+
+			function playingGetCurrentTime() {
+				if (ytPlayer) {
+					return ytPlayer.getCurrentTime();
+				} else if (localPlayer) {
+					return localPlayer.currentTime ;
+				}
+			}
+
+			function playingToggle() {
+				if (ytPlayer) {
 					if (!playingTimer) {
 						ytPlayer.playVideo();
 					} else {
 						ytPlayer.pauseVideo();
 					}
+				} else if (localPlayer) {
+					if (localPlayer.paused) {
+						localPlayer.play() ;
+					} else {
+						localPlayer.pause() ;
+					}
 				}
+			}
 
-				function playingFastForword() {
+			function playingFastForword() {
+				if (ytPlayer != null) {
 					let currentTime = ytPlayer.getCurrentTime();
-         			ytPlayer.seekTo(currentTime + 5);
+					ytPlayer.seekTo(currentTime + 5);
+					updatePlayingTime(currentTime + 5) ;
+				} else if (localPlayer) {
+					let currentTime = localPlayer.currentTime ;
+					localPlayer.currentTime = currentTime + 5 ;
 					updatePlayingTime(currentTime + 5) ;
 				}
+			}
 
-				function playingRewind() {
+			function playingRewind() {
+				if (ytPlayer != null) {
 					let currentTime = ytPlayer.getCurrentTime();
 					ytPlayer.seekTo(currentTime - 5);
 					updatePlayingTime(currentTime - 5) ;
+				} else if (localPlayer) {
+					let currentTime = localPlayer.currentTime ;
+					localPlayer.currentTime = currentTime - 5 ;
+					updatePlayingTime(currentTime - 5) ;
 				}
-				
+			}
+
+			// Shortcut
+			function setupShortcuts() {				
 				shortcut.add("Meta+Down",function() {
 					playingToggle() ;
 				});
