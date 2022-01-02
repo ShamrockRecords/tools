@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja">
 	<head>
-		<%- include('../../parts/head', {title: '字幕データ編集 - UDトークツールズ'}) %>
-		<meta property="og:site_name" content="字幕データ編集 - UDトークツールズ"/>
+		<%- include('../../parts/head', {title: '字幕エディター - UDトークツールズ'}) %>
+		<meta property="og:site_name" content="字幕エディター - UDトークツールズ"/>
 		<meta property="og:url" content="<%= rootURL %>"/>
-		<meta property="og:title" content="字幕データ編集 - UDトークツールズ"/>
+		<meta property="og:title" content="字幕エディター - UDトークツールズ"/>
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
@@ -54,7 +54,7 @@
 				<div class="col-md">
 					<div class="row">
 						<div class="col-md mb-3">
-							<h4>字幕データ編集 - UDトークツールズ</h4>
+							<h4>字幕エディター - UDトークツールズ</h4>
 						</div>
 					</div>
 
@@ -356,6 +356,12 @@
 			</div>
 		</div>
 
+		<div class="container">
+			<div class="mb-3 small" style="text-align: center;">
+				Copyright © UDトーク. All Rights Reserved.
+			</div>
+		</div>
+		
 		<script>
 			let ytPlayer = null ;
 			let localPlayer = null ;
@@ -785,7 +791,7 @@
 				localPlayer.src = URL.createObjectURL(file) ;	
 				
 				$("#localVideoPreview").css("display", "initial") ;	
-				
+
 				$("#localVideoPreview").on("timeupdate", function(e) {
 					updatePlayingTime(localPlayer.currentTime) ;
 				}) ;
