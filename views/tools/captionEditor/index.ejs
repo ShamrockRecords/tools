@@ -10,7 +10,9 @@
 
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
-
+		<script type="text/javascript" src="/javascripts/hrp.js"></script>
+		<script type="text/javascript" src="/javascripts/result.js"></script>
+		
 		<style>
 
 			html,
@@ -40,6 +42,10 @@
 
 			.cmn-btn {
 				width: 120px;
+			}
+
+			.wide-btn {
+				width: 180px;
 			}
 
 		</style>
@@ -295,6 +301,8 @@
 
 			<hr />
 
+			<div id="audio"></div>
+
 			<div class="row mb-3">	
 				<div class="col-md mb-5">		
 					<div class="row mb-3">
@@ -315,18 +323,21 @@
 							<div class="mb-3 fs-4 time" id="videoTime">00:00:00.000</div>
 						</div>
 						<div class="col text-center">
-							<input class="btn btn-success btn-sm" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
+							<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
+						</div>
+						<div class="col text-center">
+							<input class="btn btn-success btn-sm wide-btn" id="speechRecognitionButton" type="button" value="音声認識結果を取得" name="speechRecognitionButton" />
 						</div>
 					</div>
 
 					<div class="accordion" id="accordionSettings">
 						<div class="accordion-item">
-							<h2 class="accordion-header" id="accordionSettings-headingOne">
-								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordionSettings-collapseOne" aria-expanded="true" aria-controls="accordionSettings-collapseOne">
-									設定（クリックして表示／非表示）
+						  	<h2 class="accordion-header" id="panelsStayOpen-headingOne1">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne1" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne1">
+									動作設定（クリックして表示／非表示）
 								</button>
 						  	</h2>
-							<div id="accordionSettings-collapseOne" class="accordion-collapse collapse" aria-labelledby="accordionSettings-headingOne">
+						  	<div id="panelsStayOpen-collapseOne1" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingOne1">
 								<div class="accordion-body">
 									<div class="row mb-3">
 										<div class="col">
@@ -345,6 +356,35 @@
 											</div>
 										</div>
 									</div>
+								</div>
+						  	</div>
+						</div>
+						<div class="accordion-item">
+							<h2 class="accordion-header" id="panelsStayOpen-headingTwo1">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseTwo1" aria-expanded="false" aria-controls="panelsStayOpen-collapseTwo1">
+									音声認識設定（クリックして表示／非表示）
+								</button>
+							</h2>
+							<div id="panelsStayOpen-collapseTwo1" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingTwo1">
+								<div class="accordion-body">
+									<div class="row mb-3">
+										<div class="col">
+											<div>APPKEY</div>
+											<input id="acpAppKey" name="acpAppKey" type="text" class="form-control" value="" placeholder="" aria-label="">
+										</div>
+									</div>
+									<div class="row mb-3">
+										<div class="col">
+											<div>接続エンジン名</div>
+											<input id="acpGrammarFileNames" name="acpGrammarFileNames" type="text" class="form-control" value="-a-general" placeholder="" aria-label="">
+										</div>
+									</div>		
+									<div class="row mb-3">
+										<div class="col">
+											<div>非同期 HTTP音声認識API</div>
+											<input id="acpServerURL" name="acpServerURL" type="text" class="form-control" value="https://acp-api-async.amivoice.com/v1/recognitions" placeholder="" aria-label="">
+										</div>
+									</div>				
 								</div>
 							</div>
 						</div>
@@ -378,6 +418,7 @@
 			let localPlayer = null ;
 			let lines = [] ;
 			let details = [] ;
+			let mediafile = null ;
 
 			$(function () {
 				restoreSettings() ;
@@ -416,6 +457,7 @@
 					if (localPlayer != null) {
 						localPlayer.src = null ;
 						localPlayer = null ;
+						mediafile = null ;
 						$("#localVideoPreview").css("display", "none") ;	
 					}
 
@@ -435,9 +477,9 @@
 
 					$("#videoURL").val("") ;
 
-					var file = e.target.files[0]
+					mediafile = e.target.files[0]
 
-					loadLocalVideo(file) ;
+					loadLocalVideo(mediafile) ;
 				}) ;
 
 				$("#loadSubtitleButton").on("click", (e) => {
@@ -507,7 +549,137 @@
 						}
 					}
 				}) ;
+
+				let acpStatusCheckTimer = null ;
 				
+				$("#speechRecognitionButton").on("click", async (e) => {
+					if (mediafile == null || !mediafile.name.endsWith(".mp3")) {
+						alert("音声認識はローカルファイルのMP3のみ対応しています。") ;
+						return ;
+					}
+
+					if (acpStatusCheckTimer != null) {
+						alert("現在音声認識の処理中です。処理が終わるまでお待ちください。") ;
+						return ;
+					}
+
+					if (lines.length != 0) {
+						if (!confirm("既に編集対象の認識結果があります。上書きされますが宜しいですか？")) {
+							return ;
+						}
+					}
+
+					let serverURL = $("#acpServerURL").val() ;
+
+					let grammarFileNames = $("#acpGrammarFileNames").val() ;
+					let profileId = "" ;
+					let authorization = $("#acpAppKey").val() ; 
+				
+					if (authorization == "") {
+						alert("音声認識設定でAPPKEYを入力してください。") ;
+						return ;
+					}
+
+					var formData = new FormData();
+
+					let domainId = "" ;
+
+					domainId += "grammarFileNames=";
+					domainId += encodeURIComponent(grammarFileNames);
+					
+					if (profileId != "") {
+						if (domainId.length > 0) {
+							domainId += ' ';
+						}
+						domainId += "profileId=";
+						domainId += encodeURIComponent(profileId);
+					}
+
+					if (authorization != "") {
+						if (domainId.length > 0) {
+							domainId += ' ';
+						}
+						domainId += "authorization=";
+						domainId += encodeURIComponent(authorization);
+					}
+
+					formData.append("d", domainId);
+					formData.append("a", mediafile);
+
+					const param = {
+						method: "POST",
+						body: formData
+					}
+
+					let data = await fetch(serverURL, param).then(response => response.json()) ;
+
+					if (data["sessionid"] == undefined) {
+						alert("Session Idが取得できませんでした。") ;
+					} else if (data["sessionid"] == "") {
+						alert("Session Idが取得できませんでした。") ;
+					} else {
+						let sessionId = data["sessionid"] ;
+
+						$("#speechRecognitionButton").val("処理を待っています...") ;
+
+						let count = 0 ;
+
+						acpStatusCheckTimer = setInterval(async () => {
+							const param = {
+								headers: {"Authorization": "Bearer " + authorization},
+							}
+
+							let data = await fetch(serverURL + "/" + sessionId, param).then(response => response.json()) ;
+
+							console.log(data) ;
+
+							count++ ;
+
+							if (data["status"] == "completed") {
+								lines = [] ;
+								details = [] ;
+
+								let segments = data["segments"]
+
+								for (let key in segments) {
+									let segment = segments[key] ;
+									
+									let line = [] ;
+
+									let startTime = segment["results"][0]["starttime"] ;
+									let endTime = segment["results"][0]["endtime"] ;
+
+									line.push(startTime / 1000) ;
+									line.push(endTime / 1000) ;
+									line.push(segment["text"]) ;
+
+									lines.push(line) ;
+									details.push({}) ;
+								}
+
+								clearInterval(acpStatusCheckTimer) ;
+								acpStatusCheckTimer = null ;
+
+								updateSubtitleData() ;
+
+								$("#speechRecognitionButton").val("音声認識結果を取得") ;
+							} else {
+								if (data["status"] == "queued") {
+									$("#speechRecognitionButton").val("処理を待っています... (" + count + ")") ;
+								} else if (data["status"] == "started") {
+									$("#speechRecognitionButton").val("処理を開始しました (" + count + ")") ;
+								} else if (data["status"] == "processing") {
+									$("#speechRecognitionButton").val("結果を取得しています... (" + count + ")") ;
+								} else {
+									$("#speechRecognitionButton").val(data["status"]) ;
+								}
+							}
+
+						}, 5000) ;
+					}
+					
+				}) ;
+
 				$("#offsetTimeLengthUpdateButton").on("click", (e) => {
 					updateSubtitleData() ;
 				}) ;
