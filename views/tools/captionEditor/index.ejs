@@ -286,7 +286,6 @@
 											</div>
 										</div>
 									</div>
-									
 							  	</div>
 							</div>
 						</div>
@@ -319,24 +318,36 @@
 							<input class="btn btn-success btn-sm" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
 						</div>
 					</div>
-					<div class="row mb-3">
-						<div class="col">
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" value="" id="autoStopWhenEdtingStarted" name="autoStopWhenEdtingStarted" value="" checked>
-								<label class="form-check-label" for="autoStopWhenEdtingStarted">編集開始時に自動的に再生を停止する</label>
+
+					<div class="accordion" id="accordionSettings">
+						<div class="accordion-item">
+							<h2 class="accordion-header" id="accordionSettings-headingOne">
+								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordionSettings-collapseOne" aria-expanded="true" aria-controls="accordionSettings-collapseOne">
+									設定（クリックして表示／非表示）
+								</button>
+						  	</h2>
+							<div id="accordionSettings-collapseOne" class="accordion-collapse collapse show" aria-labelledby="accordionSettings-headingOne">
+								<div class="accordion-body">
+									<div class="row mb-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="autoStopWhenEdtingStarted" name="autoStopWhenEdtingStarted" value="" checked>
+												<label class="form-check-label" for="autoStopWhenEdtingStarted">編集開始時に自動的に再生を停止する</label>
+												<div class="small ms-3">文字が入力されたタイミングで再生を停止します。文字の削除とショートカットキーによる入力では停止しません。</div>
+											</div>
+										</div>
+									</div>
+									<div class="row mb-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="autoPlayWhenEdtingFinished" name="autoPlayWhenEdtingFinished" value="" checked>
+												<label class="form-check-label" for="autoPlayWhenEdtingFinished">編集を完了（エンターキー押下）で自動的に再生を開始する</label>
+											</div>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
-					</div>
-					<div class="row mb-3">
-						<div class="col">
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" value="" id="autoPlayWhenEdtingFinished" name="autoPlayWhenEdtingFinished" value="" checked>
-								<label class="form-check-label" for="autoPlayWhenEdtingFinished">編集を完了（エンターキー押下）で自動的に再生を開始する</label>
-							</div>
-						</div>
-					</div>
-					<div class="row mb-3">
-						
 					</div>
 				</div>
 
@@ -369,6 +380,15 @@
 			let details = [] ;
 
 			$(function () {
+				restoreSettings() ;
+
+				function eventListener(e) {
+					storeSettings()
+				} ;
+
+				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
+				$("#autoPlayWhenEdtingFinished").on('change', eventListener) ;
+
 				var tag = document.createElement('script');
 				tag.src = "https://www.youtube.com/iframe_api";
 				var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -745,6 +765,8 @@
 								pauseVideo() ;
 							}
 						}
+
+						$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
 					}) ;
 
 					$(textClassName).on("autoheight", function(e) {
@@ -1035,6 +1057,26 @@
 					playingFastForword(5) ;
 				});	
 			}
+
+			function restoreSettings() {
+				let autoStopWhenEdtingStarted = localStorage.getItem("autoStopWhenEdtingStarted") ;
+
+				if (autoStopWhenEdtingStarted != undefined) {
+					$('#autoStopWhenEdtingStarted').prop("checked", autoStopWhenEdtingStarted == "true") ;
+				}
+
+				let autoPlayWhenEdtingFinished = localStorage.getItem("autoPlayWhenEdtingFinished") ;
+
+				if (autoPlayWhenEdtingFinished != undefined) {
+					$('#autoPlayWhenEdtingFinished').prop("checked", autoPlayWhenEdtingFinished == "true") ;
+				}
+			}
+
+			function storeSettings() {
+				localStorage.setItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
+				localStorage.setItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
+			}
+
 		</script>
 	</body>
 </html>
