@@ -560,6 +560,7 @@
 
 					if (!mediafile.name.endsWith(".mp3") && !mediafile.name.endsWith(".wav")) {
 						alert("音声認識はローカルファイルのMP3またはWAVのみ対応しています。") ;
+						return ;
 					}
 
 					if (isSpeechRecognizing) {
