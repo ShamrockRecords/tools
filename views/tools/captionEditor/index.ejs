@@ -64,14 +64,14 @@
 						</div>
 					</div>
 
-					<div class="accordion" id="accordionPanelsStayOpenExample">
+					<div class="accordion" id="accordionMainMenu">
 						<div class="accordion-item">
-							<h2 class="accordion-header" id="panelsStayOpen-headingOne">
-								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne">
+							<h2 class="accordion-header" id="mainMenu-menu1-header">
+								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu1" aria-expanded="true" aria-controls="mainMenu-menu1">
 									操作メニュー（クリックして表示／非表示）
 								</button>
 						  	</h2>
-							<div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show" aria-labelledby="panelsStayOpen-headingOne">
+							<div id="mainMenu-menu1" class="accordion-collapse collapse show" aria-labelledby="mainMenu-menu1">
 								<div class="accordion-body">
 									<div class="row p-3">
 										<div class="col-md">
@@ -104,6 +104,7 @@
 												<div class="row">
 													<div class="col mb-1">
 														<div class="small ms-3">YouTubeまたはローカルに保存された動画または音声ファイルを読み込んでください。</div>
+														<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
 														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 													</div>
 												</div>
@@ -227,12 +228,12 @@
 						</div>
 
 						<div class="accordion-item">
-							<h2 class="accordion-header" id="panelsStayOpen-headingTwo">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseTwo" aria-expanded="false" aria-controls="panelsStayOpen-collapseTwo">
+							<h2 class="accordion-header" id="mainMenu-menu2-header">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu2" aria-expanded="false" aria-controls="mainMenu-menu2">
 								ショートカット一覧（クリックして表示／非表示）
 							  	</button>
 							</h2>
-							<div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingTwo">
+							<div id="mainMenu-menu2" class="accordion-collapse collapse" aria-labelledby="mainMenu-menu2">
 							  	<div class="accordion-body">
 									<div class="row">
 										<div class="col-md">
@@ -332,12 +333,12 @@
 
 					<div class="accordion" id="accordionSettings">
 						<div class="accordion-item">
-						  	<h2 class="accordion-header" id="panelsStayOpen-headingOne1">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne1" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne1">
+						  	<h2 class="accordion-header" id="settings-menu1-header">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu1" aria-expanded="true" aria-controls="settings-menu1">
 									動作設定（クリックして表示／非表示）
 								</button>
 						  	</h2>
-						  	<div id="panelsStayOpen-collapseOne1" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingOne1">
+						  	<div id="settings-menu1" class="accordion-collapse collapse" aria-labelledby="settings-menu1">
 								<div class="accordion-body">
 									<div class="row mb-3">
 										<div class="col">
@@ -360,17 +361,36 @@
 						  	</div>
 						</div>
 						<div class="accordion-item">
-							<h2 class="accordion-header" id="panelsStayOpen-headingTwo1">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseTwo1" aria-expanded="false" aria-controls="panelsStayOpen-collapseTwo1">
+							<h2 class="accordion-header" id="settings-menu2-header">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu2" aria-expanded="false" aria-controls="settings-menu2">
 									音声認識設定（クリックして表示／非表示）
 								</button>
 							</h2>
-							<div id="panelsStayOpen-collapseTwo1" class="accordion-collapse collapse" aria-labelledby="panelsStayOpen-headingTwo1">
+							<div id="settings-menu2" class="accordion-collapse collapse" aria-labelledby="settings-menu2">
 								<div class="accordion-body">
+									<div class="row small mb-3">
+										<div class="col">
+											<div class="mb-3"><a href="https://acp.amivoice.com/main/" target="_blank" rel=”noopener”>AmiVoice Cloud Platform</a>の音声認識APIを使用して音声認識の結果を取得します。</div>
+											<div class="mb-3">
+												<div>MP3またはWAVファイル（UDトークの録音機能でエクスポートできるファイル形式）を選択したときにご利用いただけます。</div>
+												<div>音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）</div>
+											</div>
+											<div class="mb-3">①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。</div>
+											<div class="mb-3">②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。</div>
+											<div class="mb-3">③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。</div>
+											<div class="mb-3">④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更もできます。初期値は「会話_汎用」が設定されています。</div>
+											<div class="mb-3">⑤音声認識サーバーで「ログ保存あり（0.025円/秒）」または「ログ保存なし（0.04円/秒）」を選択します。内容の機密性に応じて選択してご利用ください。</div>
+											<div class="mb-3">⑥「音声認識結果を取得」ボタンを押します。ファイルの長さによっては時間はかかりますが、ページを閉じないでしばらくお待ちください。音声認識が完了すると右側に認識結果が表示されます。</div>
+										</div>
+									</div>
 									<div class="row mb-3">
 										<div class="col">
 											<div>APPKEY</div>
-											<input id="acpAppKey" name="acpAppKey" type="text" class="form-control" value="" placeholder="" aria-label="">
+											<input id="acpAppKey" name="acpAppKey" type="password" class="form-control" value="" placeholder="" aria-label="">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="saveAppKey" name="saveAppKey" value="" checked>
+												<label class="form-check-label" for="saveAppKey">APPKEYをブラウザに保存する</label>
+											</div>
 										</div>
 									</div>
 									<div class="row mb-3">
@@ -380,11 +400,14 @@
 										</div>
 									</div>		
 									<div class="row mb-3">
-										<div class="col">
-											<div>非同期 HTTP音声認識API</div>
-											<input id="acpServerURL" name="acpServerURL" type="text" class="form-control" value="https://acp-api-async.amivoice.com/v1/recognitions" placeholder="" aria-label="">
+										<div class="col-sm">
+											<div>音声認識API</div>
+											<select class="form-select" name="acpLoggingOptOut" aria-label="音声認識API">
+												<option value="0" selected>ログ保存あり（0.025円/秒）</option>
+												<option value="1">ログ保存なし（0.04円/秒）</option>
+											</select>
 										</div>
-									</div>				
+									</div>		
 								</div>
 							</div>
 						</div>
@@ -429,7 +452,8 @@
 
 				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
 				$("#autoPlayWhenEdtingFinished").on('change', eventListener) ;
-
+				$("#saveAppKey").on('change', eventListener) ;
+				
 				var tag = document.createElement('script');
 				tag.src = "https://www.youtube.com/iframe_api";
 				var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -438,6 +462,8 @@
 				$(window).on('beforeunload', function(e) {
 					e.preventDefault();
     				e.returnValue = 'Check';
+
+					storeSettings() ;
 
 					return "" ;
 				});
@@ -553,6 +579,8 @@
 				let isSpeechRecognizing = false ;
 				
 				$("#speechRecognitionButton").on("click", async (e) => {
+					storeSettings() ;
+
 					if (mediafile == null) {
 						alert("MP3またはWAVファイルを読み込んでください。") ;
 						return ;
@@ -574,12 +602,13 @@
 						}
 					}
 
-					let serverURL = $("#acpServerURL").val() ;
+					let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
 
 					let grammarFileNames = $("#acpGrammarFileNames").val() ;
 					let profileId = "" ;
 					let authorization = $("#acpAppKey").val() ; 
-				
+					let loggingOptOut = $('[name=acpLoggingOptOut]').val();
+
 					if (authorization == "") {
 						alert("音声認識設定でAPPKEYを入力してください。") ;
 						return ;
@@ -607,6 +636,15 @@
 						domainId += "authorization=";
 						domainId += encodeURIComponent(authorization);
 					}
+
+					if (loggingOptOut != 0) {
+						if (domainId.length > 0) {
+							domainId += ' ';
+						}
+						domainId += "loggingOptOut=True";
+					}
+
+					//console.log(domainId) ;
 
 					formData.append("d", domainId);
 					formData.append("a", mediafile);
@@ -640,7 +678,7 @@
 
 							let data = await fetch(serverURL + "/" + sessionId, param).then(response => response.json()) ;
 
-							console.log(data) ;
+							//console.log(data) ;
 
 							count++ ;
 
@@ -1252,11 +1290,37 @@
 				if (autoPlayWhenEdtingFinished != undefined) {
 					$('#autoPlayWhenEdtingFinished').prop("checked", autoPlayWhenEdtingFinished == "true") ;
 				}
+
+				let saveAppKey = localStorage.getItem("saveAppKey") ;
+
+				if (saveAppKey != undefined) {
+					$('#saveAppKey').prop("checked", saveAppKey == "true") ;
+				}
+
+				let acpAppKey = localStorage.getItem("acpAppKey") ;
+
+				if (acpAppKey != undefined) {
+					$('#acpAppKey').val(acpAppKey) ;
+				}
+
+				let acpLoggingOptOut = localStorage.getItem("acpLoggingOptOut") ;
+
+				if (acpLoggingOptOut != undefined) {
+					$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
+				}
 			}
 
 			function storeSettings() {
 				localStorage.setItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
 				localStorage.setItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
+				localStorage.setItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
+				localStorage.setItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
+
+				if ($('#saveAppKey').prop("checked")) {
+					localStorage.setItem("acpAppKey", $('#acpAppKey').val()) ;
+				} else {
+					localStorage.removeItem("acpAppKey") ;
+				}
 			}
 
 		</script>
