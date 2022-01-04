@@ -550,15 +550,19 @@
 					}
 				}) ;
 
-				let acpStatusCheckTimer = null ;
+				let isSpeechRecognizing = false ;
 				
 				$("#speechRecognitionButton").on("click", async (e) => {
-					if (mediafile == null || !mediafile.name.endsWith(".mp3")) {
-						alert("音声認識はローカルファイルのMP3のみ対応しています。") ;
+					if (mediafile == null) {
+						alert("MP3またはWAVファイルを読み込んでください。") ;
 						return ;
 					}
 
-					if (acpStatusCheckTimer != null) {
+					if (!mediafile.name.endsWith(".mp3") && !mediafile.name.endsWith(".wav")) {
+						alert("音声認識はローカルファイルのMP3またはWAVのみ対応しています。") ;
+					}
+
+					if (isSpeechRecognizing) {
 						alert("現在音声認識の処理中です。処理が終わるまでお待ちください。") ;
 						return ;
 					}
@@ -611,6 +615,10 @@
 						body: formData
 					}
 
+					isSpeechRecognizing = true ;
+
+					$("#speechRecognitionButton").val("アップロード中...") ;
+
 					let data = await fetch(serverURL, param).then(response => response.json()) ;
 
 					if (data["sessionid"] == undefined) {
@@ -624,7 +632,7 @@
 
 						let count = 0 ;
 
-						acpStatusCheckTimer = setInterval(async () => {
+						let timer = setInterval(async () => {
 							const param = {
 								headers: {"Authorization": "Bearer " + authorization},
 							}
@@ -657,12 +665,15 @@
 									details.push({}) ;
 								}
 
-								clearInterval(acpStatusCheckTimer) ;
+								clearInterval(timer) ;
 								acpStatusCheckTimer = null ;
 
 								updateSubtitleData() ;
 
 								$("#speechRecognitionButton").val("音声認識結果を取得") ;
+								
+								isSpeechRecognizing = false ;
+
 							} else {
 								if (data["status"] == "queued") {
 									$("#speechRecognitionButton").val("処理を待っています... (" + count + ")") ;
