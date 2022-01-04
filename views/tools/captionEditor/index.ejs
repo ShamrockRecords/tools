@@ -593,7 +593,7 @@
 				$("#jumpToLastEditedButton").on("click", (e) => {
 					
 					commitAppData() ;
-					
+
 					for (let i=details.length; i>0; i--) {
 						let detail = details[i-1] ;
 
@@ -628,7 +628,7 @@
 				// Export
 				$("#saveAsCsvButton").on("click", (e) => {
 					let offsetTime = Number($("#offsetTimeLength").val()) ;
-					let content = "" ;
+					let content = "00:00:000,00:00:00,\r\n" ;
 
 					for (let key in lines) {
 						let line = lines[key] ;
