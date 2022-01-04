@@ -10,7 +10,6 @@
 
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
-		<script type="text/javascript" src="/javascripts/speech_recognition.js"></script>
 		
 		<style>
 
@@ -371,61 +370,6 @@
 						</div>
 					</div>
 
-					<div class="accordion" id="accordionSettings">
-						<div class="accordion-item">
-							<h2 class="accordion-header" id="settings-menu2-header">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu2" aria-expanded="false" aria-controls="settings-menu2">
-									音声認識設定（クリックして表示／非表示）
-								</button>
-							</h2>
-							<div id="settings-menu2" class="accordion-collapse collapse" aria-labelledby="settings-menu2">
-								<div class="accordion-body">
-									<div class="row small mb-3">
-										<div class="col">
-											<div class="mb-3"><a href="https://acp.amivoice.com/main/" target="_blank" rel=”noopener”>AmiVoice Cloud Platform</a>の音声認識APIを使用して音声認識の結果を取得します。</div>
-											<div class="mb-3">
-												<div>MP3またはWAVファイル（UDトークの録音機能でエクスポートできるファイル形式）を選択したときにご利用いただけます。</div>
-												<div>音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）</div>
-											</div>
-											<div class="mb-3">①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。</div>
-											<div class="mb-3">②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。</div>
-											<div class="mb-3">③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。</div>
-											<div class="mb-3">④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。</div>
-											<div class="mb-3">⑤音声認識サーバーで「ログ保存あり」または「ログ保存なし」を選択します。内容の機密性に応じて選択してご利用ください。</div>
-											<div class="mb-3">⑥「音声認識結果を取得」ボタンを押します。ファイルの長さによっては時間はかかりますが、ページを閉じないでしばらくお待ちください。音声認識が完了すると右側に認識結果が表示されます。</div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div>APPKEY</div>
-											<input id="acpAppKey" name="acpAppKey" type="password" class="form-control" value="" placeholder="" autocomplete="off" aria-label="">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="saveAppKey" name="saveAppKey" value="" checked>
-												<label class="form-check-label" for="saveAppKey">APPKEYをブラウザに保存する</label>
-											</div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div>接続エンジン名</div>
-											<input id="acpGrammarFileNames" name="acpGrammarFileNames" type="text" class="form-control" value="-a-general" placeholder="" aria-label="">
-											<div class="small ms-3">音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。</div>
-										</div>
-									</div>		
-									<div class="row mb-3">
-										<div class="col-sm">
-											<div>音声認識API</div>
-											<select class="form-select" name="acpLoggingOptOut" aria-label="音声認識API">
-												<option value="0" selected>ログ保存あり</option>
-												<option value="1">ログ保存なし</option>
-											</select>
-											<div class="small ms-3">ログ保存ありとなしで価格が異なります。詳しくはmiVoice Cloud Platformのマイページ内でご確認ください。</div>
-										</div>
-									</div>		
-								</div>
-							</div>
-						</div>
-					</div>
 				</div>
 
 				<div class="col-md mb-5">
@@ -612,13 +556,6 @@
 							break ;
 						}
 					}
-				}) ;
-
-				$("#speechRecognitionButton").on("click", async (e) => {
-					storeSettings() ;
-
-					// Speech Recognition by AmiVoice Cloud Platform
-					await runSpeechRecognition() ;
 				}) ;
 
 				$("#offsetTimeLengthUpdateButton").on("click", (e) => {
@@ -1189,37 +1126,11 @@
 				if (autoPlayWhenEdtingFinished != undefined) {
 					$('#autoPlayWhenEdtingFinished').prop("checked", autoPlayWhenEdtingFinished == "true") ;
 				}
-
-				let saveAppKey = localStorage.getItem("saveAppKey") ;
-
-				if (saveAppKey != undefined) {
-					$('#saveAppKey').prop("checked", saveAppKey == "true") ;
-				}
-
-				let acpAppKey = localStorage.getItem("acpAppKey") ;
-
-				if (acpAppKey != undefined) {
-					$('#acpAppKey').val(acpAppKey) ;
-				}
-
-				let acpLoggingOptOut = localStorage.getItem("acpLoggingOptOut") ;
-
-				if (acpLoggingOptOut != undefined) {
-					$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
-				}
 			}
 
 			function storeSettings() {
 				localStorage.setItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
 				localStorage.setItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
-				localStorage.setItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
-				localStorage.setItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
-
-				if ($('#saveAppKey').prop("checked")) {
-					localStorage.setItem("acpAppKey", $('#acpAppKey').val()) ;
-				} else {
-					localStorage.removeItem("acpAppKey") ;
-				}
 			}
 
 		</script>
