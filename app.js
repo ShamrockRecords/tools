@@ -8,19 +8,21 @@ var indexRouter = require('./routes/index');
 var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
 var genReadingIndexRouter = require('./routes/genReading/index');
 var captionEditorIndexRouter = require('./routes/captionEditor/index');
+var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File');
+
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
 var app = express();
 
-/*
 app.use(function(req, res, next) {
-  res.header('Cross-Origin-Opener-Policy', 'same-origin')
-  res.header('Cross-Origin-Embedder-Policy', 'require-corp')
+  if (req.url == "/jimakueditor4file") {
+    res.header('Cross-Origin-Opener-Policy', 'same-origin') ;
+    res.header('Cross-Origin-Embedder-Policy', 'require-corp') ;
+  }
   
   next()
 })
-*/
 
 const session = require('express-session') ;
 
@@ -55,6 +57,7 @@ app.use('/', indexRouter);
 app.use('/srt2csv', srtToCsvIndexRouter);
 app.use('/yomifuri', genReadingIndexRouter);
 app.use('/jimakueditor', captionEditorIndexRouter);
+app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

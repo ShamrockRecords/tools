@@ -2,12 +2,7 @@ let isSpeechRecognizing = false ;
 
 async function runSpeechRecognition() {
     if (mediafile == null) {
-        alert("MP3またはWAVファイルを読み込んでください。") ;
-        return ;
-    }
-
-    if (!mediafile.name.endsWith(".mp3") && !mediafile.name.endsWith(".wav")) {
-        alert("音声認識はローカルファイルのMP3またはWAVのみ対応しています。") ;
+        alert("メディアファイルを読み込んでください。") ;
         return ;
     }
 
@@ -22,8 +17,6 @@ async function runSpeechRecognition() {
         }
     }
 
-    let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
-
     let grammarFileNames = $("#acpGrammarFileNames").val() ;
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
@@ -33,6 +26,28 @@ async function runSpeechRecognition() {
         alert("音声認識設定でAPPKEYを入力してください。") ;
         return ;
     }
+
+    isSpeechRecognizing = true ;
+
+    // 変換
+    let targetFile = mediafile ;
+
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    if (!targetFile.name.endsWith(".mp3") && !targetFile.name.endsWith(".wav")) {
+        $("#speechRecognitionButton").val("ファイルを変換中...") ;
+
+        await ffmpeg.load();
+        
+        ffmpeg.FS('writeFile', 'temp', await fetchFile(targetFile));
+        await ffmpeg.run('-i', 'temp', '-c:a', 'libmp3lame', '-vn', '-b:a', '256k', 'audio.mp3');
+        const data = ffmpeg.FS('readFile', 'audio.mp3');
+        
+        targetFile = new Blob([data.buffer], { type: 'audio/mp3' }) ;
+    }
+
+    let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
 
     var formData = new FormData();
 
@@ -74,14 +89,12 @@ async function runSpeechRecognition() {
     //console.log(domainId) ;
 
     formData.append("d", domainId);
-    formData.append("a", mediafile);
+    formData.append("a", targetFile);
 
     const param = {
         method: "POST",
         body: formData
     }
-
-    isSpeechRecognizing = true ;
 
     $("#speechRecognitionButton").val("アップロード中...") ;
 
@@ -152,6 +165,7 @@ async function runSpeechRecognition() {
                     $("#speechRecognitionButton").val("結果を取得しています... (" + count + ")") ;
                 } else {
                     $("#speechRecognitionButton").val(data["status"]) ;
+                    isSpeechRecognizing = false ;
                 }
             }
 

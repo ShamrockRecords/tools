@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
 	<head>
-		<%- include('../../parts/head', {title: '字幕エディター - UDトークツールズ'}) %>
-		<meta property="og:site_name" content="字幕エディター - UDトークツールズ"/>
+		<% let suffix = "" %>
+		<% if (mediaType == "youtube") { %>
+			<% suffix = "（YouTube）" ; %>
+		<% } else if (mediaType == "file") { %>
+			<% suffix = "（ファイル）" ; %>
+		<% } %>
+
+		<%- include('../../parts/head', {title: '字幕エディター' + suffix}) %>
+		<meta property="og:site_name" content="字幕エディター<%= suffix %> - UDトークツールズ"/>
 		<meta property="og:url" content="<%= rootURL %>"/>
-		<meta property="og:title" content="字幕エディター - UDトークツールズ"/>
+		<meta property="og:title" content="字幕エディター<%= suffix %> - UDトークツールズ"/>
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
 		<script type="text/javascript" src="/javascripts/speech_recognition.js"></script>
-		
+		<script src="/javascripts/ffmpeg.min.js"></script>
+
 		<style>
 
 			html,
@@ -51,15 +59,24 @@
 	</head>
 	<body>
 		<div class="container">
-			<div class="mb-3">
-				<a href="/">トップに戻る</a>
+			<div class="row my-3">
+				<div class="col-auto">
+					<a href="/">トップに戻る</a>
+				</div>
+				<div class="col-auto">
+					<% if (mediaType == "youtube") { %>
+						<a href="/jimakueditor4file">字幕エディター（ファイル）へ</a>
+					<% } else if (mediaType == "file") { %>
+						<a href="/jimakueditor">字幕エディター（YouTube）へ</a>
+					<% } %>
+				</div>
 			</div>
 
 			<div class="row">
 				<div class="col-md">
 					<div class="row">
 						<div class="col-md mb-3">
-							<h4>字幕エディター - UDトークツールズ</h4>
+							<h4>字幕エディター<%= suffix %> - UDトークツールズ</h4>
 						</div>
 					</div>
 
@@ -81,32 +98,39 @@
 													</div>
 												</div>
 
-												<div class="row">	
-													<div class="col mb-1">	
-														<div class="form-label">YouTube</div>		
-														<div class="input-group">	
-															<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="YouTubeのURLをペーストして読み込みボタンを押してください" aria-label="">
-															<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
+												<% if (mediaType == "youtube") { %>
+													<div class="row">	
+														<div class="col mb-1">		
+															<div class="input-group">	
+																<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="YouTubeのURLをペーストして読み込みボタンを押してください" aria-label="">
+																<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
+															</div>
 														</div>
 													</div>
-												</div>
 
-												<div class="row">	
-													<div class="col mb-1">		
-														<div class="form-label">動画または音声ファイル</div>			
-														<div class="input-group">
-															<input class="form-control" id="mediaFile" type="file" accept="audio/*,video/*,"/>
+													<div class="row">
+														<div class="col mb-1">
+															<div class="small ms-3">YouTubeのURLをペーストして読み込んでください。</div>
+															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 														</div>
 													</div>
-												</div>
-
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3">YouTubeまたはローカルに保存された動画または音声ファイルを読み込んでください。</div>
-														<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
-														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
+												<% } else if (mediaType == "file") { %>
+													<div class="row">	
+														<div class="col mb-1">		
+															<div class="input-group">
+																<input class="form-control" id="mediaFile" type="file" accept="audio/*,video/*,"/>
+															</div>
+														</div>
 													</div>
-												</div>
+
+													<div class="row">
+														<div class="col mb-1">
+															<div class="small ms-3">ローカルに保存された動画または音声ファイルを読み込んでください。</div>
+															<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
+															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
+														</div>
+													</div>
+												<% } %>
 											</div>
 
 											<div class="mb-3">
@@ -364,6 +388,7 @@
 						</div>
 					</div>
 				
+					<% if (mediaType == "file") { %>
 					<div class="row mb-3">
 						<div class="col-auto">
 							<input class="btn btn-primary btn-sm wide-btn" id="speechRecognitionButton" type="button" value="音声認識結果を取得" name="speechRecognitionButton" />
@@ -432,6 +457,7 @@
 							</div>
 						</div>
 					</div>
+					<% } %>
 				</div>
 
 				<div class="col-md mb-5">
@@ -748,7 +774,10 @@
 
 					commitAppData() ;
 					
-					appData["videoURL"] = $("#videoURL").val() ;
+					if ($("#videoURL").val() != undefined) {
+						appData["videoURL"] = $("#videoURL").val() ;
+					}
+
 					appData["lines"] = lines ;
 					appData["details"] = details ;
 					appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
@@ -789,7 +818,12 @@
 						let content = reader.result ;
 						let appData = JSON.parse(content) ;
 
-						let videoURL = appData["videoURL"] ;
+						let videoURL = "" ;
+						
+						if (appData["videoURL"] != undefined) {
+							videoURL = appData["videoURL"] ;
+						}
+
 						lines = appData["lines"] ;
 						details= appData["details"] ;
 
@@ -818,8 +852,12 @@
 							$("#shortcutWord6").val(shortcutWords["shortcutWord6"]) ;
 						}
 
-						if (videoURL != "") {
-							loadOnlineVideo(videoURL) ;
+						let mediaType = "<%= mediaType %>" ;
+
+						if (mediaType == "youtube") {
+							if (videoURL != "") {
+								loadOnlineVideo(videoURL) ;
+							}
 						}
 
 						updateSubtitleData() ;
@@ -1221,50 +1259,66 @@
 					$('#autoPlayWhenEdtingFinished').prop("checked", autoPlayWhenEdtingFinished == "true") ;
 				}
 
-				let saveAppKey = localStorage.getItem("saveAppKey") ;
+				let mediaType = "<%= mediaType %>" ;
 
-				if (saveAppKey != undefined) {
-					$('#saveAppKey').prop("checked", saveAppKey == "true") ;
-				}
+				// File only
+				if (mediaType == "file") {
+					let saveAppKey = localStorage.getItem("saveAppKey") ;
 
-				let acpGrammarFileNames = localStorage.getItem("acpGrammarFileNames") ;
+					if (saveAppKey != undefined) {
+						$('#saveAppKey').prop("checked", saveAppKey == "true") ;
+					}
 
-				if (acpGrammarFileNames != undefined) {
-					$('#acpGrammarFileNames').val(acpGrammarFileNames) ;
-				}
+					let acpGrammarFileNames = localStorage.getItem("acpGrammarFileNames") ;
 
-				let acpProfileId = localStorage.getItem("acpProfileId") ;
+					if (acpGrammarFileNames != undefined) {
+						$('#acpGrammarFileNames').val(acpGrammarFileNames) ;
+					}
 
-				if (acpProfileId != undefined) {
-					$('#acpProfileId').val(acpProfileId) ;
-				}
+					let acpProfileId = localStorage.getItem("acpProfileId") ;
 
-				let acpAppKey = localStorage.getItem("acpAppKey") ;
+					if (acpProfileId != undefined) {
+						$('#acpProfileId').val(acpProfileId) ;
+					}
 
-				if (acpAppKey != undefined) {
-					$('#acpAppKey').val(acpAppKey) ;
-				}
+					let acpAppKey = localStorage.getItem("acpAppKey") ;
 
-				let acpLoggingOptOut = localStorage.getItem("acpLoggingOptOut") ;
+					if (acpAppKey != undefined) {
+						$('#acpAppKey').val(acpAppKey) ;
+					}
 
-				if (acpLoggingOptOut != undefined) {
-					$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
+					let acpLoggingOptOut = localStorage.getItem("acpLoggingOptOut") ;
+
+					if (acpLoggingOptOut != undefined) {
+						$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
+					}
 				}
 			}
 
 			function storeSettings() {
-				localStorage.setItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
-				localStorage.setItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
-				localStorage.setItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
-				localStorage.setItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
+				localStorageSetItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
+				localStorageSetItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
 
-				localStorage.setItem("acpGrammarFileNames", $('#acpGrammarFileNames').val()) ;
-				localStorage.setItem("acpProfileId", $('#acpProfileId').val()) ;
+				let mediaType = "<%= mediaType %>" ;
 
-				if ($('#saveAppKey').prop("checked")) {
-					localStorage.setItem("acpAppKey", $('#acpAppKey').val()) ;
-				} else {
-					localStorage.removeItem("acpAppKey") ;
+				// File only
+				if (mediaType == "file") {
+					localStorageSetItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
+					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
+					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNames').val()) ;
+					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
+
+					if ($('#saveAppKey').prop("checked")) {
+						localStorageSetItem("acpAppKey", $('#acpAppKey').val()) ;
+					} else {
+						localStorage.removeItem("acpAppKey") ;
+					}
+				}
+
+				function localStorageSetItem(key, val) {
+					if (val != undefined) {
+						localStorage.setItem(key, val) ;
+					}
 				}
 			}
 
