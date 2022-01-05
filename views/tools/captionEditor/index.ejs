@@ -9,9 +9,9 @@
 		<% } %>
 
 		<%- include('../../parts/head', {title: '字幕エディター' + suffix}) %>
-		<meta property="og:site_name" content="字幕エディター<%= suffix %> - UDトークツールズ"/>
+		<meta property="og:site_name" content="字幕エディター<%= suffix %>"/>
 		<meta property="og:url" content="<%= rootURL %>"/>
-		<meta property="og:title" content="字幕エディター<%= suffix %> - UDトークツールズ"/>
+		<meta property="og:title" content="字幕エディター<%= suffix %>"/>
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
@@ -76,7 +76,7 @@
 				<div class="col-md">
 					<div class="row">
 						<div class="col-md mb-3">
-							<h4>字幕エディター<%= suffix %> - UDトークツールズ</h4>
+							<h3>字幕エディター<%= suffix %></h3>
 						</div>
 					</div>
 
@@ -111,8 +111,8 @@
 													<div class="row">
 														<div class="col mb-1">
 															<div class="small ms-3">YouTubeのURLをペーストして読み込んでください。</div>
-															<div class="small ms-3">ローカルのファイルを読み込んで使用したい時は<a href="/jimakueditor4file">字幕エディター for ファイル</a>をご利用ください。</div>
 															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
+															<div class="small ms-3">ローカルのファイルを読み込んで使用したい時は<a href="/jimakueditor4file">字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。</div>
 														</div>
 													</div>
 												<% } else if (mediaType == "file") { %>
@@ -128,8 +128,8 @@
 														<div class="col mb-1">
 															<div class="small ms-3">ローカルに保存された動画または音声ファイルを読み込んでください。</div>
 															<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
-															<div class="small ms-3">YouTubeの動画を再生しながら使用したい時は<a href="/jimakueditor">字幕エディター for YouTube</a>をご利用ください。</div>
 															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
+															<div class="small ms-3">YouTubeの動画を再生しながら使用したい時は<a href="/jimakueditor">字幕エディター for YouTube</a>をご利用ください。</div>
 														</div>
 													</div>
 												<% } %>
@@ -151,6 +151,10 @@
 												<div class="row">
 													<div class="col mb-1">
 														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。</div>
+
+														<% if (mediaType == "file") { %>
+															<div class="small ms-3">このデータは「音声認識結果を取得する」で作成することもできます。</div>
+														<% } %>
 													</div>
 												</div>
 											</div>
