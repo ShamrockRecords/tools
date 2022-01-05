@@ -36,10 +36,10 @@ async function runSpeechRecognition() {
     const ffmpeg = createFFmpeg({ log: true });
 
     if (!targetFile.name.endsWith(".mp3") && !targetFile.name.endsWith(".wav")) {
-        $("#speechRecognitionButton").val("ファイルを変換中...") ;
+        $("#speechRecognitionButton").html("ファイルを変換中...") ;
 
         ffmpeg.setProgress(({ ratio }) => {
-            $("#speechRecognitionButton").val("ファイルを変換中... " + Math.floor(ratio * 100) + "%") ;
+            $("#speechRecognitionButton").html("ファイルを変換中... " + Math.floor(ratio * 100) + "%") ;
         });
 
         await ffmpeg.load();
@@ -100,20 +100,24 @@ async function runSpeechRecognition() {
         body: formData
     }
 
-    $("#speechRecognitionButton").val("アップロード中...") ;
+    $("#speechRecognitionButton").html("アップロード中...") ;
 
     let data = await fetch(serverURL, param).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
         alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
+        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        isSpeechRecognizing = false ;
     } else if (data["sessionid"] == "") {
         alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
+        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        isSpeechRecognizing = false ;
     } else {
         let sessionId = data["sessionid"] ;
 
         let startedDate = Date.now() ;
 
-        $("#speechRecognitionButton").val("処理を待っています...") ;
+        $("#speechRecognitionButton").html("処理を待っています...") ;
 
         let count = 0 ;
 
@@ -158,7 +162,7 @@ async function runSpeechRecognition() {
 
                 updateSubtitleData() ;
 
-                $("#speechRecognitionButton").val("音声認識結果を取得") ;
+                $("#speechRecognitionButton").html("音声認識結果を取得") ;
                 
                 isSpeechRecognizing = false ;
 
@@ -182,13 +186,13 @@ async function runSpeechRecognition() {
                 }
 
                 if (data["status"] == "queued") {
-                    $("#speechRecognitionButton").val("処理を待っています...\n" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を待っています...<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "started") {
-                    $("#speechRecognitionButton").val("処理を開始しました...\n" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を開始しました...<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "processing") {
-                    $("#speechRecognitionButton").val("結果を取得しています...\n" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("結果を取得しています...<br />" + timeIntervalText + "経過") ;
                 } else {
-                    $("#speechRecognitionButton").val(data["status"]) ;
+                    $("#speechRecognitionButton").html(data["status"]) ;
                     isSpeechRecognizing = false ;
                 }
             }
