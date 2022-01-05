@@ -407,6 +407,13 @@
 									</div>
 									<div class="row mb-3">
 										<div class="col">
+											<div>サービスID</div>
+											<input id="acpProfileId" name="acpProfileId" type="text" class="form-control" value="" placeholder="" aria-label="">
+											<div class="small ms-3">サービスIDを指定するとAmiVoice Cloud Platform上での単語登録が有効になります。</div>
+										</div>
+									</div>		
+									<div class="row mb-3">
+										<div class="col">
 											<div>接続エンジン名</div>
 											<input id="acpGrammarFileNames" name="acpGrammarFileNames" type="text" class="form-control" value="-a-general" placeholder="" aria-label="">
 											<div class="small ms-3">音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。</div>
@@ -1196,6 +1203,18 @@
 					$('#saveAppKey').prop("checked", saveAppKey == "true") ;
 				}
 
+				let acpGrammarFileNames = localStorage.getItem("acpGrammarFileNames") ;
+
+				if (acpGrammarFileNames != undefined) {
+					$('#acpGrammarFileNames').val(acpGrammarFileNames) ;
+				}
+
+				let acpProfileId = localStorage.getItem("acpProfileId") ;
+
+				if (acpProfileId != undefined) {
+					$('#acpProfileId').val(acpProfileId) ;
+				}
+
 				let acpAppKey = localStorage.getItem("acpAppKey") ;
 
 				if (acpAppKey != undefined) {
@@ -1214,6 +1233,9 @@
 				localStorage.setItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
 				localStorage.setItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
 				localStorage.setItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
+
+				localStorage.setItem("acpGrammarFileNames", $('#acpGrammarFileNames').val()) ;
+				localStorage.setItem("acpProfileId", $('#acpProfileId').val()) ;
 
 				if ($('#saveAppKey').prop("checked")) {
 					localStorage.setItem("acpAppKey", $('#acpAppKey').val()) ;

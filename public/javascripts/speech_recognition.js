@@ -25,7 +25,7 @@ async function runSpeechRecognition() {
     let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
 
     let grammarFileNames = $("#acpGrammarFileNames").val() ;
-    let profileId = "" ;
+    let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
 
@@ -118,7 +118,10 @@ async function runSpeechRecognition() {
 
                     line.push(startTime / 1000) ;
                     line.push(endTime / 1000) ;
-                    line.push(segment["text"]) ;
+
+                    let text = segment["text"].replaceAll("＿", " ") ;
+
+                    line.push(text) ;
 
                     lines.push(line) ;
                     details.push({}) ;
