@@ -16,7 +16,7 @@ var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File')
 var app = express();
 
 app.use(function(req, res, next) {
-  if (req.url == "/jimakueditor4file") {
+  if (req.url == "/jimakueditor4file" || req.url == "/jimakueditor4file/") {
     res.header('Cross-Origin-Opener-Policy', 'same-origin') ;
     res.header('Cross-Origin-Embedder-Policy', 'require-corp') ;
   }

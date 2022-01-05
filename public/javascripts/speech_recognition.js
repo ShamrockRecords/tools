@@ -38,6 +38,10 @@ async function runSpeechRecognition() {
     if (!targetFile.name.endsWith(".mp3") && !targetFile.name.endsWith(".wav")) {
         $("#speechRecognitionButton").val("ファイルを変換中...") ;
 
+        ffmpeg.setProgress(({ ratio }) => {
+            $("#speechRecognitionButton").val("ファイルを変換中... " + Math.floor(ratio * 100) + "%") ;
+        });
+
         await ffmpeg.load();
         
         ffmpeg.FS('writeFile', 'temp', await fetchFile(targetFile));
@@ -107,6 +111,8 @@ async function runSpeechRecognition() {
     } else {
         let sessionId = data["sessionid"] ;
 
+        let startedDate = Date.now() ;
+
         $("#speechRecognitionButton").val("処理を待っています...") ;
 
         let count = 0 ;
@@ -157,12 +163,28 @@ async function runSpeechRecognition() {
                 isSpeechRecognizing = false ;
 
             } else {
+
+                let progressDate = Date.now() ;
+                let timeInterval = progressDate - startedDate ;
+
+                timeInterval = Math.floor(timeInterval / 1000) ;
+
+                let min = Math.floor(timeInterval / 60) ;
+                let sec = timeInterval % 60 ;
+                let timeIntervalText = "" ;
+
+                if (min == 0) {
+                    timeIntervalText = sec + "秒" ;
+                } else {
+                    timeIntervalText = min + "分" + sec + "秒" ;
+                }
+
                 if (data["status"] == "queued") {
-                    $("#speechRecognitionButton").val("処理を待っています... (" + count + ")") ;
+                    $("#speechRecognitionButton").val("処理を待っています...\n" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "started") {
-                    $("#speechRecognitionButton").val("処理を開始しました (" + count + ")") ;
+                    $("#speechRecognitionButton").val("処理を開始しました...\n" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "processing") {
-                    $("#speechRecognitionButton").val("結果を取得しています... (" + count + ")") ;
+                    $("#speechRecognitionButton").val("結果を取得しています...\n" + timeIntervalText + "経過") ;
                 } else {
                     $("#speechRecognitionButton").val(data["status"]) ;
                     isSpeechRecognizing = false ;
