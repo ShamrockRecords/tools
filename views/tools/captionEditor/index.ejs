@@ -112,20 +112,19 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">②UDトークの会話ログ（.csv）を読み込み</div>
+														<div class="form-label">②UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み</div>
 													</div>
 												</div>
 												<div class="row">
 													<div class="col-auto mb-1">
 														<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="ファイルを選択" name="loadSubtitleButton" />
-														<input class="form-control" id="subtitleFile" type="file" accept=".csv" style="display:none;"/>
+														<input class="form-control" id="subtitleFile" type="file" accept=".csv,.srt" style="display:none;"/>
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた会話ログを確認できます。</div>
-														<div class="small ms-3">字幕ファイル（.srt）は<a href="https://tools.udtalk.jp/srt2csv" target="_blank" rel=”noopener”>SRTをCSVに変換</a>でCSVに変換してから読み込ませてください。</div>
+														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。</div>
 													</div>
 												</div>
 											</div>
@@ -426,7 +425,7 @@
 												<option value="0" selected>ログ保存あり</option>
 												<option value="1">ログ保存なし</option>
 											</select>
-											<div class="small ms-3">ログ保存ありとなしで価格が異なります。詳しくはmiVoice Cloud Platformのマイページ内でご確認ください。</div>
+											<div class="small ms-3">ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。</div>
 										</div>
 									</div>		
 								</div>
@@ -551,30 +550,55 @@
 					reader.addEventListener('load', function() {
 						let content = reader.result ;
 						
-						lines = convertToArray(content) ;
-						details = [] ;
+						let srtElements = loadSrtFile(content) ;
 
-						let isFirstLine = true ;
+						if (srtElements.length != 0) {
+							// SRT File
+							lines = [] ;
+							details = [] ;
 
-						let relativeStartTime = 0 ;
+							for (let key in srtElements) {
+								let srt = srtElements[key] ;
 
-						for (let key in lines) {
-							let line = lines[key] ;
-						
-							line[0] = ParseToDate(line[0]) / 1000 ;
-							line[1] = ParseToDate(line[1]) / 1000 ;
+								let line = [] ;
 
-							if (isFirstLine) {
-								relativeStartTime = line[0] ;
-								isFirstLine = false ;
+								line.push(srt.time.start) ;
+								line.push(srt.time.end) ;
+								line.push(srt.text) ;
+
+								lines.push(line) ;
+								details.push({}) ;
 							}
-					
-							line[0] -= relativeStartTime ;
-							line[1] -= relativeStartTime ;
 
-							details.push({}) ;
-						}
+							console.log(lines); 
+						} else {
+							// CSV File
+							lines = convertToArray(content) ;
+
+							details = [] ;
+
+							let isFirstLine = true ;
+
+							let relativeStartTime = 0 ;
+
+							for (let key in lines) {
+								let line = lines[key] ;
+							
+								line[0] = ParseToDate(line[0]) / 1000 ;
+								line[1] = ParseToDate(line[1]) / 1000 ;
+
+								if (isFirstLine) {
+									relativeStartTime = line[0] ;
+									isFirstLine = false ;
+								}
 						
+								line[0] -= relativeStartTime ;
+								line[1] -= relativeStartTime ;
+
+								details.push({}) ;
+							}
+						}
+
 						updateSubtitleData() ;
 					}) ;
 

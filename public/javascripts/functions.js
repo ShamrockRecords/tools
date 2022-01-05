@@ -136,3 +136,26 @@ function saveAsFile(contents, fileName) {
 		a.click();
 	}
 }
+
+function loadSrtFile(contents) {
+	data = []
+
+	contents = contents.replaceAll("\r\n", "\n") ;
+
+	contents.replace(
+		/\d+\n^(\d+:.*)\n((?:(?!\d+:\d+:\d+).*\n*)+)\n$/gm,
+		(string, time, text) => {
+			if (time != "" && text != "") {
+				data.push({
+					time: {
+					start: timeToSec(time.split(' --> ')[0].replaceAll(",", ".")),
+					end: timeToSec(time.split(' --> ')[1].replaceAll(",", "."))
+					},
+					text: text.trim()
+				}) ;
+			}
+		}
+	) ;
+
+	return data ;
+}

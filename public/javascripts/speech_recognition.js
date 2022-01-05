@@ -45,6 +45,9 @@ async function runSpeechRecognition() {
         if (domainId.length > 0) {
             domainId += ' ';
         }
+
+        profileId = profileId.trim() ;
+
         domainId += "profileId=";
         domainId += encodeURIComponent(profileId);
     }
@@ -53,6 +56,9 @@ async function runSpeechRecognition() {
         if (domainId.length > 0) {
             domainId += ' ';
         }
+
+        authorization = authorization.trim() ;
+
         domainId += "authorization=";
         domainId += encodeURIComponent(authorization);
     }
@@ -61,6 +67,7 @@ async function runSpeechRecognition() {
         if (domainId.length > 0) {
             domainId += ' ';
         }
+
         domainId += "loggingOptOut=True";
     }
 
@@ -81,9 +88,9 @@ async function runSpeechRecognition() {
     let data = await fetch(serverURL, param).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
-        alert("Session Idが取得できませんでした。") ;
+        alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
     } else if (data["sessionid"] == "") {
-        alert("Session Idが取得できませんでした。") ;
+        alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
     } else {
         let sessionId = data["sessionid"] ;
 

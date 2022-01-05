@@ -204,29 +204,6 @@
 				$("#output").text(output) ;
 			}
 
-			function loadSrtFile(contents) {
-				data = []
-				subtitleIndex = 0 ;
-
-				contents = contents.replaceAll("\r\n", "\n") ;
-
-				contents.replace(
-					/\d+\n^(\d+:.*)\n((?:(?!\d+:\d+:\d+).*\n*)+)\n$/gm,
-					(string, time, text) => {
-						if (time != "" && text != "") {
-							data.push({
-								time: {
-								start: timeToSec(time.split(' --> ')[0].replaceAll(",", ".")),
-								end: timeToSec(time.split(' --> ')[1].replaceAll(",", "."))
-								},
-								text: text.trim()
-							}) ;
-						}
-					}
-				) ;
-
-				return data ;
-			}
 		</script>
 	</body>
 </html>
