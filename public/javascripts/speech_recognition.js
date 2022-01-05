@@ -162,6 +162,8 @@ async function runSpeechRecognition() {
                 
                 isSpeechRecognizing = false ;
 
+                alert("音声認識処理が完了しました。結果が表示されます。") ;
+
             } else {
 
                 let progressDate = Date.now() ;
