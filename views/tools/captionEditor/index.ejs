@@ -217,7 +217,7 @@
 												<div class="row">
 													<div class="col-auto mb-1">
 														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="ファイルを選択" name="loadAppDataButton" />
-														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor" style="display:none;"/>	
+														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor, .jimakuEditor" style="display:none;"/>	
 													</div>
 												</div>
 
@@ -723,6 +723,7 @@
 					let fileName = $("#appDataFileName").val() ;
 
 					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName = fileName.replaceAll(".jimakuEditor", "") ;
 					fileName += ".csv" ;
 
 					saveAsFile(content , fileName) ;
@@ -752,6 +753,7 @@
 					let fileName = $("#appDataFileName").val() ;
 
 					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName = fileName.replaceAll(".jimakuEditor", "") ;
 					fileName += ".txt" ;
 					
 					saveAsFile(content , fileName) ;
@@ -1035,7 +1037,7 @@
 				$("#videoTitle").text(file.name) ;
 
 				let fileTitle = file.name.split('.').slice(0, -1).join('.')
-				$("#appDataFileName").val(fileTitle + ".captionEditor") ;
+				$("#appDataFileName").val(fileTitle + ".jimakuEditor") ;
 
 				updatePlayingTime(0) ;
 			}
@@ -1080,7 +1082,7 @@
 
 			function onPlayerReady(event) {				
 				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
-				$("#appDataFileName").val(ytPlayer.getVideoData().title + ".captionEditor") ;
+				$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
 
 				updatePlayingTime(ytPlayer.getCurrentTime()) ;
 			}
