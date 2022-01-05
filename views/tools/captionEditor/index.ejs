@@ -564,7 +564,7 @@
 
 								line.push(srt.time.start) ;
 								line.push(srt.time.end) ;
-								line.push(srt.text) ;
+								line.push(srt.text.replaceAll("\r\n", "\n").replaceAll("\n", "")) ;
 
 								lines.push(line) ;
 								details.push({}) ;
