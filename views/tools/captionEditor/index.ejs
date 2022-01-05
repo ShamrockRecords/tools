@@ -3,9 +3,9 @@
 	<head>
 		<% let suffix = "" %>
 		<% if (mediaType == "youtube") { %>
-			<% suffix = "（YouTube）" ; %>
+			<% suffix = " for YouTube" ; %>
 		<% } else if (mediaType == "file") { %>
-			<% suffix = "（ファイル）" ; %>
+			<% suffix = " for ファイル" ; %>
 		<% } %>
 
 		<%- include('../../parts/head', {title: '字幕エディター' + suffix}) %>
@@ -65,9 +65,9 @@
 				</div>
 				<div class="col-auto">
 					<% if (mediaType == "youtube") { %>
-						<a href="/jimakueditor4file">字幕エディター（ファイル）へ</a>
+						<a href="/jimakueditor4file">字幕エディター for ファイルへ</a>
 					<% } else if (mediaType == "file") { %>
-						<a href="/jimakueditor">字幕エディター（YouTube）へ</a>
+						<a href="/jimakueditor">字幕エディター for YouTubeへ</a>
 					<% } %>
 				</div>
 			</div>
@@ -94,7 +94,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">①メディアを読み込み</div>
+														<div class="form-label">①ファイルを読み込み</div>
 													</div>
 												</div>
 
@@ -111,6 +111,7 @@
 													<div class="row">
 														<div class="col mb-1">
 															<div class="small ms-3">YouTubeのURLをペーストして読み込んでください。</div>
+															<div class="small ms-3">ローカルのファイルを読み込んで使用したい時は<a href="/jimakueditor4file">字幕エディター for ファイル</a>をご利用ください。</div>
 															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 														</div>
 													</div>
@@ -127,6 +128,7 @@
 														<div class="col mb-1">
 															<div class="small ms-3">ローカルに保存された動画または音声ファイルを読み込んでください。</div>
 															<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
+															<div class="small ms-3">YouTubeの動画を再生しながら使用したい時は<a href="/jimakueditor">字幕エディター for YouTube</a>をご利用ください。</div>
 															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
 														</div>
 													</div>

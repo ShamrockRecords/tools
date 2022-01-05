@@ -2,7 +2,7 @@ let isSpeechRecognizing = false ;
 
 async function runSpeechRecognition() {
     if (mediafile == null) {
-        alert("メディアファイルを読み込んでください。") ;
+        alert("ファイルを読み込んでください。") ;
         return ;
     }
 
