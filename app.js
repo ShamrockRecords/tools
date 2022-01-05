@@ -13,12 +13,14 @@ var captionEditorIndexRouter = require('./routes/captionEditor/index');
 
 var app = express();
 
+/*
 app.use(function(req, res, next) {
   res.header('Cross-Origin-Opener-Policy', 'same-origin')
   res.header('Cross-Origin-Embedder-Policy', 'require-corp')
   
   next()
 })
+*/
 
 const session = require('express-session') ;
 
