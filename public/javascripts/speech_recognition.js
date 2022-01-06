@@ -192,8 +192,8 @@ async function runSpeechRecognition() {
                 } else if (data["status"] == "processing") {
                     $("#speechRecognitionButton").html("結果を取得しています...<br />" + timeIntervalText + "経過") ;
                 } else {
-                    $("#speechRecognitionButton").html(data["status"]) ;
-                    isSpeechRecognizing = false ;
+                    //$("#speechRecognitionButton").html(data["status"]) ;
+                    //isSpeechRecognizing = false ;
                 }
             }
 
