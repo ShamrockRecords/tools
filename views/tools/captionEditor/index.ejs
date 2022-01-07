@@ -18,7 +18,10 @@
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
 		<script type="text/javascript" src="/javascripts/speech_recognition.js"></script>
-		<script src="/javascripts/ffmpeg.min.js"></script>
+		
+		<script type="text/javascript" src="/javascripts/ffmpeg.min.js"></script>
+
+		<script type="text/javascript" src="/javascripts/generate_srt_data.js"></script>
 
 		<style>
 
@@ -237,14 +240,19 @@
 					
 												<div class="row">
 													<div class="col-auto mb-1">		
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsCsvButton" type="button" value="CSVで保存" name="saveAsCsvButton" />
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsTextButton" type="button" value="テキストで保存" name="saveAsTextButton" />
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="CSVファイル（.csv）で保存" name="saveAsCsvButton" />
+													</div>
+													<div class="col-auto mb-1">	
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="テキスト（.txt）で保存" name="saveAsTextButton" />
+													</div>
+													<div class="col-auto mb-1">	
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="字幕ファイル（.srt）で保存" name="saveAsSrtButton" />
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="small ms-3">エクスポートしたCSVファイルから<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で字幕ファイル（.srt）を作成することができます。</div>
+														<div class="small ms-3">もっと詳細な設定で字幕ファイル（.srt）を作成したいときはCSVファイルで保存した後に<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で作成してください。</div>
 													</div>
 												</div>
 											</div>
@@ -780,7 +788,49 @@
 					fileName = fileName.replaceAll(".jimakuEditor", "") ;
 					fileName += ".txt" ;
 					
-					saveAsFile(content , fileName) ;
+					saveAsFile(content, fileName) ;
+				}) ;
+
+				$("#saveAsSrtButton").on("click", async (e) => {
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let copiedLines = [] ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						if (line[0] + offsetTime < 0) {
+							continue ;
+						}
+
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
+
+						let startTime = line[0] + offsetTime ;
+						let endTime = line[1] + offsetTime ;
+
+						let element = {} ;
+
+						element["startTime"] = startTime ;
+						element["endTime"] = endTime ;
+						element["content"] = line[2] ;
+
+						copiedLines.push(element) ;
+					}
+
+					let content = await generateSrtData(copiedLines) ;
+
+					let fileName = $("#appDataFileName").val() ;
+
+					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName = fileName.replaceAll(".jimakuEditor", "") ;
+					fileName += "ja_JP.srt" ;
+
+					saveAsFile(content, fileName) ;
 				}) ;
 
 				function commitAppData() {
