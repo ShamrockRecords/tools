@@ -1,4 +1,4 @@
-# node-tmp
+# Tools
 
 Node.js + Express + firebaseでサインインの実装まで済ませたアプリ作成の開始テンプレートです。イメージをダウンロードしてお使いください。
 
@@ -17,77 +17,6 @@ Node.js + Express + firebaseでサインインの実装まで済ませたアプ�
 
 ```
 ROOT_URL = "http://localhost:3000"
-
-FIREBASE_API_KEY = ""
-FIREBASE_AUTH_DOMAIN = ""
-FIREBASE_PROJECT_ID = ""
-FIREBASE_STORAGE_BUCKET = ""
-FIREBASE_MESSAGING_SENDER_ID = ""
-FIREBASE_APP_ID = ""
-MEASUREMENT_ID = ""
-
-GOOGLE_CLOUD_TRANSLATION_API_KEY = ""
-
-FIREBASE_ADMINSDK_type = ""
-FIREBASE_ADMINSDK_project_id = ""
-FIREBASE_ADMINSDK_private_key_id = ""
-FIREBASE_ADMINSDK_private_key = ""
-FIREBASE_ADMINSDK_client_email = ""
-FIREBASE_ADMINSDK_client_id = ""
-FIREBASE_ADMINSDK_auth_uri = ""
-FIREBASE_ADMINSDK_token_uri = ""
-FIREBASE_ADMINSDK_auth_provider_x509_cert_url = ""
-FIREBASE_ADMINSDK_client_x509_cert_url = ""
-```
-### firestoreへのアクセス
-
-firestoreへのアクセス用に発行されたコードを環境変数に移してください。
-
-```
-var firebaseConfig = {
-    apiKey: "xxxxx,
-    authDomain: "xxxxx",
-    projectId: "xxxxx",
-    storageBucket: "xxxxx",
-    messagingSenderId: "xxxxx",
-    appId: "xxxxx",
-    measurementId: "xxxxx"
-  };
-  
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  firebase.analytics();
-```
-このコードのxxxxxを
-```
-FIREBASE_API_KEY = "xxxxx"
-FIREBASE_AUTH_DOMAIN = "xxxxx"
-FIREBASE_PROJECT_ID = "xxxxx"
-FIREBASE_STORAGE_BUCKET = "xxxxx"
-FIREBASE_MESSAGING_SENDER_ID = "xxxxx"
-FIREBASE_APP_ID = "xxxxx"
-MEASUREMENT_ID = "xxxxx"
-```
-このように。
-
-ローカルで動作させるとfirestoreのインデックスを作成するアラートがでるのでエラーメッセージのURLから作成してください。
-
-### firebase adminへのアクセス
-
-firebase adminはサービス アカウントで発行した秘密鍵情報のjsonファイルをダウンロードして入力してください。
-AuthenticationのSign-in methodで「メール／パスワード」を有効にしてください。
-
-```
-FIREBASE_ADMINSDK_type = ""
-FIREBASE_ADMINSDK_project_id = ""
-FIREBASE_ADMINSDK_private_key_id = ""
-FIREBASE_ADMINSDK_private_key = ""
-FIREBASE_ADMINSDK_client_email = ""
-FIREBASE_ADMINSDK_client_id = ""
-FIREBASE_ADMINSDK_auth_uri = ""
-FIREBASE_ADMINSDK_token_uri = ""
-FIREBASE_ADMINSDK_auth_provider_x509_cert_url = ""
-FIREBASE_ADMINSDK_client_x509_cert_url = ""
 ```
 
 ### 動作させるドメイン
@@ -96,8 +25,7 @@ FIREBASE_ADMINSDK_client_x509_cert_url = ""
 
 `ROOT_URL = "http://localhost:3000"`
 
-Heroku等で動かす場合はこれらをインスタンスの環境編集に登録してください。認証情報になりますので、公開リポジトリには含めないように注意してください。
-なおHerokuのインスタンスに環境変数としてFIREBASE_ADMINSDK_private_keyをセットする時は\nを実際の改行に置換してセットしてください。
+Heroku等で動かす場合はこれらをインスタンスの環境編集に登録してください。
 
 
 
