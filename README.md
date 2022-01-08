@@ -1,6 +1,6 @@
 # Tools
 
-Node.js + Express + firebaseでサインインの実装まで済ませたアプリ作成の開始テンプレートです。イメージをダウンロードしてお使いください。
+Node.js + Expressで開発しています。
 
 ## 動かし方
 1. Node.jsをインストールします
