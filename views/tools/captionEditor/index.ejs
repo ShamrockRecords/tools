@@ -646,11 +646,25 @@
 
 							let relativeStartTime = 0 ;
 
-							for (let key in lines) {
-								let line = lines[key] ;
-							
+							for (let i=0; i<lines.length; i++) {
+								let line = lines[i] ;
+								let nextLine = []
+								
+								if (i < lines.length - 1) {
+									nextLine = lines[i+1] ;
+								}
+
 								line[0] = ParseToDate(line[0]) / 1000 ;
-								line[1] = ParseToDate(line[1]) / 1000 ;
+
+								if (line[1] == "") {
+									if (nextLine.length != 0) {
+										line[1] = ParseToDate(nextLine[0]) / 1000 ;
+									} else {
+										line[1] = line[0] + 1 ;
+									}
+								} else {
+									line[1] = ParseToDate(line[1]) / 1000 ;
+								}
 
 								if (isFirstLine) {
 									relativeStartTime = line[0] ;
