@@ -104,12 +104,14 @@ async function runSpeechRecognition() {
 
     let data = await fetch(serverURL, param).then(response => response.json()) ;
 
+    console.log(data) ;
+
     if (data["sessionid"] == undefined) {
-        alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
+        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
         $("#speechRecognitionButton").html("音声認識結果を取得") ;
         isSpeechRecognizing = false ;
     } else if (data["sessionid"] == "") {
-        alert("Session Idが取得できませんでした。APPKEYが間違っている可能性があります。") ;
+        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
         $("#speechRecognitionButton").html("音声認識結果を取得") ;
         isSpeechRecognizing = false ;
     } else {
