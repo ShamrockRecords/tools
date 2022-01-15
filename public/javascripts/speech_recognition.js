@@ -54,7 +54,7 @@ async function runSpeechRecognition() {
     let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
 
     var formData = new FormData();
-
+    let param = "" ;
     let domainId = "" ;
 
     domainId += "grammarFileNames=";
@@ -72,14 +72,10 @@ async function runSpeechRecognition() {
     }
 
     if (authorization != "") {
-        if (domainId.length > 0) {
-            domainId += ' ';
-        }
-
         authorization = authorization.trim() ;
 
-        domainId += "authorization=";
-        domainId += encodeURIComponent(authorization);
+        param += "?u=";
+        param += encodeURIComponent(authorization);
     }
 
     if (loggingOptOut != 0) {
@@ -90,21 +86,17 @@ async function runSpeechRecognition() {
         domainId += "loggingOptOut=True";
     }
 
-    //console.log(domainId) ;
-
     formData.append("d", domainId);
     formData.append("a", targetFile);
 
-    const param = {
+    const postParam = {
         method: "POST",
         body: formData
     }
 
     $("#speechRecognitionButton").html("アップロード中...") ;
 
-    let data = await fetch(serverURL, param).then(response => response.json()) ;
-
-    console.log(data) ;
+    let data = await fetch(serverURL + param, postParam).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
         alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
@@ -129,8 +121,6 @@ async function runSpeechRecognition() {
             }
 
             let data = await fetch(serverURL + "/" + sessionId, param).then(response => response.json()) ;
-
-            //console.log(data) ;
 
             count++ ;
 
@@ -194,8 +184,7 @@ async function runSpeechRecognition() {
                 } else if (data["status"] == "processing") {
                     $("#speechRecognitionButton").html("結果を取得しています...<br />" + timeIntervalText + "経過") ;
                 } else {
-                    //$("#speechRecognitionButton").html(data["status"]) ;
-                    //isSpeechRecognizing = false ;
+                    
                 }
             }
 
