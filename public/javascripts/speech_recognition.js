@@ -29,6 +29,12 @@ async function runSpeechRecognition() {
 
     isSpeechRecognizing = true ;
 
+
+    let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+    $("#toRunSpeechRecognitionSpinner").empty() ;
+    $("#toRunSpeechRecognitionSpinner").append(spinner) ;
+
     // 変換
     let targetFile = mediafile ;
 
@@ -82,7 +88,7 @@ async function runSpeechRecognition() {
         authorization = authorization.trim() ;
         authorization= encodeURIComponent(authorization);
     }
-    
+
     formData.append("u", authorization);
     formData.append("d", domainId);
     formData.append("a", targetFile);
@@ -155,6 +161,7 @@ async function runSpeechRecognition() {
                 $("#speechRecognitionButton").html("音声認識結果を取得") ;
                 
                 isSpeechRecognizing = false ;
+                $("#toRunSpeechRecognitionSpinner").empty() ;
 
                 alert("音声認識処理が完了しました。結果が表示されます。") ;
 

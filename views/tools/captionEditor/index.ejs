@@ -753,26 +753,9 @@
 					}
 				}) ;
 
-				let isRunningSpeechRecognition = false ;
-
 				$("#speechRecognitionButton").on("click", async (e) => {
-					if (isRunningSpeechRecognition) {
-						return ;
-					}
-
-					isRunningSpeechRecognition = true ;
-
-					let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
-				
-					$("#toRunSpeechRecognitionSpinner").empty() ;
-					$("#toRunSpeechRecognitionSpinner").append(spinner) ;
-
 					// Speech Recognition by AmiVoice Cloud Platform
 					await runSpeechRecognition() ;
-
-					$("#toRunSpeechRecognitionSpinner").empty() ;
-
-					isRunningSpeechRecognition = false ;
 				}) ;
 
 				$("#offsetTimeLengthUpdateButton").on("click", (e) => {
