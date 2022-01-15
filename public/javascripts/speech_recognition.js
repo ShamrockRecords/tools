@@ -54,7 +54,6 @@ async function runSpeechRecognition() {
     let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
 
     var formData = new FormData();
-    let param = "" ;
     let domainId = "" ;
 
     domainId += "grammarFileNames=";
@@ -71,13 +70,6 @@ async function runSpeechRecognition() {
         domainId += encodeURIComponent(profileId);
     }
 
-    if (authorization != "") {
-        authorization = authorization.trim() ;
-
-        param += "?u=";
-        param += encodeURIComponent(authorization);
-    }
-
     if (loggingOptOut != 0) {
         if (domainId.length > 0) {
             domainId += ' ';
@@ -86,17 +78,23 @@ async function runSpeechRecognition() {
         domainId += "loggingOptOut=True";
     }
 
+    if (authorization != "") {
+        authorization = authorization.trim() ;
+        authorization= encodeURIComponent(authorization);
+    }
+    
+    formData.append("u", authorization);
     formData.append("d", domainId);
     formData.append("a", targetFile);
 
-    const postParam = {
+    const param = {
         method: "POST",
         body: formData
     }
 
     $("#speechRecognitionButton").html("アップロード中...") ;
 
-    let data = await fetch(serverURL + param, postParam).then(response => response.json()) ;
+    let data = await fetch(serverURL, param).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
         alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
