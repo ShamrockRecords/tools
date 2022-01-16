@@ -163,7 +163,7 @@ async function runSpeechRecognition() {
                 isSpeechRecognizing = false ;
                 $("#toRunSpeechRecognitionSpinner").empty() ;
 
-                alert("音声認識処理が完了しました。結果が表示されます。") ;
+                //alert("音声認識処理が完了しました。結果が表示されます。") ;
 
             } else {
 
