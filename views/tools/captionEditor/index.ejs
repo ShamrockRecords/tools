@@ -883,7 +883,7 @@
 
 					fileName = fileName.replaceAll(".captionEditor", "") ;
 					fileName = fileName.replaceAll(".jimakuEditor", "") ;
-					fileName += "ja_JP.srt" ;
+					fileName += ".ja_JP.srt" ;
 
 					$("#toExportSrtSpinner").empty() ;
 
@@ -1248,8 +1248,11 @@
 
 			function onPlayerReady(event) {				
 				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
-				$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
 
+				if ($("#appDataFileName").val() == "") {
+					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
+				}
+				
 				updatePlayingTime(ytPlayer.getCurrentTime()) ;
 			}
 
