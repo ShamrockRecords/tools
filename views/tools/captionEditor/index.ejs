@@ -1248,8 +1248,11 @@
 
 			function onPlayerReady(event) {				
 				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
-				$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
 
+				if ($("#appDataFileName").val() == "") {
+					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
+				}
+				
 				updatePlayingTime(ytPlayer.getCurrentTime()) ;
 			}
 
