@@ -9,6 +9,7 @@ var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
 var genReadingIndexRouter = require('./routes/genReading/index');
 var captionEditorIndexRouter = require('./routes/captionEditor/index');
 var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File');
+var jimakuConnectorIndexRouter = require('./routes/captionConnector/index');
 
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
@@ -58,6 +59,7 @@ app.use('/srt2csv', srtToCsvIndexRouter);
 app.use('/yomifuri', genReadingIndexRouter);
 app.use('/jimakueditor', captionEditorIndexRouter);
 app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
+app.use('/jimakuconnector', jimakuConnectorIndexRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

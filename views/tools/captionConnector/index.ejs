@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<%- include('../../parts/head', {title: '字幕コネクター'}) %>
+		<meta property="og:site_name" content="字幕コネクター"/>
+		<meta property="og:url" content="<%= rootURL %>"/>
+		<meta property="og:title" content="字幕コネクター"/>
+		<meta property="og:type" content="Website" />
+		<meta property="og:description" content=""/>
+
+		<script type="text/javascript" src="/javascripts/functions.js"></script>
+
+		<style>
+			
+		</style>
+	</head>
+	<body>
+		<div class="container p-2">
+			<div class="mb-3">
+				<a href="/">トップに戻る</a>
+			</div>
+
+			<h1>字幕コネクター</h1>
+
+			<div class="mb-3">
+				音声認識結果をZoomの字幕として送信します。
+			</div>
+
+			<div class="row mb-3">
+				<div class="col-sm">
+					<select class="form-select" id="devices" name="devices" aria-label="入力デバイス">
+					</select>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			$(function() {
+				getCurrentDevices((devices) => {
+					devices.forEach(function(device) {
+						if (device.kind == "audioinput") {
+							$("#devices").append('<option value="' + device.deviceId + '">' + device.label + '</option>') ;
+						}
+					}) ;
+
+					let deviceId = $('[name=devices]').val();
+
+					initDevice(deviceId) ;
+				}) ;
+
+				$('[name=devices]').on("change", () => {
+					let deviceId = $('[name=devices]').val();
+					//let label = $('[name=devices] option:selected').text();
+					initDevice(deviceId) ;
+				}) ;
+			}) ;
+
+			function initDevice(deviceId) {
+				navigator.mediaDevices.getUserMedia (
+							{
+								audio: { deviceId: deviceId }
+							}
+						).then(function(stream) {
+							console.log(stream) ;
+						}).catch(function(err) {
+							
+						});
+			}
+
+			// Get current device array.
+			function getCurrentDevices(delegate) {
+				if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+					navigator.mediaDevices.getUserMedia (
+						{
+							audio: true
+						}
+						).then(function(stream) {
+							navigator.mediaDevices.enumerateDevices().then(function(devices) {
+								delegate(devices) ;
+							}).catch(function(err) {
+								delegate([]) ;
+							}) ;
+						}).catch(function(err) {
+							delegate([]);
+						});
+				} else {
+					delegate([]) ;
+				}
+			}
+		</script>
+
+	</body>
+</html>
