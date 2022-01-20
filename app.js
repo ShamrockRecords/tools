@@ -36,6 +36,9 @@ var session_opt = {
 
 app.use(session(session_opt)) ;
 
+app.use(express.json({limit: '100mb'}));
+app.use(express.urlencoded({limit: '100mb'}));
+
 require('dotenv').config();
 
 if (process.env.ROOT_URL != "http://localhost:3000") {

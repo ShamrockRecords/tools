@@ -18,8 +18,13 @@
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
 		<script type="text/javascript" src="/javascripts/speech_recognition.js"></script>
-		<script src="/javascripts/ffmpeg.min.js"></script>
+		
+		<script type="text/javascript" src="/javascripts/ffmpeg.min.js"></script>
 
+		<script type="text/javascript" src="/javascripts/generate_srt_data.js"></script>
+
+		<script defer src="https://use.fontawesome.com/releases/v5.15.4/js/all.js" integrity="sha384-rOA1PnstxnOBLzCLMcre8ybwbTmemjzdNlILg8O7z1lUkLXozs4DHonlDtnE7fpc" crossorigin="anonymous"></script>
+		
 		<style>
 
 			html,
@@ -49,6 +54,10 @@
 
 			.cmn-btn {
 				width: 120px;
+			}
+
+			.op-btn {
+				width: 80px;
 			}
 
 			.wide-btn {
@@ -178,7 +187,7 @@
 													<div class="col mb-1">
 														<div class="small ms-3">字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。</div>
 														<div class="small ms-3">時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が00:00:16.128から始まっているときは16.128を入力して更新ボタンを押します。</div>
-														<div class="small ms-3">最初の字幕で調整が難しい時は途中の字幕で時間の調整をしてみてください。</div>
+														<div class="small ms-3">音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。</div>
 													</div>
 												</div>
 											</div>
@@ -237,14 +246,20 @@
 					
 												<div class="row">
 													<div class="col-auto mb-1">		
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsCsvButton" type="button" value="CSVで保存" name="saveAsCsvButton" />
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAsTextButton" type="button" value="テキストで保存" name="saveAsTextButton" />
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="CSVファイル（.csv）で保存" name="saveAsCsvButton" />
+													</div>
+													<div class="col-auto mb-1">	
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="テキスト（.txt）で保存" name="saveAsTextButton" />
+													</div>
+													<div class="col-auto mb-1">	
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="字幕ファイル（.srt）で保存" name="saveAsSrtButton" />
+														<div id="toExportSrtSpinner"></div>
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="small ms-3">エクスポートしたCSVファイルから<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で字幕ファイル（.srt）を作成することができます。</div>
+														<div class="small ms-3">もっと詳細な設定で字幕ファイル（.srt）を作成したいときはCSVファイルで保存した後に<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で作成してください。</div>
 													</div>
 												</div>
 											</div>
@@ -269,7 +284,7 @@
 												<div class="card-body">
 													<strong class="card-title">編集時のショートカットキー</strong>
 													<div class="ms-3">
-														<div class="row"><div class="col">⌘またはCtrl + ↓</div><div class="col">再生/停止</div></div>
+														<div class="row"><div class="col">⌘またはCtrl + ↓</div><div class="col">再生／停止</div></div>
 														<div class="row"><div class="col">⌘またはCtrl + ←</div><div class="col">指定秒戻す</div></div>
 														<div class="row"><div class="col">⌘またはCtrl + →</div><div class="col">指定秒送る</div></div>
 														<div class="row"><div class="col">Enter</div><div class="col">次の字幕データへ移動</div></div>
@@ -349,11 +364,32 @@
 							</div>
 						</div>
 					</div>
+
+					<div class="row mb-3">
+						<div class="col">
+							<div class="btn-group" role="group" aria-label="Basic example">
+								<button type="button" id="rwButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-backward"></i></button>
+								<button type="button" id="playButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-play"></i></button>
+								<button type="button" id="pauseButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-pause"></i></button>
+								<button type="button" id="ffButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-forward"></i></button>
+							</div>
+						</div>
+						<div class="col-auto">
+							<div class="btn-group" role="group" aria-label="Basic example">
+								<button type="button" id="slowSpeedButton" class="btn btn-sm btn-secondary">x 0.7</button>
+								<button type="button" id="normalSpeedButton" class="btn btn-sm btn-secondary">x 1.0</button>
+								<button type="button" id="fastSpeedButton" class="btn btn-sm btn-secondary">x 1.5</button>
+								<button type="button" id="fastestSpeedButton" class="btn btn-sm btn-secondary">x 2.0</button>
+							</div>
+						</div>
+					</div>
+
 					<div class="row mb-3">
 						<div class="col text-center">
 							<div class="fs-4 time" id="videoTime">00:00:00.000</div>
 						</div>
 					</div>
+
 					<div class="row">
 						<div class="col-auto mb-3 text-center">
 							<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
@@ -414,6 +450,7 @@
 					<div class="row mb-3">
 						<div class="col-auto">
 							<button class="btn btn-primary btn-sm wide-btn" id="speechRecognitionButton" type="button" value="" name="speechRecognitionButton">音声認識結果を取得</button>
+							<div id="toRunSpeechRecognitionSpinner"></div>
 						</div>
 					</div>
 
@@ -489,8 +526,6 @@
 				</div>
 
 				<div class="col-md mb-5">
-					
-
 					<div class="row">
 						<div class="col">
 							<div class="box border">
@@ -502,12 +537,13 @@
 					</div>
 				</div>
 			</div>
-		</div>
 
-		<div class="container">
-			<div class="mb-3 small" style="text-align: center;">
-				Copyright © UDトーク. All Rights Reserved.
+			<div class="container">
+				<div class="mb-3 small" style="text-align: center;">
+					Copyright © <a href="https://udtalk.jp">UDトーク</a>. All Rights Reserved.
+				</div>
 			</div>
+			
 		</div>
 		
 		<script>
@@ -639,11 +675,25 @@
 
 							let relativeStartTime = 0 ;
 
-							for (let key in lines) {
-								let line = lines[key] ;
-							
+							for (let i=0; i<lines.length; i++) {
+								let line = lines[i] ;
+								let nextLine = []
+								
+								if (i < lines.length - 1) {
+									nextLine = lines[i+1] ;
+								}
+
 								line[0] = ParseToDate(line[0]) / 1000 ;
-								line[1] = ParseToDate(line[1]) / 1000 ;
+
+								if (line[1] == "") {
+									if (nextLine.length != 0) {
+										line[1] = ParseToDate(nextLine[0]) / 1000 ;
+									} else {
+										line[1] = line[0] + 1 ;
+									}
+								} else {
+									line[1] = ParseToDate(line[1]) / 1000 ;
+								}
 
 								if (isFirstLine) {
 									relativeStartTime = line[0] ;
@@ -780,7 +830,98 @@
 					fileName = fileName.replaceAll(".jimakuEditor", "") ;
 					fileName += ".txt" ;
 					
-					saveAsFile(content , fileName) ;
+					saveAsFile(content, fileName) ;
+				}) ;
+
+				let isExportingSrt = false ;
+
+				$("#saveAsSrtButton").on("click", async (e) => {
+					if (isExportingSrt) {
+						return ;
+					}
+
+					isExportingSrt = true ;
+
+					let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+					$("#toExportSrtSpinner").empty() ;
+					$("#toExportSrtSpinner").append(spinner) ;
+
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let copiedLines = [] ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						if (line[0] + offsetTime < 0) {
+							continue ;
+						}
+
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
+
+						let startTime = line[0] + offsetTime ;
+						let endTime = line[1] + offsetTime ;
+
+						let element = {} ;
+
+						element["startTime"] = startTime ;
+						element["endTime"] = endTime ;
+						element["content"] = line[2] ;
+
+						copiedLines.push(element) ;
+					}
+
+					let content = await generateSrtData(copiedLines) ;
+
+					let fileName = $("#appDataFileName").val() ;
+
+					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName = fileName.replaceAll(".jimakuEditor", "") ;
+					fileName += "ja_JP.srt" ;
+
+					$("#toExportSrtSpinner").empty() ;
+
+					saveAsFile(content, fileName) ;
+
+					isExportingSrt = false ;
+				}) ;
+
+				$("#ffButton").on("click", (e) => {
+					playingFastForword(Number($("#seekingSeconds").val())) ;
+				}) ;
+
+				$("#playButton").on("click", (e) => {
+					playVideo() ;
+				}) ;
+
+				$("#pauseButton").on("click", (e) => {
+					pauseVideo() ;
+				}) ;
+
+				$("#rwButton").on("click", (e) => {
+					playingRewind(Number($("#seekingSeconds").val())) ;
+				}) ;
+
+				$("#slowSpeedButton").on("click", (e) => {
+					setPlaybackRate(0.7) ;
+				}) ;
+
+				$("#normalSpeedButton").on("click", (e) => {
+					setPlaybackRate(1.0) ;
+				}) ;
+
+				$("#fastSpeedButton").on("click", (e) => {
+					setPlaybackRate(1.5) ;
+				}) ;
+
+				$("#fastestSpeedButton").on("click", (e) => {
+					setPlaybackRate(2.0) ;
 				}) ;
 
 				function commitAppData() {
@@ -1027,9 +1168,9 @@
 							<td>
 								<div class="row p-0">
 									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
-									<div class="col-auto d-flex align-items-center"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="再生" name="playStartButton${index}" /></div>
-									<div class="col-auto d-flex align-items-center time">${startTime} - ${endTime}</div>
-									<div class="col">
+									<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="再生" name="playStartButton${index}" /></div>
+									<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>
+									<div class="col-auto d-flex justify-content-end">
 										<div class="form-check">
 											<label class="form-check-label small" for="alreadyEditedCheckBox">編集済み</label>
 											<input class="form-check-input" type="checkbox" value="" id="alreadyEditedCheckBox${index}" name="alreadyEditedCheckBox${index}" value="" ${checked}>
@@ -1249,6 +1390,14 @@
 					let currentTime = localPlayer.currentTime ;
 					localPlayer.currentTime = currentTime - sec ;
 					updatePlayingTime(currentTime - sec) ;
+				}
+			}
+
+			function setPlaybackRate(rate) {
+				if (ytPlayer != null) {
+					ytPlayer.setPlaybackRate(rate) ;
+				} else if (localPlayer) {
+					localPlayer.playbackRate = rate ;
 				}
 			}
 
