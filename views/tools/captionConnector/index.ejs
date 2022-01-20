@@ -32,11 +32,24 @@
 					</select>
 				</div>
 			</div>
+			<div class="row mb-3">
+				<div class="col-auto">
+					<button class="btn btn-outline-primary" type="button" id="startRecordingButton">開始</button>
+				</div>
+				<div class="col-auto">
+					<button class="btn btn-outline-primary" type="button" id="stopRecordingButton">終了</button>
+				</div>
+			</div>
 		</div>
 
 		<script>
+			let mediaRecorder = null ;
+
 			$(function() {
-				getCurrentDevices((devices) => {
+				$("#startRecordingButton").prop("disabled", true);
+				$("#stopRecordingButton").prop("disabled", true);
+
+				getCurrentDevices(async (devices) => {
 					devices.forEach(function(device) {
 						if (device.kind == "audioinput") {
 							$("#devices").append('<option value="' + device.deviceId + '">' + device.label + '</option>') ;
@@ -45,26 +58,74 @@
 
 					let deviceId = $('[name=devices]').val();
 
-					initDevice(deviceId) ;
+					await initDevice(deviceId) ;
 				}) ;
 
-				$('[name=devices]').on("change", () => {
+				$('[name=devices]').on("change", async () => {
 					let deviceId = $('[name=devices]').val();
 					//let label = $('[name=devices] option:selected').text();
-					initDevice(deviceId) ;
+					await initDevice(deviceId) ;
+				}) ;
+
+				$('#startRecordingButton').on('click', (e) => {
+					if (mediaRecorder.state == "inactive") {
+						mediaRecorder.start(1000) ;
+					}
+				}) ;
+
+				$('#stopRecordingButton').on('click', (e) => {
+					if (mediaRecorder.state != "inactive") {
+						mediaRecorder.stop() ;
+					}
 				}) ;
 			}) ;
 
-			function initDevice(deviceId) {
-				navigator.mediaDevices.getUserMedia (
+			async function initDevice(deviceId) {
+				$("#startRecordingButton").prop("disabled", true);
+				$("#stopRecordingButton").prop("disabled", true);
+
+				let stream = await navigator.mediaDevices.getUserMedia (
 							{
 								audio: { deviceId: deviceId }
 							}
-						).then(function(stream) {
-							console.log(stream) ;
-						}).catch(function(err) {
-							
-						});
+				).then() ;
+				
+				if (mediaRecorder != null) {
+					if (mediaRecorder.state != "inactive") {
+						mediaRecorder.stop() ;
+					}
+				}
+
+				mediaRecorder = new MediaRecorder(stream);
+
+				mediaRecorder.onstart = function(event) {
+					console.log('onstart') ;
+				} ;
+
+				mediaRecorder.onstop = function(event) {
+					console.log('onstop') ;
+				} ;
+
+				mediaRecorder.onpause = function(event) {
+					console.log('onpause') ;
+				} ;
+
+				mediaRecorder.onresume = function(event) {
+					console.log('onresume') ;
+				} ;
+
+				mediaRecorder.ondataavailable = function(e) {
+					console.log('ondataavailable') ;
+    				//chunks.push(e.data);
+
+					console.log(e.data) ;
+					//saveBlob(e.data, "a.webm") ;
+  				}
+
+				console.log(mediaRecorder) ;
+
+				$("#startRecordingButton").prop("disabled", false);
+				$("#stopRecordingButton").prop("disabled", false);
 			}
 
 			// Get current device array.
@@ -85,6 +146,18 @@
 						});
 				} else {
 					delegate([]) ;
+				}
+			}
+
+			function saveBlob(blob, fileName) { 
+				if(window.navigator.msSaveBlob) {
+					window.navigator.msSaveBlob(blob, fileName);
+				} else {
+					var a = document.createElement("a");
+					a.href = URL.createObjectURL(blob);
+					a.target = '_blank';
+					a.download = fileName;
+					a.click();
 				}
 			}
 		</script>
