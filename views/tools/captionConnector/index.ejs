@@ -9,7 +9,9 @@
 		<meta property="og:description" content=""/>
 
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
-
+		<script type="text/javascript" src="/javascripts/recorder.js"></script>
+		<script type="text/javascript" src="/javascripts/visualizer.js"></script>
+		
 		<style>
 			
 		</style>
@@ -39,10 +41,13 @@
 				<div class="col-auto">
 					<button class="btn btn-outline-primary" type="button" id="stopRecordingButton">終了</button>
 				</div>
-				<div class="col-auto">
-					<button class="btn btn-outline-primary" type="button" id="saveRecordingButton">保存</button>
+			</div>
+			<div class="row mb-3">
+				<div class="col">
+					<canvas id="frequency" width="640" height="100"></canvas>
 				</div>
 			</div>
+
 			<div class="row mb-3">
 				<div class="col-auto">
 					<div id="mediaRecorderError"></div>
@@ -53,12 +58,12 @@
 		<script>
 			let mediaRecorder = null ;
 			let chunks = [] ;
+			let deviceId = "" ;
+			let recorder = new Recorder() ;
+			let visualizer ;
 
 			$(async function() {
-				$("#startRecordingButton").prop("disabled", true);
-				$("#stopRecordingButton").prop("disabled", true);
-
-				let devices = await getCurrentDevices() ;
+				let devices = await Recorder.currentDevices() ;
 
 				devices.forEach(function(device) {
 					if (device.kind == "audioinput") {
@@ -66,131 +71,43 @@
 					}
 				}) ;
 
-				let deviceId = $('[name=devices]').val();
+				deviceId = $('[name=devices]').val();
 
-				await initDevice(deviceId) ;
+				recorder.onAudioProcess = (e) => {
+					//console.log(e) ;
+				} ;
+
+				let canvas = $("#frequency")[0] ;
+
+				visualizer = new Visualizer(canvas) ;
 
 				$('[name=devices]').on("change", async () => {
-					let deviceId = $('[name=devices]').val();
+					deviceId = $('[name=devices]').val();
 					//let label = $('[name=devices] option:selected').text();
-					await initDevice(deviceId) ;
+					if (recorder.isRunning()) {
+						recorder.pause() ;
+						recorder.resume(deviceId) ;
+
+						visualizer.start(recorder.analyser) ;
+					}
 				}) ;
 
 				$('#startRecordingButton').on('click', (e) => {
-					if (mediaRecorder.state == "inactive") {
-						chunks = [] ;
-						mediaRecorder.start(1000) ;
+					if (!recorder.isRunning()) {
+						recorder.resume(deviceId) ;
+
+						visualizer.start(recorder.analyser) ;
 					}
 				}) ;
 
 				$('#stopRecordingButton').on('click', (e) => {
-					if (mediaRecorder.state != "inactive") {
-						mediaRecorder.stop() ;
+					if (recorder.isRunning()) {
+						recorder.pause() ;
+						visualizer.stop() ;
 					}
-				}) ;
-
-				$('#saveRecordingButton').on('click', async (e) => {
-					let blob = new Blob(chunks);
-
-					//let arrayBuffer = await blob.arrayBuffer();
-					//let audioContext = new AudioContext();
-
-					//audioContext.sampleRate = 16000 ;
-
-					//let audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-					//console.log(audioBuffer);
-
-					saveBlob(blob, 'test') ;
 				}) ;
 			}) ;
-
-			async function initDevice(deviceId) {
-				$("#startRecordingButton").prop("disabled", true);
-				$("#stopRecordingButton").prop("disabled", true);
-
-				let stream = await navigator.mediaDevices.getUserMedia ({audio: { deviceId: deviceId }});
-				
-				if (mediaRecorder != null) {
-					if (mediaRecorder.state != "inactive") {
-						mediaRecorder.stop() ;
-					}
-				}
-
-				mediaRecorder = new MediaRecorder(stream);
-
-				mediaRecorder.onstart = function(event) {
-					console.log('onstart') ;
-					$('#mediaRecorderError').text('録音中...') ;
-				} ;
-
-				mediaRecorder.onstop = function(event) {
-					console.log('onstop') ;
-					$('#mediaRecorderError').text('') ;
-				} ;
-
-				mediaRecorder.onpause = function(event) {
-					console.log('onpause') ;
-				} ;
-
-				mediaRecorder.onresume = function(event) {
-					console.log('onresume') ;
-				} ;
-
-				mediaRecorder.ondataavailable = async function(e) {
-					console.log('ondataavailable') ;
-    				//chunks.push(e.data);
-
-					console.log(e.data) ;
-					
-					let buffer = await e.data.arrayBuffer();
-					const view = new Int8Array(buffer);
-					//console.log(view) ;
-
-					chunks.push(e.data) ;
-  				}
-
-				mediaRecorder.onerror = function(e) {
-					let error = e.error;
-
-					switch(error.name) {
-					case InvalidStateError:
-						break;
-					case SecurityError:
-						break;
-					case NotSupportedError:
-						break;
-					case UnknownError:
-						break;
-					default:
-						break;
-					}
-
-					console.log(error.name) ;
-					$('#mediaRecorderError').text(error.name) ;
-				};
-
-				console.log(mediaRecorder) ;
-
-				$("#startRecordingButton").prop("disabled", false);
-				$("#stopRecordingButton").prop("disabled", false);
-			}
-
-			// Get current device array.
-			async function getCurrentDevices() {
-				let devices = [] ;
-
-				if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-					let stream = await navigator.mediaDevices.getUserMedia({audio: true}) ;
-
-					if (stream != null) {
-						devices = await navigator.mediaDevices.enumerateDevices() ;
-					}
-				}
-				
-				return devices ;
-			}
-
+			
 			function saveBlob(blob, fileName) { 
 				if(window.navigator.msSaveBlob) {
 					window.navigator.msSaveBlob(blob, fileName);
