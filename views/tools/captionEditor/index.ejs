@@ -417,6 +417,14 @@
 											</div>
 										</div>
 									</div>
+									<div class="row mb-3 ms-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="nonStopWhenDotsInput" name="nonStopWhenDotsInput" value="" checked>
+												<label class="form-check-label" for="nonStopWhenDotsInput">句読点の入力では自動的に再生を停止しない</label>
+											</div>
+										</div>
+									</div>
 									<div class="row mb-3">
 										<div class="col">
 											<div class="form-check">
@@ -1117,10 +1125,17 @@
 
 					$(textClassName).on("input", function(e) {
 						let autoStopWhenEdtingStarted = $("#autoStopWhenEdtingStarted").prop("checked") ;
+						let nonStopWhenDotsInput = $("#nonStopWhenDotsInput").prop("checked") ;
 
 						if (autoStopWhenEdtingStarted) {
 							if (e.originalEvent.data != null) {
-								pauseVideo() ;
+								if (nonStopWhenDotsInput) {
+									if (e.originalEvent.data != "。" && e.originalEvent.data != "、") {					
+										pauseVideo() ;
+									}
+								} else {
+									pauseVideo() ;
+								}
 							}
 						}
 
