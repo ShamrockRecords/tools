@@ -1453,6 +1453,12 @@
 					$('#autoStopWhenEdtingStarted').prop("checked", autoStopWhenEdtingStarted == "true") ;
 				}
 
+				let nonStopWhenDotsInput = localStorage.getItem("nonStopWhenDotsInput") ;
+
+				if (nonStopWhenDotsInput != undefined) {
+					$('#nonStopWhenDotsInput').prop("checked", nonStopWhenDotsInput == "true") ;
+				}
+
 				let autoPlayWhenEdtingFinished = localStorage.getItem("autoPlayWhenEdtingFinished") ;
 
 				if (autoPlayWhenEdtingFinished != undefined) {
@@ -1510,8 +1516,9 @@
 			function storeSettings() {
 
 				localStorageSetItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
+				localStorageSetItem("nonStopWhenDotsInput", $('#nonStopWhenDotsInput').prop("checked")) ;
 				localStorageSetItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
-
+				
 				let mediaType = "<%= mediaType %>" ;
 
 				// File only
