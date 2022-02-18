@@ -126,16 +126,12 @@ async function runSpeechRecognition() {
 
         $("#speechRecognitionButton").html("処理を待っています...") ;
 
-        let count = 0 ;
-
         let timer = setInterval(async () => {
             const param = {
                 headers: {"Authorization": "Bearer " + authorization},
             }
 
             let data = await fetch(serverURL + "/" + sessionId, param).then(response => response.json()) ;
-
-            count++ ;
 
             if (data["status"] == "completed") {
                 lines = [] ;
@@ -239,11 +235,7 @@ async function runSpeechRecognition() {
                 
                 isSpeechRecognizing = false ;
                 $("#toRunSpeechRecognitionSpinner").empty() ;
-
-                //alert("音声認識処理が完了しました。結果が表示されます。") ;
-
             } else {
-
                 let progressDate = Date.now() ;
                 let timeInterval = progressDate - startedDate ;
 

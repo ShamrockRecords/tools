@@ -9,6 +9,7 @@ var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
 var genReadingIndexRouter = require('./routes/genReading/index');
 var captionEditorIndexRouter = require('./routes/captionEditor/index');
 var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File');
+var localeChangeRouter = require('./routes/localeChange');
 
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
@@ -50,6 +51,14 @@ i18n.configure({
  
 app.use(i18n.init);
 
+// manualでi18nセッション管理できるように設定しておきます
+app.use(function (req, res, next) {
+  if (req.session.locale) {
+    i18n.setLocale(req, req.session.locale);
+  }
+  next();
+});
+
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb'}));
 
@@ -76,6 +85,7 @@ app.use('/srt2csv', srtToCsvIndexRouter);
 app.use('/yomifuri', genReadingIndexRouter);
 app.use('/jimakueditor', captionEditorIndexRouter);
 app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
+app.use('/locale_change', localeChangeRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);
