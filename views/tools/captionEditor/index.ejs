@@ -11,7 +11,7 @@
 		<%- include('../../parts/head', {title: '字幕エディター' + suffix}) %>
 		<meta property="og:site_name" content="字幕エディター<%= suffix %>"/>
 		<meta property="og:url" content="<%= rootURL %>"/>
-		<meta property="og:title" content="字幕エディター<%= suffix %>"/>
+		<meta property="og:title" content="<%- __("字幕エディター") %><%= suffix %>"/>
 		<meta property="og:type" content="Website" />
 		<meta property="og:description" content=""/>
 
@@ -70,13 +70,13 @@
 		<div class="container">
 			<div class="row my-3">
 				<div class="col-auto">
-					<a href="/">トップに戻る</a>
+					<a href="/"><%- __("トップに戻る") %></a>
 				</div>
 				<div class="col-auto">
 					<% if (mediaType == "youtube") { %>
-						<a href="/jimakueditor4file">字幕エディター for ファイルへ</a>
+						<a href="/jimakueditor4file"><%- __("字幕エディター for ファイルへ") %></a>
 					<% } else if (mediaType == "file") { %>
-						<a href="/jimakueditor">字幕エディター for YouTubeへ</a>
+						<a href="/jimakueditor"><%- __("字幕エディター for YouTubeへ") %></a>
 					<% } %>
 				</div>
 			</div>
@@ -85,7 +85,7 @@
 				<div class="col-md">
 					<div class="row">
 						<div class="col-md mb-3">
-							<h3>字幕エディター<%= suffix %></h3>
+							<h3><%- __("字幕エディター") %><%= suffix %></h3>
 						</div>
 					</div>
 
@@ -93,7 +93,7 @@
 						<div class="accordion-item">
 							<h2 class="accordion-header" id="mainMenu-menu1-header">
 								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu1" aria-expanded="true" aria-controls="mainMenu-menu1">
-									操作メニュー（クリックして表示／非表示）
+									<%- __("操作メニュー（クリックして表示／非表示）") %>
 								</button>
 						  	</h2>
 							<div id="mainMenu-menu1" class="accordion-collapse collapse show" aria-labelledby="mainMenu-menu1">
@@ -103,7 +103,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">①ファイルを読み込み</div>
+														<div class="form-label"><%- __("①ファイルを読み込み") %></div>
 													</div>
 												</div>
 
@@ -119,9 +119,9 @@
 
 													<div class="row">
 														<div class="col mb-1">
-															<div class="small ms-3">YouTubeのURLをペーストして読み込んでください。</div>
-															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
-															<div class="small ms-3">ローカルのファイルを読み込んで使用したい時は<a href="/jimakueditor4file">字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。</div>
+															<div class="small ms-3"><%- __("YouTubeのURLをペーストして読み込んでください。") %></div>
+															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
+															<div class="small ms-3"><%- __("ローカルのファイルを読み込んで使用したい時は") %><a href="/jimakueditor4file"><%- __("字幕エディター for ファイル") %></a><%- __("をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。") %></div>
 														</div>
 													</div>
 												<% } else if (mediaType == "file") { %>
@@ -135,10 +135,10 @@
 
 													<div class="row">
 														<div class="col mb-1">
-															<div class="small ms-3">ローカルに保存された動画または音声ファイルを読み込んでください。</div>
-															<div class="small ms-3">動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。</div>
-															<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。</div>
-															<div class="small ms-3">YouTubeの動画を再生しながら使用したい時は<a href="/jimakueditor">字幕エディター for YouTube</a>をご利用ください。</div>
+															<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルを読み込んでください。") %></div>
+															<div class="small ms-3"><%- __("動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。") %></div>
+															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
+															<div class="small ms-3"><%- __("YouTubeの動画を再生しながら使用したい時は") %><a href="/jimakueditor"><%- __("字幕エディター for YouTube") %></a><%- __("をご利用ください。") %></div>
 														</div>
 													</div>
 												<% } %>
@@ -147,22 +147,22 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">②UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み</div>
+														<div class="form-label"><%- __("②UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み") %></div>
 													</div>
 												</div>
 												<div class="row">
 													<div class="col-auto mb-1">
-														<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="ファイルを選択" name="loadSubtitleButton" />
+														<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="<%- __("ファイルを選択") %>" name="loadSubtitleButton" />
 														<input class="form-control" id="subtitleFile" type="file" accept=".csv,.srt" style="display:none;"/>
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3">画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。</div>
+														<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。") %></div>
 
 														<% if (mediaType == "file") { %>
-															<div class="small ms-3">このデータは「音声認識結果を取得する」で作成することもできます。</div>
+															<div class="small ms-3"><%- __("このデータは「音声認識結果を取得する」で作成することもできます") %></div>
 														<% } %>
 													</div>
 												</div>
@@ -171,23 +171,23 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">③読み込み後の調整</div>
+														<div class="form-label"><%- __("③読み込み後の調整") %></div>
 													</div>
 												</div>
 												<div class="row">	
 													<div class="col-auto mb-1">			
 														<div class="input-group">		
-															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3">字幕の開始時間の調整（秒）</span></label>	
+															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3"><%- __("字幕の開始時間の調整（秒）") %></span></label>	
 															<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
-															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton">更新</button>
+															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton"><%- __("更新") %></button>
 														</div>
 													</div>
 												</div>
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3">字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。</div>
-														<div class="small ms-3">時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が00:00:16.128から始まっているときは16.128を入力して更新ボタンを押します。</div>
-														<div class="small ms-3">音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。</div>
+														<div class="small ms-3"><%- __("字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。") %></div>
+														<div class="small ms-3"><%- __("時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が") %>00:00:16.128<%- __("から始まっているときは") %>16.128<%- __("を入力して更新ボタンを押します。") %></div>
+														<div class="small ms-3"><%- __("音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。") %></div>
 													</div>
 												</div>
 											</div>
@@ -195,23 +195,23 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">④作業中のデータの保存</div>
+														<div class="form-label"><%- __("④作業中のデータの保存") %></div>
 													</div>
 												</div>
 				
 												<div class="row">
 													<div class="col-auto mb-1">											
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="データを保存" name="saveAppDataButton" />
+														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="<%- __("データを保存") %>" name="saveAppDataButton" />
 													</div>
 													<div class="col mb-1">
-														<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="ファイル名" aria-label="">
+														<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="<%- __("ファイル名") %>" aria-label="">
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3">保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。</div>
-														<div class="small ms-3">ローカルに保存された動画または音声ファイルパスは保存されません。編集するたびに都度読み込んでください。</div>
+														<div class="small ms-3"><%- __("保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。") %></div>
+														<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルパスは保存されません。編集するたびに都度読み込んでください。") %></div>
 													</div>
 												</div>
 											</div>
@@ -219,7 +219,7 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">⑤作業中のデータの読み込み</div>
+														<div class="form-label"><%- __("⑤作業中のデータの読み込み") %></div>
 													</div>
 												</div>
 
@@ -232,7 +232,7 @@
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3">保存した作業中のデータを読み込んで続きを行うことができます。</div>
+														<div class="small ms-3"><%- __("保存した作業中のデータを読み込んで続きを行うことができます。") %></div>
 													</div>
 												</div>
 											</div>
@@ -240,26 +240,26 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label">⑥編集したデータエクスポート</div>
+														<div class="form-label"><%- __("⑥編集したデータエクスポート") %></div>
 													</div>
 												</div>
 					
 												<div class="row">
 													<div class="col-auto mb-1">		
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="CSVファイル（.csv）で保存" name="saveAsCsvButton" />
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="<%- __("CSVファイル（.csv）で保存") %>" name="saveAsCsvButton" />
 													</div>
 													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="テキスト（.txt）で保存" name="saveAsTextButton" />
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="<%- __("テキスト（.txt）で保存") %>" name="saveAsTextButton" />
 													</div>
 													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="字幕ファイル（.srt）で保存" name="saveAsSrtButton" />
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtButton" />
 														<div id="toExportSrtSpinner"></div>
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="small ms-3">もっと詳細な設定で字幕ファイル（.srt）を作成したいときはCSVファイルで保存した後に<a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”>字幕データ変換くん</a>で作成してください。</div>
+														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときはCSVファイルで保存した後に") %><a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”><%- __("字幕データ変換くん") %></a><%- __("で作成してください。") %></div>
 													</div>
 												</div>
 											</div>
@@ -273,7 +273,7 @@
 						<div class="accordion-item">
 							<h2 class="accordion-header" id="mainMenu-menu2-header">
 								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu2" aria-expanded="false" aria-controls="mainMenu-menu2">
-								ショートカット一覧（クリックして表示／非表示）
+									<%- __("ショートカット一覧（クリックして表示／非表示）") %>
 							  	</button>
 							</h2>
 							<div id="mainMenu-menu2" class="accordion-collapse collapse" aria-labelledby="mainMenu-menu2">
@@ -282,12 +282,12 @@
 										<div class="col-md">
 											<div class="card">
 												<div class="card-body">
-													<strong class="card-title">編集時のショートカットキー</strong>
+													<strong class="card-title"><%- __("編集時のショートカットキー") %></strong>
 													<div class="ms-3">
-														<div class="row"><div class="col">⌘またはCtrl + ↓</div><div class="col">再生／停止</div></div>
-														<div class="row"><div class="col">⌘またはCtrl + ←</div><div class="col">指定秒戻す</div></div>
-														<div class="row"><div class="col">⌘またはCtrl + →</div><div class="col">指定秒送る</div></div>
-														<div class="row"><div class="col">Enter</div><div class="col">次の字幕データへ移動</div></div>
+														<div class="row"><div class="col"><%- __("⌘またはCtrl + ↓") %></div><div class="col"><%- __("再生／停止") %></div></div>
+														<div class="row"><div class="col"><%- __("⌘またはCtrl + ←") %></div><div class="col"><%- __("指定秒戻す") %></div></div>
+														<div class="row"><div class="col"><%- __("⌘またはCtrl + →") %></div><div class="col"><%- __("指定秒送る") %></div></div>
+														<div class="row"><div class="col"><%- __("Enter") %></div><div class="col"><%- __("次の字幕データへ移動") %></div></div>
 													</div>
 												</div>
 											</div>		
@@ -360,7 +360,7 @@
 								<div class="border mb-3" id="onlineVideoPreview" style="display:none;"></div>
 							</div>
 							<div>
-								<video id="localVideoPreview" width="480px" style="display:none;" controls><p>ご使用のブラウザでは動画再生に対応していません</p></video>
+								<video id="localVideoPreview" width="480px" style="display:none;" controls><p><%- __("ご使用のブラウザでは動画再生に対応していません") %></p></video>
 							</div>
 						</div>
 					</div>
@@ -392,10 +392,10 @@
 
 					<div class="row">
 						<div class="col-auto mb-3 text-center">
-							<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="この時間の字幕を表示" name="jumpToSubtitleButton" />
+							<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="<%- __("この時間の字幕を表示") %>" name="jumpToSubtitleButton" />
 						</div>
 						<div class="col-auto mb-3 text-center">
-							<input class="btn btn-success btn-sm wide-btn" id="jumpToLastEditedButton" type="button" value="編集済みの末尾を表示" name="jumpToLastEditedButton" />
+							<input class="btn btn-success btn-sm wide-btn" id="jumpToLastEditedButton" type="button" value="<%- __("編集済みの末尾を表示") %>" name="jumpToLastEditedButton" />
 						</div>
 					</div>
 
@@ -403,7 +403,7 @@
 						<div class="accordion-item">
 						  	<h2 class="accordion-header" id="settings-menu1-header">
 								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu1" aria-expanded="true" aria-controls="settings-menu1">
-									動作設定（クリックして表示／非表示）
+									<%- __("動作設定（クリックして表示／非表示）") %>
 								</button>
 						  	</h2>
 						  	<div id="settings-menu1" class="accordion-collapse collapse" aria-labelledby="settings-menu1">
@@ -412,8 +412,8 @@
 										<div class="col">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="autoStopWhenEdtingStarted" name="autoStopWhenEdtingStarted" value="" checked>
-												<label class="form-check-label" for="autoStopWhenEdtingStarted">編集開始時に自動的に再生を停止する</label>
-												<div class="small ms-3">文字が入力されたタイミングで再生を停止します。文字の削除とショートカットキーによる入力では停止しません。</div>
+												<label class="form-check-label" for="autoStopWhenEdtingStarted"><%- __("編集開始時に自動的に再生を停止する") %></label>
+												<div class="small ms-3"><%- __("文字が入力されたタイミングで再生を停止します。文字の削除とショートカットキーによる入力では停止しません。") %></div>
 											</div>
 										</div>
 									</div>
@@ -421,7 +421,7 @@
 										<div class="col">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="nonStopWhenDotsInput" name="nonStopWhenDotsInput" value="" checked>
-												<label class="form-check-label" for="nonStopWhenDotsInput">句読点の入力では自動的に再生を停止しない</label>
+												<label class="form-check-label" for="nonStopWhenDotsInput"><%- __("句読点の入力では自動的に再生を停止しない") %></label>
 											</div>
 										</div>
 									</div>
@@ -429,13 +429,13 @@
 										<div class="col">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="autoPlayWhenEdtingFinished" name="autoPlayWhenEdtingFinished" value="" checked>
-												<label class="form-check-label" for="autoPlayWhenEdtingFinished">編集を完了（エンターキー押下）で自動的に再生を開始する</label>
+												<label class="form-check-label" for="autoPlayWhenEdtingFinished"><%- __("編集を完了（エンターキー押下）で自動的に再生を開始する") %></label>
 											</div>
 										</div>
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<label for="seekingSeconds" class="me-3 col-form-label">早戻しと早送りの間隔（秒）</label>
+											<label for="seekingSeconds" class="me-3 col-form-label"><%- __("早戻しと早送りの間隔（秒）") %></label>
 										</div>
 										<div class="col">				
 											<input id="seekingSeconds" name="seekingSeconds" type="text" class="form-control" value="5" placeholder="" aria-label="" style="text-align: right;">
@@ -443,7 +443,7 @@
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<label for="playbackSeconds" class="me-3 col-form-label">再生を開時に戻す間隔（秒）</label>	
+											<label for="playbackSeconds" class="me-3 col-form-label"><%- __("再生を開時に戻す間隔（秒）") %></label>	
 										</div>
 										<div class="col">	
 											<input id="playbackSeconds" name="playbackSeconds" type="text" class="form-control" value="2" placeholder="" aria-label="" style="text-align: right;">
@@ -464,7 +464,7 @@
 
 					<div class="row mb-3">
 						<div class="col-auto">
-							<div class="small">音声認識処理中はこの画面を完全に見えない状態にしないでください。ブラウザによっては処理が止まってしまいます（現在対応中です）。</div>
+							<div class="small"><%- __("音声認識処理中はこの画面を完全に見えない状態にしないでください。ブラウザによっては処理が止まってしまいます（現在対応中です）。") %></div>
 						</div>
 					</div>
 
@@ -472,58 +472,58 @@
 						<div class="accordion-item">
 							<h2 class="accordion-header" id="settings-menu2-header">
 								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu2" aria-expanded="false" aria-controls="settings-menu2">
-									音声認識設定（クリックして表示／非表示）
+									<%- __("音声認識設定（クリックして表示／非表示）") %>
 								</button>
 							</h2>
 							<div id="settings-menu2" class="accordion-collapse collapse" aria-labelledby="settings-menu2">
 								<div class="accordion-body">
 									<div class="row small mb-3">
 										<div class="col">
-											<div class="mb-3"><a href="https://acp.amivoice.com/main/" target="_blank" rel=”noopener”>AmiVoice Cloud Platform</a>の音声認識APIを使用して音声認識の結果を取得します。</div>
+											<div class="mb-3"><a href="https://acp.amivoice.com/main/" target="_blank" rel=”noopener”><%- __("AmiVoice Cloud Platform") %></a><%- __("の音声認識APIを使用して音声認識の結果を取得します。") %></div>
 											<div class="mb-3">
-												<div>読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。</div>
-												<div>音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）</div>
+												<div><%- __("読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。") %></div>
+												<div><%- __("音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）") %></div>
 											</div>
-											<div class="mb-3">①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。</div>
-											<div class="mb-3">②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。</div>
-											<div class="mb-3">③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。</div>
-											<div class="mb-3">④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。</div>
-											<div class="mb-3">⑤音声認識サーバーで「ログ保存あり」または「ログ保存なし」を選択します。内容の機密性に応じて選択してご利用ください。</div>
-											<div class="mb-3">⑥「音声認識結果を取得」ボタンを押します。ファイルの長さによっては時間はかかりますが、ページを閉じないでしばらくお待ちください。音声認識が完了すると右側に認識結果が表示されます。</div>
+											<div class="mb-3"><%- __("①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。") %></div>
+											<div class="mb-3"><%- __("②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。") %></div>
+											<div class="mb-3"><%- __("③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。") %></div>
+											<div class="mb-3"><%- __("④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。") %></div>
+											<div class="mb-3"><%- __("⑤音声認識サーバーで「ログ保存あり」または「ログ保存なし」を選択します。内容の機密性に応じて選択してご利用ください。") %></div>
+											<div class="mb-3"><%- __("⑥「音声認識結果を取得」ボタンを押します。ファイルの長さによっては時間はかかりますが、ページを閉じないでしばらくお待ちください。音声認識が完了すると右側に認識結果が表示されます。") %></div>
 										</div>
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<div>APPKEY</div>
+											<div><%- __("APPKEY") %></div>
 											<input id="acpAppKey" name="acpAppKey" type="password" class="form-control" value="" placeholder="" autocomplete="off" aria-label="">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="saveAppKey" name="saveAppKey" value="" checked>
-												<label class="form-check-label" for="saveAppKey">APPKEYをブラウザに保存する</label>
+												<label class="form-check-label" for="saveAppKey"><%- __("APPKEYをブラウザに保存する") %></label>
 											</div>
 										</div>
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<div>サービスID</div>
+											<div><%- __("サービスID") %></div>
 											<input id="acpProfileId" name="acpProfileId" type="text" class="form-control" value="" placeholder="" aria-label="">
-											<div class="small ms-3">サービスIDを指定するとAmiVoice Cloud Platform上での単語登録が有効になります。</div>
+											<div class="small ms-3"><%- __("サービスIDを指定するとAmiVoice Cloud Platform上での単語登録が有効になります。") %></div>
 										</div>
 									</div>		
 									<div class="row mb-3">
 										<div class="col">
-											<div>接続エンジン名</div>
+											<div><%- __("接続エンジン名") %></div>
 											<input id="acpGrammarFileNames" name="acpGrammarFileNames" type="text" class="form-control" value="-a-general" placeholder="" aria-label="">
-											<div class="small ms-3">音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。</div>
+											<div class="small ms-3"><%- __("音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。") %></div>
 										</div>
 									</div>		
 									<div class="row mb-3">
 										<div class="col-sm">
-											<div>音声認識API</div>
-											<select class="form-select" id="acpLoggingOptOut" name="acpLoggingOptOut" aria-label="音声認識API">
-												<option value="0" selected>ログ保存あり</option>
-												<option value="1">ログ保存なし</option>
+											<div><%- __("音声認識API") %></div>
+											<select class="form-select" id="acpLoggingOptOut" name="acpLoggingOptOut" aria-label="<%- __("音声認識API2") %>">
+												<option value="0" selected><%- __("ログ保存あり") %></option>
+												<option value="1"><%- __("ログ保存なし") %></option>
 											</select>
-											<div class="small ms-3">ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。</div>
+											<div class="small ms-3"><%- __("ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。") %></div>
 										</div>
 									</div>		
 								</div>
@@ -548,7 +548,7 @@
 
 			<div class="container">
 				<div class="mb-3 small" style="text-align: center;">
-					Copyright © <a href="https://udtalk.jp">UDトーク</a>. All Rights Reserved.
+					Copyright © <a href="https://udtalk.jp"><%- __("UDトーク") %></a>. All Rights Reserved.
 				</div>
 			</div>
 			

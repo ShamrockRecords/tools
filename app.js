@@ -35,6 +35,21 @@ var session_opt = {
 
 app.use(session(session_opt)) ;
 
+var i18n = require("i18n");
+ 
+// 多言語化の利用設定
+i18n.configure({
+  // 利用するlocalesを設定。これが辞書ファイルとひも付きます
+  locales: ['ja', 'en'],
+  defaultLocale: 'en',
+  // 辞書ファイルのありかを指定
+  directory: __dirname + "/locales",
+  // オブジェクトを利用したい場合はtrue
+  objectNotation: true,
+});
+ 
+app.use(i18n.init);
+
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb'}));
 
