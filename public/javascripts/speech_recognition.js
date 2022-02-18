@@ -21,7 +21,8 @@ async function runSpeechRecognition() {
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
-
+    let diarization = $('#acpDiarization').prop("checked") ;
+    
     if (authorization == "") {
         alert("音声認識設定でAPPKEYを入力してください。") ;
         return ;
@@ -84,6 +85,14 @@ async function runSpeechRecognition() {
         domainId += "loggingOptOut=True";
     }
 
+    if (diarization) {
+        if (domainId.length > 0) {
+            domainId += ' ';
+        }
+
+        domainId += "speakerDiarization=True";
+    }
+
     if (authorization != "") {
         authorization = authorization.trim() ;
         authorization= encodeURIComponent(authorization);
@@ -133,24 +142,92 @@ async function runSpeechRecognition() {
                 details = [] ;
 
                 let segments = data["segments"]
+                let currentSpeakerName = "" ;
 
                 for (let key in segments) {
                     let segment = segments[key] ;
-                    
-                    let line = [] ;
 
-                    let startTime = segment["results"][0]["starttime"] ;
-                    let endTime = segment["results"][0]["endtime"] ;
+                    //console.log(segment) ;
 
-                    line.push(startTime / 1000) ;
-                    line.push(endTime / 1000) ;
+                    let results = segment["results"][0] ;
+                    let tokens = results["tokens"] ;
 
-                    let text = segment["text"].replaceAll("＿", " ") ;
+                    let text = "" ;
 
-                    line.push(text) ;
+                    let currentStartTime = "" ;
+                    let currentEndTime = "" ;
 
-                    lines.push(line) ;
-                    details.push({}) ;
+                    for (let key in tokens) {
+                        let token = tokens[key] ;
+
+                        let startTime = token["starttime"] ;
+                        currentEndTime = token["endtime"] ;
+                        let speakerName = token["label"] ;
+                        let written = token["written"] ;
+                        
+                        if (currentStartTime == "") {
+                            currentStartTime = startTime ;
+                        }
+
+                        if (speakerName == undefined) {
+                            speakerName = "" ;
+                        }
+
+                        if (currentSpeakerName != speakerName && speakerName != "" && written != "。" && written != "、") {
+                            currentSpeakerName = speakerName ;
+
+                            if (text != "") {
+                                if (text.endsWith("、")) {
+                                    text = text.slice( 0, -1 ) ;
+                                    text += "。" ;
+                                } else if (!text.endsWith("。")) {
+                                    text += "。" ;
+                                }
+                            }
+
+                            text += currentSpeakerName + "／" + written ;
+                        } else {
+                            text += written ;
+                        }
+
+                        if (text.length > 40 && (text.endsWith("。") || text.endsWith("、"))) {
+                            text = text.replaceAll("＿", " ") ;
+
+                            let line = [] ;
+
+                            line.push(currentStartTime / 1000) ;
+                            line.push(currentEndTime / 1000) ;
+                            line.push(text) ;
+                            line.push("") ;
+                            line.push("") ;
+                            line.push(text) ;
+
+                            currentStartTime = "" ;
+                            text = "" ;
+
+                            lines.push(line) ;
+                            details.push({}) ;
+                        }
+                    }
+
+                    if (text.length > 0) {
+                        text = text.replaceAll("＿", " ") ;
+
+                        let line = [] ;
+
+                        line.push(currentStartTime / 1000) ;
+                        line.push(currentEndTime / 1000) ;
+                        line.push(text) ;
+                        line.push("") ;
+                        line.push("") ;
+                        line.push(text) ;
+
+                        currentStartTime = "" ;
+                        text = "" ;
+
+                        lines.push(line) ;
+                        details.push({}) ;
+                    }
                 }
 
                 clearInterval(timer) ;
