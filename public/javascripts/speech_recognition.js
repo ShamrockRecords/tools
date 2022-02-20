@@ -1,6 +1,6 @@
 let isSpeechRecognizing = false ;
 
-async function runSpeechRecognition() {
+async function runSpeechRecognition(completion) {
     if (mediafile == null) {
         alert("ファイルを読み込んでください。") ;
         return ;
@@ -112,12 +112,12 @@ async function runSpeechRecognition() {
     let data = await fetch(serverURL, param).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
-        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
-        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
+        completion("") ;
         isSpeechRecognizing = false ;
     } else if (data["sessionid"] == "") {
-        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
-        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
+        completion("") ;
         isSpeechRecognizing = false ;
     } else {
         let sessionId = data["sessionid"] ;
@@ -231,7 +231,7 @@ async function runSpeechRecognition() {
 
                 updateSubtitleData() ;
 
-                $("#speechRecognitionButton").html("音声認識結果を取得") ;
+                completion("") ;
                 
                 isSpeechRecognizing = false ;
                 $("#toRunSpeechRecognitionSpinner").empty() ;
@@ -252,11 +252,11 @@ async function runSpeechRecognition() {
                 }
 
                 if (data["status"] == "queued") {
-                    $("#speechRecognitionButton").html("処理を待っています...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を待っています..." + "<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "started") {
-                    $("#speechRecognitionButton").html("処理を開始しました...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を開始しました..." + "<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "processing") {
-                    $("#speechRecognitionButton").html("結果を取得しています...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("結果を取得しています..." + "<br />" + timeIntervalText + "経過") ;
                 } else {
                     
                 }

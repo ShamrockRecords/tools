@@ -7,4 +7,8 @@ router.get('/', wrap(async function(req, res, next) {
     res.render('index', {rootURL: process.env.ROOT_URL});		 
 })) ;
 
+router.get('/speech_recognition.js', wrap(async function(req, res, next) {
+    res.render('tools/captionEditor/speech_recognition', {});		 
+})) ;
+
 module.exports = router;

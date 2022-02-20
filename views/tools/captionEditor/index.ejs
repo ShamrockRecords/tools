@@ -127,7 +127,7 @@
 														<div class="col mb-1">
 															<div class="small ms-3"><%- __("YouTubeのURLをペーストして読み込んでください。") %></div>
 															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
-															<div class="small ms-3"><%- __("ローカルのファイルを読み込んで使用したい時は") %><a href="/jimakueditor4file"><%- __("字幕エディター for ファイル") %></a><%- __("をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。") %></div>
+															<div class="small ms-3"><%- __("ローカルのファイルを読み込んで使用したい時は<a href='/jimakueditor4file'>字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。") %></div>
 														</div>
 													</div>
 												<% } else if (mediaType == "file") { %>
@@ -144,7 +144,7 @@
 															<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルを読み込んでください。") %></div>
 															<div class="small ms-3"><%- __("動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。") %></div>
 															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
-															<div class="small ms-3"><%- __("YouTubeの動画を再生しながら使用したい時は") %><a href="/jimakueditor"><%- __("字幕エディター for YouTube") %></a><%- __("をご利用ください。") %></div>
+															<div class="small ms-3"><%- __("YouTubeの動画を再生しながら使用したい時は<a href='/jimakueditor'>字幕エディター for YouTube</a>をご利用ください。") %></div>
 														</div>
 													</div>
 												<% } %>
@@ -192,7 +192,7 @@
 												<div class="row">
 													<div class="col mb-1">
 														<div class="small ms-3"><%- __("字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。") %></div>
-														<div class="small ms-3"><%- __("時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が") %>00:00:16.128<%- __("から始まっているときは") %>16.128<%- __("を入力して更新ボタンを押します。") %></div>
+														<div class="small ms-3"><%- __("時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が%sから始まっているときは%sを入力して更新ボタンを押します。", "00:00:16.128", "16.128") %></div>
 														<div class="small ms-3"><%- __("音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。") %></div>
 													</div>
 												</div>
@@ -231,7 +231,7 @@
 
 												<div class="row">
 													<div class="col-auto mb-1">
-														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="ファイルを選択" name="loadAppDataButton" />
+														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="<%- __("ファイルを選択") %>" name="loadAppDataButton" />
 														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor, .jimakuEditor" style="display:none;"/>	
 													</div>
 												</div>
@@ -264,8 +264,8 @@
 												</div>
 
 												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときはCSVファイルで保存した後に") %><a href="https://jimakudata.udtalk.jp" target="_blank" rel=”noopener”><%- __("字幕データ変換くん") %></a><%- __("で作成してください。") %></div>
+													<div class="col mb-1">
+														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。", "https://jimakudata.udtalk.jp") %></div>
 													</div>
 												</div>
 											</div>
@@ -479,7 +479,7 @@
 								<div class="accordion-body">
 									<div class="row small mb-3">
 										<div class="col">
-											<div class="mb-3"><% __("音声認識API") %><a href="https://acp.amivoice.com/main/" target="_blank" rel=”noopener”><%- __("AmiVoice Cloud Platform") %></a><%- __("を使用して音声認識の結果を取得します。") %></div>
+											<div class="mb-3"><%- __("音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。", "https://acp.amivoice.com/main/") %></div>
 											<div class="mb-3">
 												<div><%- __("読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。") %></div>
 												<div><%- __("音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）") %></div>
@@ -832,8 +832,29 @@
 				}) ;
 
 				$("#speechRecognitionButton").on("click", async (e) => {
+				
+				/*
+					"現在音声認識の処理中です。処理が終わるまでお待ちください。"
+					"既に編集対象の認識結果があります。上書きされますが宜しいですか？"
+					"音声認識設定でAPPKEYを入力してください。"
+					"ファイルを変換中..."
+					"ファイルを変換中... "
+					"音声認識を開始することができませんでした。"
+					"処理を待っています..."
+					"処理を開始しました..."
+					"結果を取得しています..."
+					"経過"
+				*/
+				
 					// Speech Recognition by AmiVoice Cloud Platform
-					await runSpeechRecognition() ;
+					await runSpeechRecognition((message) => {
+					
+						if (message != "") {
+							alert(message) ;
+						}
+						
+						$("#speechRecognitionButton").html("<%- __('音声認識結果を取得') %>") ;
+					}) ;
 				}) ;
 
 				$("#offsetTimeLengthUpdateButton").on("click", (e) => {
@@ -1253,11 +1274,11 @@
 							<td>
 								<div class="row p-0">
 									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
-									<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="再生" name="playStartButton${index}" /></div>
+									<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="<%- __('再生') %>" name="playStartButton${index}" /></div>
 									<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>
 									<div class="col-auto d-flex justify-content-end">
 										<div class="form-check">
-											<label class="form-check-label small" for="alreadyEditedCheckBox">編集済み</label>
+											<label class="form-check-label small" for="alreadyEditedCheckBox"><%- __('編集済み') %></label>
 											<input class="form-check-input" type="checkbox" value="" id="alreadyEditedCheckBox${index}" name="alreadyEditedCheckBox${index}" value="" ${checked}>
 										</div>
 									</div>

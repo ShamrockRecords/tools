@@ -3,12 +3,9 @@
 	"トップに戻る": "To Top Page",
 	"字幕エディター for ファイルへ": "To Jimaku Editor for File",
 	"操作メニュー（クリックして表示／非表示）": "Operation Menu (Click to show/hide)",
-	"①ファイルを読み込み": "1. Load Media File",
+	"①ファイルを読み込み": "1. Load media file",
 	"YouTubeのURLをペーストして読み込んでください。": "Paste YouTube URL to load.",
 	"画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。": "Scroll the screen or click on the operation menu to hide it to see the loaded video.",
-	"ローカルのファイルを読み込んで使用したい時は": "If you want to use to load your local media file, you can use ",
-	"字幕エディター for ファイル": "Jimaku Editor for File",
-	"をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。": ". The AmiVoice Cloud Platform's voice recognition API can be used to create voice recognition results from files.",
 	"②UDトークの会話ログ（": {
 		"csv）または字幕ファイル（": {
 			"srt）を読み込み": "2. Load the UD Talk conversation log (.csv) or subtitle file (.srt)."
@@ -38,9 +35,6 @@
 	"字幕ファイル（": {
 		"srt）で保存": "Save as Subtitle File (.srt)"
 	},
-	"もっと詳細な設定で字幕ファイル（": {
-		"srt）を作成したいときはCSVファイルで保存した後に": "If you want to create a subtitle file (.srt) with more detailed settings, please save it as a CSV file and then create it "
-	},
 	"字幕データ変換くん": "here",
 	"で作成してください。": ".",
 	"ショートカット一覧（クリックして表示／非表示）": "Shortcut List (Click to show/hide)",
@@ -66,15 +60,9 @@
 	"UDトーク": "UD Talk",
 	"字幕エディター for YouTubeへ": "To Jimaku Editor for YouTube",
 	"ローカルに保存された動画または音声ファイルを読み込んでください。": "Load a video or audio file that is stored locally.",
-	"動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。": "When you load a video or audio file, the button will say \"Upload\", but it does not mean that you are uploading the file.",
-	"YouTubeの動画を再生しながら使用したい時は": "If you want to use it while playing a YouTube video, please click ",
-	"字幕エディター for YouTube": "Jimaku Editor for YouTube",
-	"をご利用ください。": ".",
+	"動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。": "When you load a video or audio file, the button will say \"Upload\", but it does not mean that you are uploading the file to the internet.",
 	"このデータは「音声認識結果を取得する」で作成することもできます": "You can also create this data in \"Get speech recognition results\".",
 	"音声認識設定（クリックして表示／非表示）": "Speech Recognition Settings (Click to show/hide)",
-	"音声認識API": "Speech Recognition API ",
-	"AmiVoice Cloud Platform": "AmiVoice Cloud Platform ",
-	"を使用して音声認識の結果を取得します。": "is used to obtain speech recognition results.",
 	"読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。": "Speech recognition is performed on loaded video and audio files and converted to text. In the case of video, it converts it to an audio file in the browser and uploads it to the server.",
 	"音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）": "You can use the speech recognition API for a fee. (You can try it out for 60 minutes for free every month.)",
 	"①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。": "1. Go to the AmiVoice Cloud Platform page and click on \"無料で利用開始\" to log in. If you are already using the platform, open My Page.",
@@ -92,9 +80,6 @@
 	"ログ保存あり": "Data will be saved",
 	"ログ保存なし": "Data is not be saved.",
 	"ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。": "The price differs between save and not save. For details, please refer to the AmiVoice Cloud Platform My Page.",
-	"時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が": "The time should be entered in seconds, including the decimal point. For example, if the first subtitle in the video starts with ",
-	"から始まっているときは": ", enter ",
-	"を入力して更新ボタンを押します。": "and click the refresh button.",
 	"編集（クリックして表示／非表示）": "Edit (Click to show/hide)",
 	"検索": "Search",
 	"置換": "Replace",
@@ -106,5 +91,16 @@
 	"英語": "English",
 	"繁体字": "Hant",
 	"簡体字": "Hans",
-	"音声認識結果を取得": "Get Speech Recognition Results"
+	"音声認識結果を取得": "Get Speech Recognition Results",
+	"再生": "Play",
+	"編集済み": "Edited",
+	"時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が%sから始まっているときは%sを入力して更新ボタンを押します。": "The time should be entered in seconds, including the decimal point. For example, if the first subtitle in the video starts with %s, enter %s and click the refresh button.",
+	"ローカルのファイルを読み込んで使用したい時は<a href='/jimakueditor4file'>字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。": "If you want to use to load your local media file, you can use <a href='/jimakueditor4file'>Jimaku Editor for File</a>. The AmiVoice Cloud Platform's voice recognition API can be used to create voice recognition results from files.",
+	"字幕エディター for ファイル": "Jimaku Editor for File",
+	"YouTubeの動画を再生しながら使用したい時は<a href='/jimakueditor'>字幕エディター for YouTube</a>をご利用ください。": "If you want to use it while playing a YouTube video, please click <a href='/jimakueditor'>Jimaku Editor for YouTube</a>.",
+	"もっと詳細な設定で字幕ファイル（": {
+		"srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。": "If you want to create a subtitle file (.srt) with more detailed settings, please save it as a CSV file with <a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>."
+	},
+	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。": "Speech Recognition API <a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a> is used to retrieve the results of speech recognition.",
+	"音声認識API": "Speech Recognition API"
 }
