@@ -466,6 +466,9 @@
 							<button class="btn btn-primary btn-sm wide-btn" id="speechRecognitionButton" type="button" value="" name="speechRecognitionButton"><%- __("音声認識結果を取得") %></button>
 							<div id="toRunSpeechRecognitionSpinner"></div>
 						</div>
+						<div class="col-auto">
+							<span><%- __("接続エンジン名") %> : </span><span id="acpGrammarFileNamesLabel"></span>
+						</div>
 					</div>
 
 					<div class="accordion" id="accordionSettings">
@@ -504,7 +507,7 @@
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<div><%- __("サービスID") %></div>
+											<div><%- __("サービスID") %></div>											
 											<input id="acpProfileId" name="acpProfileId" type="text" class="form-control" value="" placeholder="" aria-label="">
 											<div class="small ms-3"><%- __("サービスIDを指定するとAmiVoice Cloud Platform上での単語登録が有効になります。") %></div>
 										</div>
@@ -512,7 +515,15 @@
 									<div class="row mb-3">
 										<div class="col">
 											<div><%- __("接続エンジン名") %></div>
-											<input id="acpGrammarFileNames" name="acpGrammarFileNames" type="text" class="form-control" value="-a-general" placeholder="" aria-label="">
+											<select class="form-select" id="acpGrammarFileNameSelect">
+												<option value="-a-general" selected><%- __("会話_汎用") %></option>
+												<option value="-a-general-en"><%- __("英語_汎用") %></option>
+												<option value="-a-general-zh"><%- __("中国語_汎用") %></option>
+												<option value="-a-medgeneral"><%- __("会話_医療") %></option>
+												<option value="-a-bizmrreport"><%- __("会話_製薬") %></option>
+												<option value="-a-bizfinance"><%- __("会話_金融") %></option>
+												<option value="-a-bizinsurance"><%- __("会話_保険") %></option>
+											</select>
 											<div class="small ms-3"><%- __("音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。") %></div>
 										</div>
 									</div>		
@@ -614,6 +625,9 @@
 
 				function eventListener(e) {
 					storeSettings()
+
+					let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
+					$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
 				} ;
 
 				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
@@ -621,12 +635,15 @@
 				$("#seekingSeconds").on('change', eventListener) ;
 				$("#playbackSeconds").on('change', eventListener) ;
 				$("#saveAppKey").on('change', eventListener) ;
-				$("#acpGrammarFileNames").on('input', eventListener) ;
+				$("#acpGrammarFileNameSelect").on('change', eventListener) ;
 				$("#acpProfileId").on('input', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
 				$("#acpLoggingOptOut").on('change', eventListener) ;
 				$("#acpDiarization").on('change', eventListener) ;
 				
+				let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
+				$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
+
 				var tag = document.createElement('script');
 				tag.src = "https://www.youtube.com/iframe_api";
 				var firstScriptTag = document.getElementsByTagName('script')[0];
@@ -1581,7 +1598,7 @@
 					let acpGrammarFileNames = localStorage.getItem("acpGrammarFileNames") ;
 
 					if (acpGrammarFileNames != undefined) {
-						$('#acpGrammarFileNames').val(acpGrammarFileNames) ;
+						$('#acpGrammarFileNameSelect').val(acpGrammarFileNames) ;
 					}
 
 					let acpProfileId = localStorage.getItem("acpProfileId") ;
@@ -1622,7 +1639,7 @@
 				if (mediaType == "file") {
 					localStorageSetItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
-					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNames').val()) ;
+					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
 					localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
 					localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;

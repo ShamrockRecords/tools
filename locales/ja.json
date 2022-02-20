@@ -102,5 +102,13 @@
 		"srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。": "もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。"
 	},
 	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。": "音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。",
-	"音声認識API": "音声認識API"
+	"音声認識API": "音声認識API",
+	"字幕エディター for YouTube": "字幕エディター for YouTube",
+	"会話_汎用": "会話（日本語）",
+	"英語_汎用": "会話（英語）",
+	"中国語_汎用": "会話（中国語）",
+	"会話_医療": "医療（日本語）",
+	"会話_製薬": "製薬（日本語）",
+	"会話_金融": "金融（日本語）",
+	"会話_保険": "保険（日本語）"
 }

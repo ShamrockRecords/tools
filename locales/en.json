@@ -102,5 +102,13 @@
 		"srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。": "If you want to create a subtitle file (.srt) with more detailed settings, please save it as a CSV file with <a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>."
 	},
 	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。": "Speech Recognition API <a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a> is used to retrieve the results of speech recognition.",
-	"音声認識API": "Speech Recognition API"
+	"音声認識API": "Speech Recognition API",
+	"字幕エディター for YouTube": "Jimaku Editor for YouTube",
+	"会話_汎用": "General Japanese",
+	"英語_汎用": "General English",
+	"中国語_汎用": "General Chinese",
+	"会話_医療": "Medical Japanese",
+	"会話_製薬": "Pharmacy Japanese",
+	"会話_金融": "Finance Japanese",
+	"会話_保険": "Insurance Japanese"
 }

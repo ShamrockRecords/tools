@@ -17,7 +17,7 @@ async function runSpeechRecognition(completion) {
         }
     }
 
-    let grammarFileNames = $("#acpGrammarFileNames").val() ;
+    let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
@@ -172,21 +172,49 @@ async function runSpeechRecognition(completion) {
                         if (currentSpeakerName != speakerName && speakerName != "" && written != "。" && written != "、") {
                             currentSpeakerName = speakerName ;
 
-                            if (text != "") {
-                                if (text.endsWith("、")) {
-                                    text = text.slice( 0, -1 ) ;
-                                    text += "。" ;
-                                } else if (!text.endsWith("。")) {
-                                    text += "。" ;
+                            if (grammarFileNames == "-a-general-en") {
+                                if (text != "") {
+                                    text = text.trim() ;
+                                    
+                                    if (!text.endsWith(".")) {
+                                        text += "." ;
+                                    }
                                 }
-                            }
 
-                            text += currentSpeakerName + "／" + written ;
+                                text += " " ;
+                                text += currentSpeakerName + "/ " + written + " " ;
+                            } else if (grammarFileNames == "-a-general-zh") {
+                                if (text != "") {
+                                    text = text.trim() ;
+                                    
+                                    if (!text.endsWith("。")) {
+                                        text += "。" ;
+                                    }
+                                }
+
+                                text += currentSpeakerName + "/ " + written ;
+                            } else {
+                                if (text != "") {
+                                    if (text.endsWith("、")) {
+                                        text = text.slice( 0, -1 ) ;
+                                        text += "。" ;
+                                    } else if (!text.endsWith("。")) {
+                                        text += "。" ;
+                                    }
+                                }
+
+                                text += currentSpeakerName + "／" + written ;
+                            }
                         } else {
-                            text += written ;
+                            if (grammarFileNames == "-a-general-en") {
+                                text += written + " " ;
+                            } else {
+                                text += written ;
+                            }
                         }
 
                         if (text.length > 40 && (text.endsWith("。") || text.endsWith("、"))) {
+                            text = text.trim() ;
                             text = text.replaceAll("＿", " ") ;
 
                             let line = [] ;
@@ -207,6 +235,7 @@ async function runSpeechRecognition(completion) {
                     }
 
                     if (text.length > 0) {
+                        text = text.trim() ;
                         text = text.replaceAll("＿", " ") ;
 
                         let line = [] ;
