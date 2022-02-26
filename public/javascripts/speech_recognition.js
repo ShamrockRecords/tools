@@ -1,6 +1,6 @@
 let isSpeechRecognizing = false ;
 
-async function runSpeechRecognition() {
+async function runSpeechRecognition(completion) {
     if (mediafile == null) {
         alert("ファイルを読み込んでください。") ;
         return ;
@@ -17,11 +17,12 @@ async function runSpeechRecognition() {
         }
     }
 
-    let grammarFileNames = $("#acpGrammarFileNames").val() ;
+    let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
-
+    let diarization = $('#acpDiarization').prop("checked") ;
+    
     if (authorization == "") {
         alert("音声認識設定でAPPKEYを入力してください。") ;
         return ;
@@ -84,6 +85,14 @@ async function runSpeechRecognition() {
         domainId += "loggingOptOut=True";
     }
 
+    if (diarization) {
+        if (domainId.length > 0) {
+            domainId += ' ';
+        }
+
+        domainId += "speakerDiarization=True";
+    }
+
     if (authorization != "") {
         authorization = authorization.trim() ;
         authorization= encodeURIComponent(authorization);
@@ -103,12 +112,12 @@ async function runSpeechRecognition() {
     let data = await fetch(serverURL, param).then(response => response.json()) ;
 
     if (data["sessionid"] == undefined) {
-        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
-        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
+        completion("") ;
         isSpeechRecognizing = false ;
     } else if (data["sessionid"] == "") {
-        alert("音声認識を開始することができませんでした。\n" + data["message"]) ;
-        $("#speechRecognitionButton").html("音声認識結果を取得") ;
+        alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
+        completion("") ;
         isSpeechRecognizing = false ;
     } else {
         let sessionId = data["sessionid"] ;
@@ -117,8 +126,6 @@ async function runSpeechRecognition() {
 
         $("#speechRecognitionButton").html("処理を待っています...") ;
 
-        let count = 0 ;
-
         let timer = setInterval(async () => {
             const param = {
                 headers: {"Authorization": "Bearer " + authorization},
@@ -126,31 +133,126 @@ async function runSpeechRecognition() {
 
             let data = await fetch(serverURL + "/" + sessionId, param).then(response => response.json()) ;
 
-            count++ ;
-
             if (data["status"] == "completed") {
                 lines = [] ;
                 details = [] ;
 
                 let segments = data["segments"]
+                let currentSpeakerName = "" ;
 
                 for (let key in segments) {
                     let segment = segments[key] ;
-                    
-                    let line = [] ;
 
-                    let startTime = segment["results"][0]["starttime"] ;
-                    let endTime = segment["results"][0]["endtime"] ;
+                    //console.log(segment) ;
 
-                    line.push(startTime / 1000) ;
-                    line.push(endTime / 1000) ;
+                    let results = segment["results"][0] ;
+                    let tokens = results["tokens"] ;
 
-                    let text = segment["text"].replaceAll("＿", " ") ;
+                    let text = "" ;
 
-                    line.push(text) ;
+                    let currentStartTime = "" ;
+                    let currentEndTime = "" ;
 
-                    lines.push(line) ;
-                    details.push({}) ;
+                    for (let key in tokens) {
+                        let token = tokens[key] ;
+
+                        let startTime = token["starttime"] ;
+                        currentEndTime = token["endtime"] ;
+                        let speakerName = token["label"] ;
+                        let written = token["written"] ;
+                        
+                        if (currentStartTime == "") {
+                            currentStartTime = startTime ;
+                        }
+
+                        if (speakerName == undefined) {
+                            speakerName = "" ;
+                        }
+
+                        if (currentSpeakerName != speakerName && speakerName != "" && written != "。" && written != "、") {
+                            currentSpeakerName = speakerName ;
+
+                            if (grammarFileNames == "-a-general-en") {
+                                if (text != "") {
+                                    text = text.trim() ;
+                                    
+                                    if (!text.endsWith(".")) {
+                                        text += "." ;
+                                    }
+                                }
+
+                                text += " " ;
+                                text += currentSpeakerName + "/ " + written + " " ;
+                            } else if (grammarFileNames == "-a-general-zh") {
+                                if (text != "") {
+                                    text = text.trim() ;
+                                    
+                                    if (!text.endsWith("。")) {
+                                        text += "。" ;
+                                    }
+                                }
+
+                                text += currentSpeakerName + "/ " + written ;
+                            } else {
+                                if (text != "") {
+                                    if (text.endsWith("、")) {
+                                        text = text.slice( 0, -1 ) ;
+                                        text += "。" ;
+                                    } else if (!text.endsWith("。")) {
+                                        text += "。" ;
+                                    }
+                                }
+
+                                text += currentSpeakerName + "／" + written ;
+                            }
+                        } else {
+                            if (grammarFileNames == "-a-general-en") {
+                                text += written + " " ;
+                            } else {
+                                text += written ;
+                            }
+                        }
+
+                        if (text.length > 40 && (text.endsWith("。") || text.endsWith("、"))) {
+                            text = text.trim() ;
+                            text = text.replaceAll("＿", " ") ;
+
+                            let line = [] ;
+
+                            line.push(currentStartTime / 1000) ;
+                            line.push(currentEndTime / 1000) ;
+                            line.push(text) ;
+                            line.push("") ;
+                            line.push("") ;
+                            line.push(text) ;
+
+                            currentStartTime = "" ;
+                            text = "" ;
+
+                            lines.push(line) ;
+                            details.push({}) ;
+                        }
+                    }
+
+                    if (text.length > 0) {
+                        text = text.trim() ;
+                        text = text.replaceAll("＿", " ") ;
+
+                        let line = [] ;
+
+                        line.push(currentStartTime / 1000) ;
+                        line.push(currentEndTime / 1000) ;
+                        line.push(text) ;
+                        line.push("") ;
+                        line.push("") ;
+                        line.push(text) ;
+
+                        currentStartTime = "" ;
+                        text = "" ;
+
+                        lines.push(line) ;
+                        details.push({}) ;
+                    }
                 }
 
                 clearInterval(timer) ;
@@ -158,15 +260,11 @@ async function runSpeechRecognition() {
 
                 updateSubtitleData() ;
 
-                $("#speechRecognitionButton").html("音声認識結果を取得") ;
+                completion("") ;
                 
                 isSpeechRecognizing = false ;
                 $("#toRunSpeechRecognitionSpinner").empty() ;
-
-                //alert("音声認識処理が完了しました。結果が表示されます。") ;
-
             } else {
-
                 let progressDate = Date.now() ;
                 let timeInterval = progressDate - startedDate ;
 
@@ -183,11 +281,11 @@ async function runSpeechRecognition() {
                 }
 
                 if (data["status"] == "queued") {
-                    $("#speechRecognitionButton").html("処理を待っています...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を待っています..." + "<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "started") {
-                    $("#speechRecognitionButton").html("処理を開始しました...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("処理を開始しました..." + "<br />" + timeIntervalText + "経過") ;
                 } else if (data["status"] == "processing") {
-                    $("#speechRecognitionButton").html("結果を取得しています...<br />" + timeIntervalText + "経過") ;
+                    $("#speechRecognitionButton").html("結果を取得しています..." + "<br />" + timeIntervalText + "経過") ;
                 } else {
                     
                 }

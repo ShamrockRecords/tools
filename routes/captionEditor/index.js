@@ -3,8 +3,9 @@ var router = express.Router() ;
 
 const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
-router.get('/', wrap(async function(req, res, next) {
+router.get('/', wrap(async function(req, res, next) { 
     res.render('tools/captionEditor/index', {
+        appTitle: res.__('字幕エディター for YouTube'),
         rootURL: process.env.ROOT_URL + "/jimakueditor",
         mediaType: "youtube",
     });		 

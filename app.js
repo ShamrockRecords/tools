@@ -10,6 +10,7 @@ var genReadingIndexRouter = require('./routes/genReading/index');
 var captionEditorIndexRouter = require('./routes/captionEditor/index');
 var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File');
 var jimakuConnectorIndexRouter = require('./routes/captionConnector/index');
+var localeChangeRouter = require('./routes/localeChange');
 
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
@@ -35,6 +36,29 @@ var session_opt = {
 } ;
 
 app.use(session(session_opt)) ;
+
+var i18n = require("i18n");
+ 
+// 多言語化の利用設定
+i18n.configure({
+  // 利用するlocalesを設定。これが辞書ファイルとひも付きます
+  locales: ['ja', 'en'],
+  defaultLocale: 'en',
+  // 辞書ファイルのありかを指定
+  directory: __dirname + "/locales",
+  // オブジェクトを利用したい場合はtrue
+  objectNotation: true,
+});
+ 
+app.use(i18n.init);
+
+// manualでi18nセッション管理できるように設定しておきます
+app.use(function (req, res, next) {
+  if (req.session.locale) {
+    i18n.setLocale(req, req.session.locale);
+  }
+  next();
+});
 
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb'}));
@@ -63,6 +87,7 @@ app.use('/yomifuri', genReadingIndexRouter);
 app.use('/jimakueditor', captionEditorIndexRouter);
 app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
 app.use('/jimakuconnector', jimakuConnectorIndexRouter);
+app.use('/locale_change', localeChangeRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);
