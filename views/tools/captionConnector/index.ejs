@@ -13,7 +13,12 @@
 		<script type="text/javascript" src="/javascripts/visualizer.js"></script>
 		
 		<style>
-			
+			html,
+			body
+			{
+				height: 100%;
+				background-color:ghostwhite;
+			}
 		</style>
 	</head>
 	<body>
@@ -53,6 +58,8 @@
 					<div id="mediaRecorderError"></div>
 				</div>
 			</div>
+
+			<%- include('../../parts/speechRecognitionSettings.ejs', {}) %>
 		</div>
 
 		<script>
