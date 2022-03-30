@@ -71,7 +71,7 @@ function convertToArray(fileContent) {
 
 			if (c == '"') {
 				ignoreCamma = !ignoreCamma ;
-			} else if (c == ',' && !ignoreCamma) {
+			} else if ((c == ',' || c == '\t') && !ignoreCamma) {
 				elements.push(element) ;
 				element = "" ;
 			} else {
