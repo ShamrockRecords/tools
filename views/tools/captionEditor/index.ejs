@@ -109,7 +109,12 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("①ファイルを読み込み") %></div>
+														<% if (mediaType == "file") { %>
+															<div class="form-label"><%- __("①ファイルを読み込み") %></div>
+														<% } else { %>
+															<div class="form-label"><%- __("①動画を読み込み") %></div>
+														<% } %>
+
 													</div>
 												</div>
 
@@ -117,8 +122,8 @@
 													<div class="row">	
 														<div class="col mb-1">		
 															<div class="input-group">	
-																<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="YouTubeのURLをペーストして読み込みボタンを押してください" aria-label="">
-																<button class="btn btn-outline-secondary" type="button" id="videoLoadButton">読み込み</button>
+																<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="<%- __('YouTubeのURLをペーストして読み込みボタンを押してください') %>" aria-label="">
+																<button class="btn btn-outline-secondary" type="button" id="videoLoadButton"><%- __('読み込み') %></button>
 															</div>
 														</div>
 													</div>

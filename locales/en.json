@@ -110,5 +110,8 @@
 	"会話_医療": "Medical Japanese",
 	"会話_製薬": "Pharmacy Japanese",
 	"会話_金融": "Finance Japanese",
-	"会話_保険": "Insurance Japanese"
+	"会話_保険": "Insurance Japanese",
+	"①動画を読み込み": "①Load Video",
+	"YouTubeのURLをペーストして読み込みボタンを押してください": "Paste YouTube URL and click load button",
+	"読み込み": "Load"
 }
