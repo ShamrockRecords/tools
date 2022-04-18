@@ -1,3 +1,22 @@
+async function convertSrtData(copiedlines) {
+	const headers = {
+		'Accept': 'application/json',
+		  'Content-Type': 'application/json'
+	};
+
+	const param = {
+		method: "POST",
+		headers: headers,
+		body: JSON.stringify(copiedlines),
+	}
+
+	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
+
+	return generateResult(copiedlines, function(num, tempBeginSec, tempEndSec, tempContent) {
+		return tempBeginSec + ',' + tempEndSec + ',\"' + tempContent + '\"\n' ;
+	}) ;
+}
+
 async function generateSrtData(copiedlines) {
 	const headers = {
 		'Accept': 'application/json',
@@ -12,7 +31,10 @@ async function generateSrtData(copiedlines) {
 
 	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
 
-	return generateResult(copiedlines, function(num, tempBeginTimeF, tempEndTimeF, tempContent) {
+	return generateResult(copiedlines, function(num, tempBeginSec, tempEndSec, tempContent) {
+        let tempBeginTimeF = secToTime(tempBeginSec, ".") ;
+        let tempEndTimeF = secToTime(tempEndSec, ".") ;
+
 		return num.toString() + '\n' + tempBeginTimeF.replaceAll(".", ",") + ' --> ' + tempEndTimeF.replaceAll(".", ",") + '\n' + tempContent + '\n\n' ;
 	}) ;
 }
@@ -95,11 +117,11 @@ function generateResult(copiedlines, listener) {
                     let tempBeginTime = currnetIndex * timeOfChar ;   
                     let tempEndTime = tempBeginTime + (timeOfChar * contentLength) ;
 
-                    let tempBeginTimeF = secToTime(Number((beginTime).toString()) + tempBeginTime, ".") ;
-                    let tempEndTimeF = secToTime(Number((beginTime).toString()) + tempEndTime, ".") ;
+                    let tempBeginSec = Number((beginTime).toString()) + tempBeginTime ;
+                    let tempEndSec = Number((beginTime).toString()) + tempEndTime ;
 
-                    if (tempBeginTimeF != "" && tempEndTimeF != "") {
-                        result += listener(num, tempBeginTimeF, tempEndTimeF, contentString) ;
+                    if (tempBeginSec >= 0 && tempEndSec >= 0) {
+                        result += listener(num, tempBeginSec, tempEndSec, contentString) ;
                         num++ ;
                     }
                 }

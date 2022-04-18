@@ -113,5 +113,14 @@
 	"会話_保険": "Insurance Japanese",
 	"①動画を読み込み": "①Load Video",
 	"YouTubeのURLをペーストして読み込みボタンを押してください": "Paste YouTube URL and click load button",
-	"読み込み": "Load"
+	"読み込み": "Load",
+	"⌘またはCtrl + Enter": "⌘ or Ctrl + Enter",
+	"改行": "New line",
+	"【プロ向け】字幕ファイル（": {
+		"srt）に変換して編集": "[For professional] Edit subtitles"
+	},
+	"字幕データに変換": "Convert to subtitles",
+	"実際の字幕データに自動変換してから字幕データを手作業で編集をします。編集後は改行や句読点も含めてそのまま字幕ファイル（": {
+		"srt）として保存することができます。": "You can edit subtitles manually. You can export as SRT after editing."
+	}
 }

@@ -275,6 +275,29 @@
 												</div>
 											</div>
 
+											<div class="mb-3">
+												<div class="row">
+													<div class="col-auto mb-1">
+														<div class="form-label"><%- __("【プロ向け】字幕ファイル（.srt）に変換して編集") %></div>
+													</div>
+												</div>
+					
+												<div class="row">
+													<div class="col-auto mb-1">		
+														<input class="btn btn-primary btn-sm wide-btn" id="convertToSrtButton" type="button" value="<%- __("字幕データに変換") %>" name="convertToSrtButton" />
+													</div>
+													<div class="col-auto mb-1">	
+														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
+														<div id="toExportSrtSpinner"></div>
+													</div>
+												</div>
+
+												<div class="row">
+													<div class="col mb-1">
+														<div class="small ms-3"><%- __("実際の字幕データに自動変換してから字幕データを手作業で編集をします。編集後は改行や句読点も含めてそのまま字幕ファイル（.srt）として保存することができます。") %></div>
+													</div>
+												</div>
+											</div>
 										</div>
 									</div>	
 								</div>				
@@ -299,6 +322,7 @@
 														<div class="row"><div class="col"><%- __("⌘またはCtrl + ←") %></div><div class="col"><%- __("指定秒戻す") %></div></div>
 														<div class="row"><div class="col"><%- __("⌘またはCtrl + →") %></div><div class="col"><%- __("指定秒送る") %></div></div>
 														<div class="row"><div class="col"><%- __("Enter") %></div><div class="col"><%- __("次の字幕データへ移動") %></div></div>
+														<div class="row"><div class="col"><%- __("⌘またはCtrl + Enter") %></div><div class="col"><%- __("改行") %></div></div>
 													</div>
 												</div>
 											</div>		
@@ -1013,6 +1037,119 @@
 					isExportingSrt = false ;
 				}) ;
 
+				$("#convertToSrtButton").on("click", async (e) => {
+					if (isExportingSrt) {
+						return ;
+					}
+
+					if (window.confirm("字幕データに変換をすると元に戻せません。現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？") == false) {
+						return ;
+					}
+
+					isExportingSrt = true ;
+
+					let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+					$("#toExportSrtSpinner").empty() ;
+					$("#toExportSrtSpinner").append(spinner) ;
+
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let copiedLines = [] ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						if (line[0] + offsetTime < 0) {
+							continue ;
+						}
+
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
+
+						let startTime = line[0] + offsetTime ;
+						let endTime = line[1] + offsetTime ;
+
+						let element = {} ;
+
+						element["startTime"] = startTime ;
+						element["endTime"] = endTime ;
+						element["content"] = line[2] ;
+
+						copiedLines.push(element) ;
+					}
+
+					let content = await convertSrtData(copiedLines) ;
+					
+					$("#toExportSrtSpinner").empty() ;
+					
+					isExportingSrt = false ;
+
+					lines = convertToArray(content) ;
+
+					details = [] ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+
+						line[0] = Number(line[0]) ;
+						line[1] = Number(line[1]) ;
+
+						details.push({}) ;
+					}
+
+					$("#offsetTimeLength").val("0") ;
+
+					updateSubtitleData() ;
+				}) ;
+
+				$("#saveAsSrtDataButton").on("click", async (e) => {
+					let srtData = "" ;
+
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+
+					for (let key in lines) {
+						let line = lines[key] ;
+						
+						if (line[0] + offsetTime < 0) {
+							continue ;
+						}
+
+						let textClassName = "#text" + Number(key) ;
+
+						line[2] = $(textClassName).val() ;
+
+						if (line[2] == "") {
+							continue ;
+						}
+
+						let startTime = line[0] + offsetTime ;
+						let endTime = line[1] + offsetTime ;
+
+						let text = line[2] ;
+
+						text = text.replaceAll("\r\n", "\n") ;
+						text = text.replaceAll(/(\n)+/g, "\n") ;
+						text = text.trim() ;
+
+						let element = (Number(key) + 1) + "\n" + secToTime(startTime, ",") + " --> " + secToTime(endTime, ",") + "\n" + text + "\n\n" ;
+
+						srtData += element ;
+					}
+
+					let fileName = $("#appDataFileName").val() ;
+
+					fileName = fileName.replaceAll(".captionEditor", "") ;
+					fileName = fileName.replaceAll(".jimakuEditor", "") ;
+					fileName += ".ja_JP.srt" ;
+
+					saveAsFile(srtData, fileName) ;
+				}) ;
+
 				$("#ffButton").on("click", (e) => {
 					playingFastForword(Number($("#seekingSeconds").val())) ;
 				}) ;
@@ -1154,6 +1291,8 @@
 							}
 						}
 
+						$("#appDataFile").val("") ;
+
 						updateSubtitleData() ;
 					}) ;
 				}) ;
@@ -1187,15 +1326,19 @@
 					$(textClassName).css("lineHeight","20px");
 					$(textClassName).on("keydown", function(e) {
 						if (e.keyCode == 13) {
-							let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
+							if (e.originalEvent.metaKey == false && e.originalEvent.ctrlKey == false) {
+								let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
 
-							if (!isPlayingVideo() && autoPlayWhenEdtingFinished) {
-								
-								playingRewind(Number($("#playbackSeconds").val())) ;
-								playVideo() ;
+								if (!isPlayingVideo() && autoPlayWhenEdtingFinished) {
+									
+									playingRewind(Number($("#playbackSeconds").val())) ;
+									playVideo() ;
+								} else {
+									$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
+									$(nextTextClassName).focus() ;
+								}
 							} else {
-								$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
-								$(nextTextClassName).focus() ;
+								insertText(textClassName, "\n") ;
 							}
 
 							return false ;
@@ -1218,18 +1361,9 @@
 							
 							if (shortcutClassName != "") {
 								
-								let text = $(textClassName).val() ;
-								let selectionStart = $(textClassName)[0].selectionStart ;
-								let selectionEnd = $(textClassName)[0].selectionEnd ;
-
 								let shortcutWord = $(shortcutClassName).val() ;
 
-								text = text.substr(0, selectionStart) + shortcutWord + text.substr(selectionEnd);
-
-								$(textClassName).val(text) ;
-
-								$(textClassName)[0].selectionStart = selectionStart + shortcutWord.length ;
-								$(textClassName)[0].selectionEnd = selectionStart + shortcutWord.length ;
+								insertText(textClassName, shortcutWord) ;
 							}
 						}
 
@@ -1664,6 +1798,20 @@
 					}
 				}
 			}
+
+			function insertText(textClassName, insertedText) {
+				let text = $(textClassName).val() ;
+				let selectionStart = $(textClassName)[0].selectionStart ;
+				let selectionEnd = $(textClassName)[0].selectionEnd ;
+
+				text = text.substr(0, selectionStart) + insertedText + text.substr(selectionEnd);
+
+				$(textClassName).val(text) ;
+
+				$(textClassName)[0].selectionStart = selectionStart + insertedText.length ;
+				$(textClassName)[0].selectionEnd = selectionStart + insertedText.length ;
+			}
+
 
 		</script>
 	</body>
