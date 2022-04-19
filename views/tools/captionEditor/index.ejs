@@ -57,6 +57,10 @@
 				width: 200px;
 			}
 
+			.wider-btn {
+				width: 300px;
+			}
+
 		</style>
 	</head>
 	<body>
@@ -284,17 +288,18 @@
 					
 												<div class="row">
 													<div class="col-auto mb-1">		
-														<input class="btn btn-primary btn-sm wide-btn" id="convertToSrtButton" type="button" value="<%- __("字幕データに変換") %>" name="convertToSrtButton" />
+														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動分割して字幕データに変換") %>" name="convertToSrtButton" />
 													</div>
 													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
+														<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("内容をそのまま字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
 														<div id="toExportSrtSpinner"></div>
 													</div>
 												</div>
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3"><%- __("実際の字幕データに自動変換してから字幕データを手作業で編集をします。編集後は改行や句読点も含めてそのまま字幕ファイル（.srt）として保存することができます。") %></div>
+														<div class="small ms-3"><%- __("編集結果を字幕データに自動変換してから手作業でコマ割りなどを編集をします。編集後は改行や句読点も含めてそのまま字幕ファイルとして保存することができます。") %></div>
+														<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
 													</div>
 												</div>
 											</div>

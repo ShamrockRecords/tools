@@ -119,8 +119,10 @@
 	"【プロ向け】字幕ファイル（": {
 		"srt）に変換して編集": "[For professional] Edit subtitles"
 	},
-	"字幕データに変換": "Convert to subtitles",
-	"実際の字幕データに自動変換してから字幕データを手作業で編集をします。編集後は改行や句読点も含めてそのまま字幕ファイル（": {
-		"srt）として保存することができます。": "You can edit subtitles manually. You can export as SRT after editing."
-	}
+	"自動分割して字幕データに変換": "Convert to subtitles automatically",
+	"内容をそのまま字幕ファイル（": {
+		"srt）で保存": "Save to subtitles file directory"
+	},
+	"YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。": "You can export to keep time box and new line as subtile file.",
+	"編集結果を字幕データに自動変換してから手作業でコマ割りなどを編集をします。編集後は改行や句読点も含めてそのまま字幕ファイルとして保存することができます。": "You can edit details of subtitles after converting automatic separation."
 }
