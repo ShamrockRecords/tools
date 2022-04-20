@@ -278,27 +278,30 @@
 
 												<div class="row">
 													<div class="col mb-1">
+														<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にコマ割り（分割）して保存します。") %></div>
 														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存した後にで作成してください。", "https://jimakudata.udtalk.jp") %></div>
 													</div>
 												</div>
 											</div>
 
+											<hr />
+
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("【プロ向け】字幕ファイル（.srt）に変換して編集") %></div>
+														<div class="form-label"><%- __("【上級者向け】コマ割りをして内容を編集する") %></div>
 													</div>
 												</div>
 					
 												<div class="row">
 													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("字幕として適度な長さに分割する") %>" name="convertToSrtButton" />
+														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でコマ割りをする") %>" name="convertToSrtButton" />
 													</div>
 												</div>
 
 												<div class="row mb-3">
 													<div class="col mb-1">
-														<div class="small ms-3"><%- __("現在の編集結果を字幕として適度な長さに分割してマニュアルでコマ割りなどを編集できます。編集後はコマ割りを保持して字幕ファイルとして保存することができます。") %></div>
+														<div class="small ms-3"><%- __("現在の編集結果を字幕を表示するのに適度な長さに分割してからマニュアルで内容を編集できます。") %></div>
 													</div>
 												</div>
 
