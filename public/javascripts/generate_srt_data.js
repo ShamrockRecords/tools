@@ -157,7 +157,16 @@ function devideWith(contentArray, index) {
         length += contentArray[i].length ;
 
         if (length > index) {
-            contentArray.splice(i + 1, 0, "\n") ;
+            if (i < contentArray.length - 1) {
+                if (contentArray[i + 1] == "、" || contentArray[i + 1] == "。" || contentArray[i + 1] == ".") {
+                    contentArray.splice(i + 2, 0, "\n") ;
+                } else {
+                    contentArray.splice(i + 1, 0, "\n") ;
+                }
+            } else {
+                contentArray.splice(i + 1, 0, "\n") ;
+            }
+            
             break ;
         }
     }
