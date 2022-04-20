@@ -105,11 +105,13 @@ function generateResult(copiedlines, replacingDots, listener) {
                     contentString = contentString.replaceAll("。", "") ;
                 }
 
+                contentString = contentString.replaceAll("\r\n", "\n") ;
+				contentString = contentString.replaceAll(/(\n)+/g, "\n") ;
                 contentString = contentString.replaceAll("\n ", "\n") ;
                 contentString = contentString.replaceAll("\n ", "\n") ;
+                contentString = contentString.replaceAll("\n、", "\n") ;
+                contentString = contentString.replaceAll("\n。", "\n") ;
                 contentString = contentString.replaceAll("\n.", ".") ;
-
-                contentString = contentString.replaceAll("\n\n", "\n") ;
     
                 contentString = contentString.trim();
 
