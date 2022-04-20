@@ -1,4 +1,4 @@
-async function convertSrtData(copiedlines) {
+async function convertSrtData(copiedlines, replacingDots) {
 	const headers = {
 		'Accept': 'application/json',
 		  'Content-Type': 'application/json'
@@ -12,12 +12,12 @@ async function convertSrtData(copiedlines) {
 
 	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
 
-	return generateResult(copiedlines, function(num, tempBeginSec, tempEndSec, tempContent) {
+	return generateResult(copiedlines, replacingDots, function(num, tempBeginSec, tempEndSec, tempContent) {
 		return tempBeginSec + ',' + tempEndSec + ',\"' + tempContent + '\"\n' ;
 	}) ;
 }
 
-async function generateSrtData(copiedlines) {
+async function generateSrtData(copiedlines, replacingDots) {
 	const headers = {
 		'Accept': 'application/json',
 		  'Content-Type': 'application/json'
@@ -31,7 +31,7 @@ async function generateSrtData(copiedlines) {
 
 	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
 
-	return generateResult(copiedlines, function(num, tempBeginSec, tempEndSec, tempContent) {
+	return generateResult(copiedlines, replacingDots, function(num, tempBeginSec, tempEndSec, tempContent) {
         let tempBeginTimeF = secToTime(tempBeginSec, ".") ;
         let tempEndTimeF = secToTime(tempEndSec, ".") ;
 
@@ -39,9 +39,8 @@ async function generateSrtData(copiedlines) {
 	}) ;
 }
 
-function generateResult(copiedlines, listener) {
+function generateResult(copiedlines, replacingDots, listener) {
 	
-    let replacingDots = true ;
     let dividing = true ;
  
     let result = "" ;
@@ -104,10 +103,11 @@ function generateResult(copiedlines, listener) {
                     contentString = contentString.replaceAll("、", " ") ;
                     contentString = contentString.replaceAll("、", " ") ;
                     contentString = contentString.replaceAll("。", "") ;
-                    contentString = contentString.replaceAll("\n ", "\n") ;
-                    contentString = contentString.replaceAll("\n ", "\n") ;
-                    contentString = contentString.replaceAll("\n.", ".") ;
                 }
+
+                contentString = contentString.replaceAll("\n ", "\n") ;
+                contentString = contentString.replaceAll("\n ", "\n") ;
+                contentString = contentString.replaceAll("\n.", ".") ;
 
                 contentString = contentString.replaceAll("\n\n", "\n") ;
     
