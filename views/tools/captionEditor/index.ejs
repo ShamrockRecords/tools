@@ -343,6 +343,7 @@
 														<div class="row"><div class="col"><%- __("⌘またはCtrl + →") %></div><div class="col"><%- __("指定秒送る") %></div></div>
 														<div class="row"><div class="col"><%- __("Enter") %></div><div class="col"><%- __("次の字幕データへ移動") %></div></div>
 														<div class="row"><div class="col"><%- __("⌘またはCtrl + Enter") %></div><div class="col"><%- __("改行") %></div></div>
+														<div class="row"><div class="col"><%- __("⌘またはCtrl + ↑") %></div><div class="col"><%- __("この時間の字幕を表示") %></div></div>
 													</div>
 												</div>
 											</div>		
@@ -418,6 +419,14 @@
 								<video id="localVideoPreview" width="480px" style="display:none;" controls><p><%- __("ご使用のブラウザでは動画再生に対応していません") %></p></video>
 							</div>
 						</div>
+					</div>
+
+					<div class="row mb-3" style="height: 80px";>
+						<div class="col"></div>
+						<div class="col-auto">
+							<p id="subtitlePreview"></p>
+						</div>
+						<div class="col"></div>
 					</div>
 
 					<div class="row mb-3">
@@ -859,19 +868,7 @@
 				})
 
 				$("#jumpToSubtitleButton").on("click", (e) => {
-					let offsetTime = Number($("#offsetTimeLength").val()) ;
-					let currentTime = playingGetCurrentTime() ;
-
-					for (let key in lines) {
-						let line = lines[key] ;
-						let startTime = line[0] + offsetTime ;
-
-						if (startTime > currentTime) {
-							$("#text" + key)[0].scrollIntoView(true) ;
-							updatePlayingTime(currentTime) ;
-							break ;
-						}
-					}
+					jumpToSubtitle() ;
 				}) ;
 				
 				$("#jumpToLastEditedButton").on("click", (e) => {
@@ -1363,12 +1360,18 @@
 									
 									playingRewind(Number($("#playbackSeconds").val())) ;
 									playVideo() ;
+
+									// Update!
+									line[2] = $(textClassName).val() ;
 								} else {
 									$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
 									$(nextTextClassName).focus() ;
 								}
 							} else {
 								insertText(textClassName, "\n") ;
+
+								// Update!
+								line[2] = $(textClassName).val() ;
 							}
 
 							return false ;
@@ -1394,6 +1397,9 @@
 								let shortcutWord = $(shortcutClassName).val() ;
 
 								insertText(textClassName, shortcutWord) ;
+
+								// Update!
+								line[2] = $(textClassName).val() ;
 							}
 						}
 
@@ -1417,6 +1423,11 @@
 						}
 
 						$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
+					}) ;
+
+					$(textClassName).on("focusout", function(e) {
+						// Update!
+						line[2] = $(textClassName).val() ;
 					}) ;
 
 					$(textClassName).on("autoheight", function(e) {
@@ -1458,7 +1469,7 @@
 
 				return `<tr>
 							<td>
-								<div class="row p-0">
+								<div class="row p-0" id="subtitle${index}">
 									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
 									<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="<%- __('再生') %>" name="playStartButton${index}" /></div>
 									<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>
@@ -1591,6 +1602,12 @@
 
 			function updatePlayingTime(currentTime) {
 				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
+
+				let subtitle = getCurrentSubtitle(currentTime) ;
+
+				subtitle = subtitle.replaceAll("\n", "<br />") ;
+
+				$("#subtitlePreview").html(subtitle) ;
 			}
 
 			function getVideoIdFromYouTubeURL(url) {
@@ -1609,6 +1626,8 @@
 
 			// Player wrapper
 			function playVideo() {
+				subtitleIndex = 0 ;
+
 				if (ytPlayer) {
 					return ytPlayer.playVideo() ;
 				} else if (localPlayer) {
@@ -1633,6 +1652,8 @@
 			}
 
 			function seekToVideo(time, autoPlay) {
+				subtitleIndex = 0 ;
+
 				if (ytPlayer) {
 					ytPlayer.seekTo(time) ;
 					if (autoPlay) {
@@ -1654,46 +1675,6 @@
 				}
 			}
 
-			function playingToggle() {
-				if (ytPlayer) {
-					if (!playingTimer) {
-						ytPlayer.playVideo();
-					} else {
-						ytPlayer.pauseVideo();
-					}
-				} else if (localPlayer) {
-					if (localPlayer.paused) {
-						localPlayer.play() ;
-					} else {
-						localPlayer.pause() ;
-					}
-				}
-			}
-
-			function playingFastForword(sec) {
-				if (ytPlayer != null) {
-					let currentTime = ytPlayer.getCurrentTime();
-					ytPlayer.seekTo(currentTime + sec);
-					updatePlayingTime(currentTime + sec) ;
-				} else if (localPlayer) {
-					let currentTime = localPlayer.currentTime ;
-					localPlayer.currentTime = currentTime + sec ;
-					updatePlayingTime(currentTime + sec) ;
-				}
-			}
-
-			function playingRewind(sec) {
-				if (ytPlayer != null) {
-					let currentTime = ytPlayer.getCurrentTime();
-					ytPlayer.seekTo(currentTime - sec);
-					updatePlayingTime(currentTime - sec) ;
-				} else if (localPlayer) {
-					let currentTime = localPlayer.currentTime ;
-					localPlayer.currentTime = currentTime - sec ;
-					updatePlayingTime(currentTime - sec) ;
-				}
-			}
-
 			function setPlaybackRate(rate) {
 				if (ytPlayer != null) {
 					ytPlayer.setPlaybackRate(rate) ;
@@ -1702,31 +1683,58 @@
 				}
 			}
 
+			function playingToggle() {
+				if (!isPlayingVideo()) {
+					playVideo()
+				} else {
+					pauseVideo() ;
+				}
+			}
+
+			function playingFastForword(sec) {
+				let currentTime = playingGetCurrentTime();
+
+				seekToVideo(currentTime + sec, false) ;
+				updatePlayingTime(currentTime + sec) ;
+			}
+
+			function playingRewind(sec) {
+				let currentTime = playingGetCurrentTime();
+
+				seekToVideo(currentTime - sec, false) ;
+				updatePlayingTime(currentTime - sec) ;
+			}
+
 			// Shortcut
-			function setupShortcuts() {				
-				shortcut.add("Meta+Down",function() {
-					playingToggle() ;
-				});
-
-				shortcut.add("Ctrl+Down",function() {
-					playingToggle() ;
-				});
-
-				shortcut.add("Meta+Left",function() {
-					playingRewind(Number($("#seekingSeconds").val())) ;
-				});
-
-				shortcut.add("Ctrl+Left",function() {
-					playingRewind(Number($("#seekingSeconds").val())) ;
-				});
-
-				shortcut.add("Meta+Right",function() {
-					playingFastForword(Number($("#seekingSeconds").val())) ;
-				});	
+			function setupShortcuts() {	
 				
-				shortcut.add("Ctrl+Right",function() {
+				let funcMetaDown = function() {
+					playingToggle() ;
+				} ;
+
+				shortcut.add("Meta+Down", funcMetaDown);
+				shortcut.add("Ctrl+Down", funcMetaDown);
+
+				let funcMetaLeft = function() {
+					playingRewind(Number($("#seekingSeconds").val())) ;
+				} ;
+
+				shortcut.add("Meta+Left", funcMetaLeft);
+				shortcut.add("Ctrl+Left", funcMetaLeft);
+
+				let funcMetaRight = function() {
 					playingFastForword(Number($("#seekingSeconds").val())) ;
-				});	
+				} ;
+
+				shortcut.add("Meta+Right", funcMetaRight);	
+				shortcut.add("Ctrl+Right", funcMetaRight);	
+
+				let funcMetaUp = function() {
+					jumpToSubtitle() ;
+				} ;
+
+				shortcut.add("Meta+Up", funcMetaUp) ;
+				shortcut.add("Ctrl+Up", funcMetaUp);	
 			}
 
 			function restoreSettings() {
@@ -1855,6 +1863,59 @@
 				$(textClassName)[0].selectionEnd = selectionStart + insertedText.length ;
 			}
 
+			let subtitleIndex = 0 ;
+
+			function getCurrentSubtitle(currentTime) {
+				var subtitle = "" ;
+
+				for (var i=subtitleIndex; i<lines.length; i++) {
+					let offsetTime = Number($("#offsetTimeLength").val()) ;
+
+					let line = lines[i] ;
+					let startTime = Number(line[0]) + offsetTime ;
+					let endTime = Number(line[1]) + offsetTime ;
+					
+					if (startTime < currentTime && currentTime < endTime) {
+						subtitle = line[2] ;
+						subtitleIndex = i ;
+
+						/*
+						let replacingDots = $('#replacingDots').prop("checked") ;
+
+						if (replacingDots) {
+							subtitle = subtitle.replaceAll("、", " ") ;
+							subtitle = subtitle.replaceAll("、", " ") ;
+							subtitle = subtitle.replaceAll("。", "") ;
+						}
+
+						subtitle = subtitle.replaceAll("\r\n", "\n") ;
+						subtitle = subtitle.replaceAll(/(\n)+/g, "\n") ;
+						subtitle = subtitle.trim() ;
+						*/
+
+						break ;
+					}
+				}
+
+				return subtitle ;
+			}
+
+			function jumpToSubtitle() {
+				let offsetTime = Number($("#offsetTimeLength").val()) ;
+				let currentTime = playingGetCurrentTime() ;
+
+				for (let key in lines) {
+					let line = lines[key] ;
+					let startTime = line[0] + offsetTime ;
+
+					if (startTime > currentTime) {
+						pauseVideo() ;
+						$("#subtitle" + (key  - 1))[0].scrollIntoView(true) ;
+						updatePlayingTime(currentTime) ;
+						break ;
+					}
+				}
+			}
 
 		</script>
 	</body>
