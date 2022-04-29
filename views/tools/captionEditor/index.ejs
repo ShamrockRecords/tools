@@ -278,7 +278,7 @@
 
 												<div class="row">
 													<div class="col mb-1">
-														<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にコマ割り（分割）して保存します。") %></div>
+														<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。") %></div>
 														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存後、作成してください。", "https://jimakudata.udtalk.jp") %></div>
 													</div>
 												</div>
@@ -289,13 +289,13 @@
 											<div class="mb-3">
 												<div class="row">
 													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("【おまけ】コマ割りをして内容を編集する") %></div>
+														<div class="form-label"><%- __("【おまけ】ハコ割りをして内容を編集する") %></div>
 													</div>
 												</div>
 					
 												<div class="row">
 													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でコマ割りをする") %>" name="convertToSrtButton" />
+														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でハコ割りをする") %>" name="convertToSrtButton" />
 													</div>
 												</div>
 
@@ -313,7 +313,7 @@
 															<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
 															<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>
 														</div>	
-														<div class="small ms-3"><%- __("コマ割りを保持して字幕ファイルを作成します。") %></div>
+														<div class="small ms-3"><%- __("ハコ割りを保持して字幕ファイルを作成します。") %></div>
 														<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
 													</div>
 												</div>
@@ -1060,7 +1060,7 @@
 						return ;
 					}
 
-					if (window.confirm("コマ割りをすると元に戻せません。現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？") == false) {
+					if (window.confirm("ハコ割りをすると元に戻せません。現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？") == false) {
 						return ;
 					}
 
