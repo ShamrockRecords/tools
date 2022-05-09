@@ -513,6 +513,14 @@
 											<input id="playbackSeconds" name="playbackSeconds" type="text" class="form-control" value="2" placeholder="" aria-label="" style="text-align: right;">
 										</div>
 									</div>
+									<div class="row mb-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="showPreviewAlways" name="showPreviewAlways" value="">
+												<label class="form-check-label" for="showPreviewAlways"><%- __("ハコ割り前でもプレビューを表示する") %></label>
+											</div>
+										</div>
+									</div>
 								</div>
 						  	</div>
 						</div>
@@ -595,15 +603,23 @@
 											<div class="small ms-3"><%- __("ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。") %></div>
 										</div>
 									</div>
-									<div class="row mb-3">
+									<div class="row">
 										<div class="col">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="acpDiarization" name="acpDiarization" value="">
 												<label class="form-check-label" for="acpDiarization"><%- __("話者識別を行う") %></label>
 											</div>
-											<div class="small ms-3"><%- __("音声認識と同時に最大で10人の話者を識別して表示します。") %></div>
 										</div>
 									</div>	
+									<div class="row">
+										<div class="col">
+											<label for="acpDiarizationCount" class="mx-3"><%- __("識別する人数") %></label>	
+											<div class="small ms-3"><%- __("音声認識と同時に最大で10人の話者を識別して表示します。") %></div>
+										</div>
+										<div class="col">	
+											<input id="acpDiarizationCount" name="acpDiarizationCount" type="text" class="form-control" value="10" placeholder="" aria-label="" style="text-align: right;">
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -677,6 +693,7 @@
 			let lines = [] ;
 			let details = [] ;
 			let mediafile = null ;
+			let appDataProperties = {} ;
 
 			$(function () {
 				restoreSettings() ;
@@ -699,7 +716,9 @@
 				$("#acpLoggingOptOut").on('change', eventListener) ;
 				$("#acpDiarization").on('change', eventListener) ;
 				$("#replacingDots").on('change', eventListener) ;
-
+				$("#showPreviewAlways").on('change', eventListener) ;
+				$("#acpDiarizationCount").on('change', eventListener) ;
+				
 				let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
 				$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
 
@@ -1060,6 +1079,11 @@
 						return ;
 					}
 
+					if (appDataProperties["converted"] == true) {
+						alert("このデータは既にハコ割りをしています。") ;
+						return ;
+					}
+
 					if (window.confirm("ハコ割りをすると元に戻せません。現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？") == false) {
 						return ;
 					}
@@ -1122,10 +1146,22 @@
 
 					$("#offsetTimeLength").val("0") ;
 
+					if (appDataProperties == undefined || appDataProperties == null) {
+						appDataProperties = {} ;
+					}
+
+					appDataProperties["converted"] = true ;
+
 					updateSubtitleData() ;
 				}) ;
 
 				$("#saveAsSrtDataButton").on("click", async (e) => {
+
+					if (appDataProperties["converted"] != true) {
+						alert("この機能はハコ割りをした後に使用できます。") ;
+						return ;
+					}
+
 					let srtData = "" ;
 					let replacingDots = $('#replacingDots').prop("checked") ;
 
@@ -1252,6 +1288,8 @@
 
 					appData["shortcutWords"] = shortcutWords ;
 
+					appData["properties"] = appDataProperties ;
+
 					saveAsFile(JSON.stringify(appData) , fileName) ;
 				}) ;
 
@@ -1296,6 +1334,8 @@
 						let offsetTimeLength = appData["offsetTimeLength"] ;
 						let shortcutWords = appData["shortcutWords"] ;
 						let appDataFileName = appData["appDataFileName"] ;
+
+						appDataProperties = appData["properties"] == undefined ? {} : appData["properties"] ;
 
 						$("#offsetTimeLength").val(offsetTimeLength) ;
 						$("#videoURL").val(videoURL) ;
@@ -1603,11 +1643,15 @@
 			function updatePlayingTime(currentTime) {
 				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
 
-				let subtitle = getCurrentSubtitle(currentTime) ;
+				if ($('#showPreviewAlways').prop("checked") || appDataProperties["converted"] == true) {
+					let subtitle = getCurrentSubtitle(currentTime) ;
 
-				subtitle = subtitle.replaceAll("\n", "<br />") ;
+					subtitle = subtitle.replaceAll("\n", "<br />") ;
 
-				$("#subtitlePreview").html(subtitle) ;
+					$("#subtitlePreview").html(subtitle) ;
+				} else {
+					$("#subtitlePreview").html("") ;
+				}
 			}
 
 			function getVideoIdFromYouTubeURL(url) {
@@ -1774,6 +1818,12 @@
 					$('#replacingDots').prop("checked", replacingDots == "true") ;
 				}
 
+				let showPreviewAlways = localStorage.getItem("showPreviewAlways") ;
+
+				if (showPreviewAlways != undefined) {
+					$('#showPreviewAlways').prop("checked", showPreviewAlways == "true") ;
+				}
+
 				let mediaType = "<%= mediaType %>" ;
 
 				// File only
@@ -1813,6 +1863,12 @@
 					if (acpDiarization != undefined) {
 						$('#acpDiarization').prop("checked", acpDiarization == "true") ;
 					}
+
+					let acpDiarizationCount = localStorage.getItem("acpDiarizationCount") ;
+
+					if (acpDiarizationCount != undefined) {
+						$('#acpDiarizationCount').val(acpDiarizationCount) ;
+					}
 				}
 			}
 
@@ -1822,6 +1878,9 @@
 				localStorageSetItem("nonStopWhenDotsInput", $('#nonStopWhenDotsInput').prop("checked")) ;
 				localStorageSetItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
 				localStorageSetItem("replacingDots", $('#replacingDots').prop("checked")) ;
+				localStorageSetItem("showPreviewAlways", $('#showPreviewAlways').prop("checked")) ;
+				localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
+				localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;
 
 				let mediaType = "<%= mediaType %>" ;
 
@@ -1831,9 +1890,7 @@
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
-					localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
-					localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;
-
+				
 					if ($('#saveAppKey').prop("checked")) {
 						localStorageSetItem("acpAppKey", $('#acpAppKey').val()) ;
 					} else {
@@ -1841,6 +1898,7 @@
 					}
 
 					localStorageSetItem("acpDiarization", $('#acpDiarization').prop("checked")) ;
+					localStorageSetItem("acpDiarizationCount", $('#acpDiarizationCount').val()) ;
 				}
 
 				function localStorageSetItem(key, val) {

@@ -22,7 +22,8 @@ async function runSpeechRecognition(completion) {
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
     let diarization = $('#acpDiarization').prop("checked") ;
-    
+    let diarizationCount = $('#acpDiarizationCount').val() ;
+
     if (authorization == "") {
         alert("音声認識設定でAPPKEYを入力してください。") ;
         return ;
@@ -91,7 +92,17 @@ async function runSpeechRecognition(completion) {
         }
 
         domainId += "speakerDiarization=True";
+
+        if (Number(diarizationCount) < 10) {
+            if (domainId.length > 0) {
+                domainId += ' ';
+            }
+    
+            domainId += "diarizationMaxSpeaker=" + Number(diarizationCount) + " " + "diarizationMinSpeaker=" + Number(diarizationCount) ;
+        }
     }
+
+    console.log(domainId) ;
 
     if (authorization != "") {
         authorization = authorization.trim() ;
