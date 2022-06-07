@@ -172,6 +172,8 @@ async function runSpeechRecognition(completion) {
                         let speakerName = token["label"] ;
                         let written = token["written"] ;
                         
+                        written = normalizeWrittenForm(written) ;
+
                         if (currentStartTime == "") {
                             currentStartTime = startTime ;
                         }
@@ -304,4 +306,10 @@ async function runSpeechRecognition(completion) {
 
         }, 5000) ;
     }
+}
+
+function normalizeWrittenForm(written) {
+    written = written.replaceAll("_", " ") ;
+
+    return written ;
 }

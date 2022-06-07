@@ -729,7 +729,10 @@
 				
 				$(window).on('beforeunload', function(e) {
 					e.preventDefault();
-    				e.returnValue = 'Check';
+
+					if (lines != null || lines.length != 0) {
+    					e.returnValue = 'Check';
+					}
 
 					return "" ;
 				});
