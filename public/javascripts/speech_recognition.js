@@ -21,6 +21,7 @@ async function runSpeechRecognition(completion) {
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
+    let ignoreReplyToken = $('#ignoreReplyToken').prop("checked") ;
     let diarization = $('#acpDiarization').prop("checked") ;
     let diarizationCount = $('#acpDiarizationCount').val() ;
 
@@ -174,6 +175,12 @@ async function runSpeechRecognition(completion) {
                         
                         written = normalizeWrittenForm(written) ;
 
+                        if (ignoreReplyToken == true) {
+                            if (written == "はい" || written == "うん") {
+                                continue ;
+                            }
+                        }
+
                         if (currentStartTime == "") {
                             currentStartTime = startTime ;
                         }
@@ -222,7 +229,13 @@ async function runSpeechRecognition(completion) {
                             if (grammarFileNames == "-a-general-en") {
                                 text += written + " " ;
                             } else {
-                                text += written ;
+                                if (written == "。" || written == "、") {
+                                    if (text != "" && !text.endsWith("。") && !text.endsWith("、")) {
+                                        text += written ;
+                                    }
+                                } else {
+                                    text += written ;
+                                }
                             }
                         }
 
@@ -247,7 +260,8 @@ async function runSpeechRecognition(completion) {
                         }
                     }
 
-                    if (text.length > 0) {
+                    if (text.length > 0 && text != "。" && text != "、") {
+
                         text = text.trim() ;
                         text = text.replaceAll("＿", " ") ;
 

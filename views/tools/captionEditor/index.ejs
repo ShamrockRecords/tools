@@ -603,6 +603,14 @@
 											<div class="small ms-3"><%- __("ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。") %></div>
 										</div>
 									</div>
+									<div class="row mb-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="ignoreReplyToken" name="ignoreReplyToken" value="" checked>
+												<label class="form-check-label" for="acpDiarization"><%- __("「はい」「うん」などの相槌をカットする（日本語のみ）") %></label>
+											</div>
+										</div>
+									</div>	
 									<div class="row">
 										<div class="col">
 											<div class="form-check">
@@ -714,6 +722,7 @@
 				$("#acpProfileId").on('input', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
 				$("#acpLoggingOptOut").on('change', eventListener) ;
+				$("#ignoreReplyToken").on('change', eventListener) ;
 				$("#acpDiarization").on('change', eventListener) ;
 				$("#replacingDots").on('change', eventListener) ;
 				$("#showPreviewAlways").on('change', eventListener) ;
@@ -1861,6 +1870,12 @@
 						$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
 					}
 
+					let ignoreReplyToken = localStorage.getItem("ignoreReplyToken") ;
+
+					if (ignoreReplyToken != undefined) {
+						$('#ignoreReplyToken').prop("checked", ignoreReplyToken == "true") ;
+					}
+
 					let acpDiarization = localStorage.getItem("acpDiarization") ;
 
 					if (acpDiarization != undefined) {
@@ -1900,6 +1915,7 @@
 						localStorage.removeItem("acpAppKey") ;
 					}
 
+					localStorageSetItem("ignoreReplyToken", $('#ignoreReplyToken').prop("checked")) ;
 					localStorageSetItem("acpDiarization", $('#acpDiarization').prop("checked")) ;
 					localStorageSetItem("acpDiarizationCount", $('#acpDiarizationCount').val()) ;
 				}
