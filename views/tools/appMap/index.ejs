@@ -56,7 +56,6 @@
 			let lat = data["lat"] ;
 			let lng = data["lng"] ;
 			
-			
 			var marker = L.marker([lat, lng]).addTo(map);
 			
 			let name = data["name"] ;
@@ -99,8 +98,6 @@
 			.then((res) => {
 				return res.text() ;
 			}) ;
-	
-	
 	
 		return convertToArray(csvData) ;
 	}
