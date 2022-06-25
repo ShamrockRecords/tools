@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../../parts/head', {title: appTitle}) %>
+
+	<meta property="og:site_name" content="<%= appTitle %>"/>
+	<meta property="og:url" content="<%= rootURL %>"/>
+	<meta property="og:title" content="<%= appTitle %>"/>
+	<meta property="og:type" content="Website" />
+	<meta property="og:description" content=""/>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
+	integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ=="
+	crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"
+	integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ=="
+	crossorigin=""></script>
+
+   <style>
+		html, body {
+			height:100%;
+		}
+		
+		#map { 
+			height: 100%;
+		}
+   </style>
+</head>
+<body onload="onload()">
+<div id="map"></div>
+
+<script>
+	let map = null ;
+
+	async function onload() {
+			
+		let latlng = [35.737797, 139.653916];
+
+		map = L.map('map', {zoomControl: true}).setView(latlng, 6);
+
+		let mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
+
+		L.tileLayer(
+			'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			{
+			attribution: 'Map data &copy; ' + mapLink,
+			maxZoom: 18
+			}
+		).addTo(map);
+		
+		let dataArray = await getDataArray() ;
+		
+		for (let key in dataArray) {
+			let data = dataArray[key] ;
+			
+			let lat = data["lat"] ;
+			let lng = data["lng"] ;
+			
+			
+			var marker = L.marker([lat, lng]).addTo(map);
+			
+			let name = data["name"] ;
+			let postalCode = data["postalCode"] ;
+			let address = data["address"] ;
+			let startedDate = data["startedDate"] ;
+			let type = data["type"] ;
+
+			let body = '<div class="h4">' + name + '</div>' ;
+			
+			body += '<div class="row my-3"><div class="col">' ;
+			body += type ;
+			body += '</div></div>' ;
+			
+			body += '<div class="row my-3"><div class="col">' ;
+			body += '〒' + postalCode + '<br />' ;
+			body += '' + address + '<br />' ;
+			body += '</div></div>' ;
+			body += '<hr />' ;
+			body += '<div class="row my-3"><div class="col">' ;
+			body += '提供開始日 : ' + startedDate ;
+			body += '</div></div>' ;
+
+			marker.bindPopup(body) ;
+		}
+		
+		/*
+		function onMapClick(e) {
+			alert("You clicked the map at " + e.latlng);
+			}
+
+			map.on('click', onMapClick);
+		*/
+	}
+
+	async function getDataArray() {
+		let dataArray = [] ;
+	
+		let csvData = await fetch("https://docs.google.com/spreadsheets/d/1iIBzdBQfgVSKezE6jRKzCkfNVwIKIEUZY52cFBua6_A/export?format=csv")
+			.then((res) => {
+				return res.text() ;
+			}) ;
+	
+	
+	
+		return convertToArray(csvData) ;
+	}
+
+	function convertToArray(csvData) {
+		let dataArray = [] ;
+	
+		let lines = csvData.split("\n") ;
+		let latIndex = 0 ;
+		let lngIndex = 0 ;
+		let nameIndex = 0 ;
+		let postalCodeIndex = 0 ;
+		let addressIndex = 0 ;
+		let startedDateIndex = 0 ;
+		let typeIndex = 0 ;
+
+		for (let key in lines) {
+			let line = lines[key] ;
+			
+			line = line.trim() ;
+			
+			let elements = line.split(",") ;
+
+			if (key == 0) {
+				latIndex = elements.indexOf("緯度") ;
+				lngIndex = elements.indexOf("経度") ;
+				nameIndex = elements.indexOf("正式名称") ;
+				postalCodeIndex = elements.indexOf("郵便番号") ;
+				addressIndex = elements.indexOf("住所") ;
+				startedDateIndex = elements.indexOf("作成日") ;
+				typeIndex = elements.indexOf("種別") ;
+			} else {
+				let data = {} ;
+
+				data["lat"] = Number(elements[latIndex])	;
+				data["lng"] = Number(elements[lngIndex])	;
+				data["name"] = elements[nameIndex];
+				data["postalCode"] = elements[postalCodeIndex];
+				data["address"] = elements[addressIndex];
+				data["startedDate"] = elements[startedDateIndex];
+				data["type"] = elements[typeIndex];
+
+				dataArray.push(data) ;
+			}
+		}
+			
+		return dataArray ;
+	}
+</script>
+</body>
+</html>
