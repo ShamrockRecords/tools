@@ -5,7 +5,7 @@ const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
 router.get('/', wrap(async function(req, res, next) { 
     res.render('tools/appMap/index', {
-        appTitle: res.__('アプリ導入プログラム提供マップ'),
+        appTitle: 'アプリ導入プログラム提供マップ',
         rootURL: process.env.ROOT_URL + "/appMap",
     });		 
 })) ;
