@@ -24,24 +24,61 @@
    <style>
 		html, body {
 			height:100%;
+			background-color:ghostwhite;
 		}
 		
-		#map { 
+		#map, #mapRow { 
 			height: 100%;
 		}
    </style>
 </head>
-<body onload="onload()">
-<div id="map"></div>
-
+<body class="p-3" onload="onload()">
+	<div id="headerRow" class="row">
+		<div class="col">
+			<div class="row mb-3">
+				<div class="col-auto">
+					<a href="/">トップに戻る</a>
+				</div>
+			</div>
+			<div class="row mb-1">
+				<div class="col">
+					<h3><%= appTitle %></h3>
+				</div>
+			</div>
+			<div class="row mb-3">
+				<div class="col small">
+					アプリ導入プログラムの提供先と、法人向けプランをご利用されているところをマッピングしています。<br />
+					（※法人向けプランは公開の許可を得たところのみ掲載しています）
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="mapRow" class="row"">
+		<div class="col">
+			<div id="map"></div>
+		</div>
+	</div>
 <script>
 	let map = null ;
 	let layerGroups = {} ;
 	
 	async function onload() {
 			
+		let resizeFunction = function () {
+			let hsize = $('body').height() ;
+			
+			hsize -= $("#headerRow").height();
+
+			$("#mapRow").height(hsize);
+			$("#map").height(hsize);
+		} ;
+
+		$(document).ready(resizeFunction);
+
+		$(window).resize(resizeFunction);
+
 		let latlng = [35.737797, 139.653916];
-		let zoom = 6 ;
+		let zoom = 5 ;
 
 		let storedLatlng = localStorage.getItem("latlng") ;
 		let storedZoom = localStorage.getItem("zoom") ;
@@ -59,7 +96,7 @@
 		L.easyButton('fa-home', function(btn, map){
 			var latlng = [35.737797, 139.653916];
 
-			map.setView(latlng, 6);
+			map.setView(latlng, 5);
 			saveCurrentMap() ;
 		}).addTo(map);
 
