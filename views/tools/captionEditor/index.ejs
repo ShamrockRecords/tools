@@ -1130,6 +1130,7 @@
 					let replacingDots = $('#replacingDots').prop("checked") ;
 
 					let offsetTime = Number($("#offsetTimeLength").val()) ;
+					let num = 1 ;
 
 					for (let key in lines) {
 						let line = lines[key] ;
@@ -1163,8 +1164,9 @@
 
 						
 
-						let element = (Number(key) + 1) + "\n" + secToTime(startTime, ",") + " --> " + secToTime(endTime, ",") + "\n" + text + "\n\n" ;
+						let element = (Number(num)) + "\n" + secToTime(startTime, ",") + " --> " + secToTime(endTime, ",") + "\n" + text + "\n\n" ;
 
+						num++ ;
 						srtData += element ;
 					}
 
