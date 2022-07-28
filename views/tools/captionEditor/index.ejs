@@ -513,6 +513,14 @@
 											<input id="playbackSeconds" name="playbackSeconds" type="text" class="form-control" value="2" placeholder="" aria-label="" style="text-align: right;">
 										</div>
 									</div>
+									<div class="row mb-3">
+										<div class="col">
+											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="showPreviewAlways" name="showPreviewAlways" value="">
+												<label class="form-check-label" for="showPreviewAlways"><%- __("ハコ割り前でもプレビューを表示する") %></label>
+											</div>
+										</div>
+									</div>
 								</div>
 						  	</div>
 						</div>
@@ -540,12 +548,12 @@
 								<div class="accordion-body">
 									<div class="row small mb-3">
 										<div class="col">
-											<div class="mb-3"><%- __("音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。", "https://acp.amivoice.com/main/") %></div>
+											<div class="mb-3"><%- __("音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>のAmiVoice APIを使用して音声認識の結果を取得します。", "https://acp.amivoice.com") %></div>
 											<div class="mb-3">
 												<div><%- __("読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。") %></div>
 												<div><%- __("音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）") %></div>
 											</div>
-											<div class="mb-3"><%- __("①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。") %></div>
+											<div class="mb-3"><%- __("①AmiVoice Cloud Platformのページを開き右上のメニューからサービスを開き「AmiVoice API」をクリックします。初めての方は「無料で利用を開始」で始めてください。既にご利用の方はマイページを開きます。") %></div>
 											<div class="mb-3"><%- __("②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。") %></div>
 											<div class="mb-3"><%- __("③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。") %></div>
 											<div class="mb-3"><%- __("④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。") %></div>
@@ -598,12 +606,28 @@
 									<div class="row mb-3">
 										<div class="col">
 											<div class="form-check">
+												<input class="form-check-input" type="checkbox" value="" id="ignoreReplyToken" name="ignoreReplyToken" value="" checked>
+												<label class="form-check-label" for="acpDiarization"><%- __("「はい」「うん」などの相槌をカットする（日本語のみ）") %></label>
+											</div>
+										</div>
+									</div>	
+									<div class="row">
+										<div class="col">
+											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="acpDiarization" name="acpDiarization" value="">
 												<label class="form-check-label" for="acpDiarization"><%- __("話者識別を行う") %></label>
 											</div>
-											<div class="small ms-3"><%- __("音声認識と同時に最大で10人の話者を識別して表示します。") %></div>
 										</div>
 									</div>	
+									<div class="row">
+										<div class="col">
+											<label for="acpDiarizationCount" class="mx-3"><%- __("識別する人数") %></label>	
+											<div class="small ms-3"><%- __("音声認識と同時に最大で10人の話者を識別して表示します。") %></div>
+										</div>
+										<div class="col">	
+											<input id="acpDiarizationCount" name="acpDiarizationCount" type="text" class="form-control" value="10" placeholder="" aria-label="" style="text-align: right;">
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -677,6 +701,7 @@
 			let lines = [] ;
 			let details = [] ;
 			let mediafile = null ;
+			let appDataProperties = {} ;
 
 			$(function () {
 				restoreSettings() ;
@@ -697,9 +722,12 @@
 				$("#acpProfileId").on('input', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
 				$("#acpLoggingOptOut").on('change', eventListener) ;
+				$("#ignoreReplyToken").on('change', eventListener) ;
 				$("#acpDiarization").on('change', eventListener) ;
 				$("#replacingDots").on('change', eventListener) ;
-
+				$("#showPreviewAlways").on('change', eventListener) ;
+				$("#acpDiarizationCount").on('change', eventListener) ;
+				
 				let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
 				$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
 
@@ -710,7 +738,10 @@
 				
 				$(window).on('beforeunload', function(e) {
 					e.preventDefault();
-    				e.returnValue = 'Check';
+
+					if (lines != null || lines.length != 0) {
+    					e.returnValue = 'Check';
+					}
 
 					return "" ;
 				});
@@ -1060,6 +1091,11 @@
 						return ;
 					}
 
+					if (appDataProperties["converted"] == true) {
+						alert("このデータは既にハコ割りをしています。") ;
+						return ;
+					}
+
 					if (window.confirm("ハコ割りをすると元に戻せません。現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？") == false) {
 						return ;
 					}
@@ -1122,10 +1158,22 @@
 
 					$("#offsetTimeLength").val("0") ;
 
+					if (appDataProperties == undefined || appDataProperties == null) {
+						appDataProperties = {} ;
+					}
+
+					appDataProperties["converted"] = true ;
+
 					updateSubtitleData() ;
 				}) ;
 
 				$("#saveAsSrtDataButton").on("click", async (e) => {
+
+					if (appDataProperties["converted"] != true) {
+						alert("この機能はハコ割りをした後に使用できます。") ;
+						return ;
+					}
+
 					let srtData = "" ;
 					let replacingDots = $('#replacingDots').prop("checked") ;
 
@@ -1254,6 +1302,8 @@
 
 					appData["shortcutWords"] = shortcutWords ;
 
+					appData["properties"] = appDataProperties ;
+
 					saveAsFile(JSON.stringify(appData) , fileName) ;
 				}) ;
 
@@ -1298,6 +1348,8 @@
 						let offsetTimeLength = appData["offsetTimeLength"] ;
 						let shortcutWords = appData["shortcutWords"] ;
 						let appDataFileName = appData["appDataFileName"] ;
+
+						appDataProperties = appData["properties"] == undefined ? {} : appData["properties"] ;
 
 						$("#offsetTimeLength").val(offsetTimeLength) ;
 						$("#videoURL").val(videoURL) ;
@@ -1605,11 +1657,15 @@
 			function updatePlayingTime(currentTime) {
 				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
 
-				let subtitle = getCurrentSubtitle(currentTime) ;
+				if ($('#showPreviewAlways').prop("checked") || appDataProperties["converted"] == true) {
+					let subtitle = getCurrentSubtitle(currentTime) ;
 
-				subtitle = subtitle.replaceAll("\n", "<br />") ;
+					subtitle = subtitle.replaceAll("\n", "<br />") ;
 
-				$("#subtitlePreview").html(subtitle) ;
+					$("#subtitlePreview").html(subtitle) ;
+				} else {
+					$("#subtitlePreview").html("") ;
+				}
 			}
 
 			function getVideoIdFromYouTubeURL(url) {
@@ -1776,6 +1832,12 @@
 					$('#replacingDots').prop("checked", replacingDots == "true") ;
 				}
 
+				let showPreviewAlways = localStorage.getItem("showPreviewAlways") ;
+
+				if (showPreviewAlways != undefined) {
+					$('#showPreviewAlways').prop("checked", showPreviewAlways == "true") ;
+				}
+
 				let mediaType = "<%= mediaType %>" ;
 
 				// File only
@@ -1810,10 +1872,22 @@
 						$('[name=acpLoggingOptOut]').val(acpLoggingOptOut) ;
 					}
 
+					let ignoreReplyToken = localStorage.getItem("ignoreReplyToken") ;
+
+					if (ignoreReplyToken != undefined) {
+						$('#ignoreReplyToken').prop("checked", ignoreReplyToken == "true") ;
+					}
+
 					let acpDiarization = localStorage.getItem("acpDiarization") ;
 
 					if (acpDiarization != undefined) {
 						$('#acpDiarization').prop("checked", acpDiarization == "true") ;
+					}
+
+					let acpDiarizationCount = localStorage.getItem("acpDiarizationCount") ;
+
+					if (acpDiarizationCount != undefined) {
+						$('#acpDiarizationCount').val(acpDiarizationCount) ;
 					}
 				}
 			}
@@ -1824,6 +1898,9 @@
 				localStorageSetItem("nonStopWhenDotsInput", $('#nonStopWhenDotsInput').prop("checked")) ;
 				localStorageSetItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
 				localStorageSetItem("replacingDots", $('#replacingDots').prop("checked")) ;
+				localStorageSetItem("showPreviewAlways", $('#showPreviewAlways').prop("checked")) ;
+				localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
+				localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;
 
 				let mediaType = "<%= mediaType %>" ;
 
@@ -1833,16 +1910,16 @@
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
-					localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
-					localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;
-
+				
 					if ($('#saveAppKey').prop("checked")) {
 						localStorageSetItem("acpAppKey", $('#acpAppKey').val()) ;
 					} else {
 						localStorage.removeItem("acpAppKey") ;
 					}
 
+					localStorageSetItem("ignoreReplyToken", $('#ignoreReplyToken').prop("checked")) ;
 					localStorageSetItem("acpDiarization", $('#acpDiarization').prop("checked")) ;
+					localStorageSetItem("acpDiarizationCount", $('#acpDiarizationCount').val()) ;
 				}
 
 				function localStorageSetItem(key, val) {

@@ -21,8 +21,10 @@ async function runSpeechRecognition(completion) {
     let profileId = $("#acpProfileId").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
+    let ignoreReplyToken = $('#ignoreReplyToken').prop("checked") ;
     let diarization = $('#acpDiarization').prop("checked") ;
-    
+    let diarizationCount = $('#acpDiarizationCount').val() ;
+
     if (authorization == "") {
         alert("音声認識設定でAPPKEYを入力してください。") ;
         return ;
@@ -91,7 +93,17 @@ async function runSpeechRecognition(completion) {
         }
 
         domainId += "speakerDiarization=True";
+
+        if (Number(diarizationCount) < 10) {
+            if (domainId.length > 0) {
+                domainId += ' ';
+            }
+    
+            domainId += "diarizationMaxSpeaker=" + Number(diarizationCount) + " " + "diarizationMinSpeaker=" + Number(diarizationCount) ;
+        }
     }
+
+    console.log(domainId) ;
 
     if (authorization != "") {
         authorization = authorization.trim() ;
@@ -161,6 +173,14 @@ async function runSpeechRecognition(completion) {
                         let speakerName = token["label"] ;
                         let written = token["written"] ;
                         
+                        written = normalizeWrittenForm(written) ;
+
+                        if (ignoreReplyToken == true) {
+                            if (written == "はい" || written == "うん") {
+                                continue ;
+                            }
+                        }
+
                         if (currentStartTime == "") {
                             currentStartTime = startTime ;
                         }
@@ -209,7 +229,13 @@ async function runSpeechRecognition(completion) {
                             if (grammarFileNames == "-a-general-en") {
                                 text += written + " " ;
                             } else {
-                                text += written ;
+                                if (written == "。" || written == "、") {
+                                    if (text != "" && !text.endsWith("。") && !text.endsWith("、")) {
+                                        text += written ;
+                                    }
+                                } else {
+                                    text += written ;
+                                }
                             }
                         }
 
@@ -234,7 +260,8 @@ async function runSpeechRecognition(completion) {
                         }
                     }
 
-                    if (text.length > 0) {
+                    if (text.length > 0 && text != "。" && text != "、") {
+
                         text = text.trim() ;
                         text = text.replaceAll("＿", " ") ;
 
@@ -293,4 +320,10 @@ async function runSpeechRecognition(completion) {
 
         }, 5000) ;
     }
+}
+
+function normalizeWrittenForm(written) {
+    written = written.replaceAll("_", " ") ;
+
+    return written ;
 }

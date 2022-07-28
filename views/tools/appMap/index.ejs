@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../../parts/head', {title: appTitle}) %>
+
+	<meta property="og:site_name" content="<%= appTitle %>"/>
+	<meta property="og:url" content="<%= rootURL %>"/>
+	<meta property="og:title" content="<%= appTitle %>"/>
+	<meta property="og:type" content="Website" />
+	<meta property="og:description" content=""/>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
+	integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ=="
+	crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"
+	integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ=="
+	crossorigin=""></script>
+
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css"/>
+
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+	<script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
+
+   <style>
+		html, body {
+			height:100%;
+			background-color:ghostwhite;
+		}
+		
+		#map, #mapRow { 
+			height: 100%;
+		}
+   </style>
+</head>
+<body class="p-3" onload="onload()">
+	<div id="headerRow" class="row">
+		<div class="col">
+			<div class="row mb-3">
+				<div class="col-auto">
+					<a href="/">トップに戻る</a>
+				</div>
+			</div>
+			<div class="row mb-1">
+				<div class="col">
+					<h3><%= appTitle %></h3>
+				</div>
+			</div>
+			<div class="row mb-3">
+				<div class="col small">
+					アプリ導入プログラムの提供先と、法人向けプランをご利用されているところをマッピングしています。<br />
+					（※法人向けプランは公開の許可を得たところのみ掲載しています）
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="mapRow" class="row"">
+		<div class="col">
+			<div id="map"></div>
+		</div>
+	</div>
+<script>
+	let map = null ;
+	let layerGroups = {} ;
+	
+	async function onload() {
+			
+		let resizeFunction = function () {
+			let hsize = $('body').height() ;
+			
+			hsize -= $("#headerRow").height();
+
+			$("#mapRow").height(hsize);
+			$("#map").height(hsize);
+		} ;
+
+		$(document).ready(resizeFunction);
+
+		$(window).resize(resizeFunction);
+
+		let latlng = [35.737797, 139.653916];
+		let zoom = 5 ;
+
+		let storedLatlng = localStorage.getItem("latlng") ;
+		let storedZoom = localStorage.getItem("zoom") ;
+
+		if (storedLatlng != undefined) {
+			latlng = JSON.parse(storedLatlng) ;
+		}
+
+		if (storedZoom != undefined) {
+			zoom = storedZoom ;
+		}
+		
+		map = L.map('map', {zoomControl: true}).setView(latlng, zoom);
+	
+		L.easyButton('fa-home', function(btn, map){
+			var latlng = [35.737797, 139.653916];
+
+			map.setView(latlng, 5);
+			saveCurrentMap() ;
+		}).addTo(map);
+
+		var mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
+	
+		L.tileLayer(
+			'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			{
+				attribution: 'Map data &copy; ' + mapLink,
+				maxZoom: 18
+			}
+		).addTo(map);
+
+		let dataArray = await getDataArray() ;
+		let layerHashMap = {} ;
+		let iconSize = [40, 40] ;
+
+		let eduIcon = L.icon({
+			iconUrl: '../assets/blue_mark.png',
+			iconSize: iconSize,
+		});
+
+		let orgIcon = L.icon({
+			iconUrl: '../assets/red_mark.png',
+			iconSize: iconSize,
+		});
+
+		let admIcon = L.icon({
+			iconUrl: '../assets/green_mark.png',
+			iconSize: iconSize,
+		});
+
+		for (let key in dataArray) {
+			let data = dataArray[key] ;
+			
+			let lat = data["lat"] ;
+			let lng = data["lng"] ;
+
+			if (lat == undefined || lng == undefined) {
+				continue ;
+			}
+
+			let icon = null ;
+
+			let type = data["type"] ;
+
+			if (type == "教育機関") {
+				icon = eduIcon ;		
+			} else if (type == "企業・団体") {
+				icon = orgIcon ;
+			} else if (type == "自治体・官公庁") {
+				icon = admIcon ;
+			} else {
+				
+			}
+
+			var marker = L.marker([lat, lng], {icon : icon}) ;
+			
+			let name = data["name"] ;
+			let postalCode = data["postalCode"] ;
+			let address = data["address"] ;
+			let startedDate = data["startedDate"] ;
+			
+
+			let body = '<div class="h4">' + name + '</div>' ;
+			
+			body += '<div class="row my-3"><div class="col">' ;
+			body += type ;
+			body += '</div></div>' ;
+			
+			body += '<div class="row my-3"><div class="col">' ;
+			body += '〒' + postalCode + '<br />' ;
+			body += '' + address + '<br />' ;
+			body += '</div></div>' ;
+			body += '<hr />' ;
+			body += '<div class="row my-3"><div class="col">' ;
+			body += '利用開始日 : ' + startedDate ;
+			body += '</div></div>' ;
+
+			marker.bindPopup(body) ;
+
+			let group = layerHashMap[type] ;
+
+			if (group == undefined) {
+				group = [] ;
+				layerHashMap[type] = group ;
+			}
+			
+			group.push(marker) ;
+		}
+
+		for (let key in layerHashMap) {
+			let group = layerHashMap[key] ;
+
+			let layerGroup = L.layerGroup(group) ;
+			
+			layerGroup.addTo(map) ;
+
+			let iconUrl = null ;
+
+			if (key == "教育機関") {
+				iconUrl = "../assets/blue_mark.png" ;		
+			} else if (key == "企業・団体") {
+				iconUrl = "../assets/red_mark.png" ;	
+			} else if (key == "自治体・官公庁") {
+				iconUrl = "../assets/green_mark.png" ;	
+			}
+
+			let caption = "<span class=\"label\"><img src=\"" + iconUrl + "\" width=\"30\"><span class=\"text\">" +key + "</span></span>" ;
+
+			layerGroups[caption] = layerGroup ;
+		}
+
+		let layerControl = L.control.layers(null, layerGroups, {collapsed: false}).addTo(map) ;
+
+		/*
+		function onMapClick(e) {
+			alert("You clicked the map at " + e.latlng);
+			}
+
+			map.on('click', onMapClick);
+		*/
+
+		map.on('zoomend', function(e) {
+			saveCurrentMap() ;
+		}) ;
+
+		map.on('moveend', function(e) {
+			saveCurrentMap() ;
+		}) ;
+	}
+
+	async function getDataArray() {
+		let dataArray = [] ;
+	
+		let csvData = await fetch("https://docs.google.com/spreadsheets/d/1Cuco1BTltCx64anZVlKFBRiqVlfM7z-UTMtzvqIWRGU/export?format=csv")
+			.then((res) => {
+				return res.text() ;
+			}) ;
+	
+		return convertToArray(csvData) ;
+	}
+
+	function convertToArray(csvData) {
+		let dataArray = [] ;
+	
+		let lines = csvData.split("\n") ;
+		let latIndex = 0 ;
+		let lngIndex = 0 ;
+		let nameIndex = 0 ;
+		let postalCodeIndex = 0 ;
+		let addressIndex = 0 ;
+		let startedDateIndex = 0 ;
+		let typeIndex = 0 ;
+
+		for (let key in lines) {
+			let line = lines[key] ;
+			
+			line = line.trim() ;
+			
+			let elements = line.split(",") ;
+
+			if (key == 0) {
+				latIndex = elements.indexOf("緯度") ;
+				lngIndex = elements.indexOf("経度") ;
+				nameIndex = elements.indexOf("正式名称") ;
+				postalCodeIndex = elements.indexOf("郵便番号") ;
+				addressIndex = elements.indexOf("住所") ;
+				startedDateIndex = elements.indexOf("作成日") ;
+				typeIndex = elements.indexOf("種別") ;
+			} else {
+				let data = {} ;
+
+				if (elements[latIndex] != "") {
+					data["lat"] = Number(elements[latIndex])	;
+				} 
+
+				if (elements[lngIndex] != "") {
+					data["lng"] = Number(elements[lngIndex])	;
+				}
+
+				data["name"] = elements[nameIndex];
+				data["postalCode"] = elements[postalCodeIndex];
+				data["address"] = elements[addressIndex];
+				data["startedDate"] = elements[startedDateIndex];
+				data["type"] = elements[typeIndex];
+
+				dataArray.push(data) ;
+			}
+		}
+			
+		return dataArray ;
+	}
+
+	function saveCurrentMap() {
+		let c = map.getCenter() ;
+        let z = map.getZoom() ;
+		
+		localStorage.setItem("latlng", JSON.stringify([c.lat, c.lng])) ;
+		localStorage.setItem("zoom", z) ;
+	}
+</script>
+</body>
+</html>
