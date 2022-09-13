@@ -65,7 +65,6 @@
 	"音声認識設定（クリックして表示／非表示）": "Speech Recognition Settings (Click to show/hide)",
 	"読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。": "Speech recognition is performed on loaded video and audio files and converted to text. In the case of video, it converts it to an audio file in the browser and uploads it to the server.",
 	"音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）": "You can use the speech recognition API for a fee. (You can try it out for 60 minutes for free every month.)",
-	"①AmiVoice Cloud Platformのページを開き「無料で利用開始」をクリックしログインしてください。既にご利用の方はマイページを開きます。": "1. Go to the AmiVoice Cloud Platform page and click on \"無料で利用開始\" to log in. If you are already using the platform, open My Page.",
 	"②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。": "2. Click \"接続情報\" in the menu on the left and copy the string shown in \"APPKEY\". This APPKEY is very important information, so please be careful with it.",
 	"③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。": "3. Go back to \"Jimaku Editor\", go to \"Speech Recognition Settings\" and paste into \"APPKEY\", if you want to save APPKEY to your browser, please check \"Save APPKEY to Browser\".",
 	"④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。": "4. \"Connection Engine Name\" setting can be changed according to your use of AmiVoice Cloud Platform. The default setting is \"Conversation_General\".",
@@ -101,7 +100,6 @@
 	"もっと詳細な設定で字幕ファイル（": {
 		"srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存後、作成してください。": "If you want to create a subtitle file (.srt) with more detailed settings, please save it as a CSV file with <a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>."
 	},
-	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>を使用して音声認識の結果を取得します。": "Speech Recognition API <a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a> is used to retrieve the results of speech recognition.",
 	"音声認識API": "Speech Recognition API",
 	"字幕エディター for YouTube": "Jimaku Editor for YouTube",
 	"会話_汎用": "General Japanese",
@@ -130,5 +128,8 @@
 	"⌘またはCtrl + ↑": "⌘ or Ctrl + ↑",
 	"ハコ割り前でもプレビューを表示する": "Show always subtile preview",
 	"識別する人数": "Count",
-	"「はい」「うん」などの相槌をカットする（日本語のみ）": "Ignore reply tokens (only Japanese)"
+	"「はい」「うん」などの相槌をカットする（日本語のみ）": "Ignore reply tokens (only Japanese)",
+	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>のAmiVoice APIを使用して音声認識の結果を取得します。": "Speech Recognition API <a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a> is used to retrieve the results of speech recognition.",
+	"①AmiVoice Cloud Platformのページを開き右上のメニューからサービスを開き「AmiVoice API」をクリックします。初めての方は「無料で利用を開始」で始めてください。既にご利用の方はマイページを開きます。": "1. Go to the AmiVoice Cloud Platform page and click on \"無料で利用開始\" to log in. If you are already using the platform, open My Page.",
+	"今すぐデータを保存": "Quick Save"
 }

@@ -636,6 +636,11 @@
 				</div>
 
 				<div class="col-md mb-5">
+					<div class="row mb-1">
+						<div class="col-auto mb-1" >											
+							<input class="btn btn-primary btn-sm" id="quickSaveAppDataButton" type="button" value="<%- __("今すぐデータを保存") %>" name="quickSaveAppDataButton" />
+						</div>
+					</div>
 					<div class="row mb-3">
 						<div class="col">
 							<div class="box border">
@@ -1270,7 +1275,7 @@
 				}
 
 				// AppData save&load
-				$("#saveAppDataButton").on("click", (e) => {
+				function saveAppDataFunction(e) {
 					let fileName = $("#appDataFileName").val() ;
 					
 					if (fileName == undefined || fileName == null || fileName == "") {
@@ -1305,7 +1310,10 @@
 					appData["properties"] = appDataProperties ;
 
 					saveAsFile(JSON.stringify(appData) , fileName) ;
-				}) ;
+				} ;
+
+				$("#saveAppDataButton").on("click", saveAppDataFunction) ;
+				$("#quickSaveAppDataButton").on("click", saveAppDataFunction) ;
 
 				$("#loadAppDataButton").on("click", (e) => {
 					if (lines.length != 0) {
