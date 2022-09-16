@@ -1390,6 +1390,9 @@
 
 						$("#appDataFile").val("") ;
 
+						prevStartTimeAdjustingIndex = -1 ;
+						prevEndTimeAdjustingIndex = -1 ;
+						
 						updateSubtitleData() ;
 					}) ;
 				}) ;
@@ -1530,6 +1533,9 @@
 				}
 			}
 
+			let prevStartTimeAdjustingIndex = -1 ;
+			let prevEndTimeAdjustingIndex = -1 ;
+
 			function startTimeAdjusting(index, duration) {
 				let line = lines[index] ;
 				let offsetTime = Number($("#offsetTimeLength").val()) ;
@@ -1566,7 +1572,18 @@
 
 				$("#startTimeLabel" + index).text(secToTime(line[0] + offsetTime, ".")) ;
 
-				seekToVideo(line[0] + offsetTime, true) ;
+				if (duration == 0 && prevStartTimeAdjustingIndex == index) {
+					if (isPlayingVideo()) {
+						pauseVideo() ;
+					} else {
+						seekToVideo(line[0] + offsetTime, true) ;
+					} 
+				} else {
+					seekToVideo(line[0] + offsetTime, true) ;
+				}
+
+				prevStartTimeAdjustingIndex = index ;
+				prevEndTimeAdjustingIndex = -1 ;
 			}
 
 			function endTimeAdjusting(index, duration) {
@@ -1593,7 +1610,18 @@
 
 				$("#endTimeLabel" + index).text(secToTime(line[1] + offsetTime, ".")) ;
 
-				seekToVideo(line[1] + offsetTime - 1.0, true) ;
+				if (duration == 0 && prevEndTimeAdjustingIndex == index) {
+					if (isPlayingVideo()) {
+						pauseVideo() ;
+					} else {
+						seekToVideo(line[1] + offsetTime - 1.0, true) ;
+					} 
+				} else {
+					seekToVideo(line[1] + offsetTime - 1.0, true) ;
+				}
+
+				prevStartTimeAdjustingIndex = -1 ;
+				prevEndTimeAdjustingIndex = index ;
 			}
 
 			function subtitleBlock(index, subtitleData, detailData, offsetTime, converted) {
