@@ -131,5 +131,6 @@
 	"「はい」「うん」などの相槌をカットする（日本語のみ）": "「はい」「うん」などの相槌をカットする（日本語のみ）",
 	"音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>のAmiVoice APIを使用して音声認識の結果を取得します。": "音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>のAmiVoice APIを使用して音声認識の結果を取得します。",
 	"①AmiVoice Cloud Platformのページを開き右上のメニューからサービスを開き「AmiVoice API」をクリックします。初めての方は「無料で利用を開始」で始めてください。既にご利用の方はマイページを開きます。": "①AmiVoice Cloud Platformのページを開き右上のメニューからサービスを開き「AmiVoice API」をクリックします。初めての方は「無料で利用を開始」で始めてください。既にご利用の方はマイページを開きます。",
-	"今すぐデータを保存": "今すぐデータを保存"
+	"今すぐデータを保存": "今すぐデータを保存",
+	"停止": "停止"
 }

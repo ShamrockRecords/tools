@@ -1133,6 +1133,10 @@
 						let startTime = line[0] + offsetTime ;
 						let endTime = line[1] + offsetTime ;
 
+						if (startTime == endTime) {
+							continue ;
+						}
+
 						let element = {} ;
 
 						element["startTime"] = startTime ;
@@ -1203,6 +1207,10 @@
 						let startTime = line[0] + offsetTime ;
 						let endTime = line[1] + offsetTime ;
 
+						if (startTime == endTime) {
+							continue ;
+						}
+						
 						let text = line[2] ;
 
 						if (replacingDots) {
@@ -1392,6 +1400,7 @@
 			// Update Subtitls
 			function updateSubtitleData() {
 				let offsetTime = Number($("#offsetTimeLength").val()) ;
+				let converted = appDataProperties["converted"] ;
 
 				$("#subtitles").empty() ;
 
@@ -1405,7 +1414,7 @@
 						continue ;
 					}
 
-					$("#subtitles").append(subtitleBlock(i, line, detail, offsetTime)) ;
+					$("#subtitles").append(subtitleBlock(i, line, detail, offsetTime, converted)) ;
 
 					let textClassName = "#text" + Number(i) ;
 					let nextTextClassName = "#text" + (Number(i) + 1) ;
@@ -1521,7 +1530,73 @@
 				}
 			}
 
-			function subtitleBlock(index, subtitleData, detailData, offsetTime) {
+			function startTimeAdjusting(index, duration) {
+				let line = lines[index] ;
+				let offsetTime = Number($("#offsetTimeLength").val()) ;
+
+				if (index != 0) {
+					let prevLine = lines[index-1] ;
+
+					if (line[1] < line[0] + duration) {
+						line[0] = line[1] ;
+					} else if (prevLine[1] == line[0] || prevLine[1] > line[0] + duration) {
+						if (prevLine[0] < line[0] + duration) {
+							line[0] += duration ;
+							prevLine[1] = line[0] ;
+						} else {
+							line[0] = prevLine[0] ;
+							prevLine[1] = prevLine[0] ;
+						}
+
+						$("#endTimeLabel" + (index-1)).text(secToTime(prevLine[1] + offsetTime, ".")) ;
+					} else {
+						line[0] += duration ;
+					}
+				} else {
+					if (line[1] < line[0] + duration) {
+						line[0] = line[1] ;
+					} else {
+						line[0] += duration ;
+					}
+
+					if (line[0] < 0) {
+						line[0] = 0
+					}
+				}
+
+				$("#startTimeLabel" + index).text(secToTime(line[0] + offsetTime, ".")) ;
+
+				seekToVideo(line[0] + offsetTime, true) ;
+			}
+
+			function endTimeAdjusting(index, duration) {
+				let line = lines[index] ;
+				let offsetTime = Number($("#offsetTimeLength").val()) ;
+
+				if (lines.length - 1 > index) {
+					let nextLine = lines[index+1] ;
+
+					if (line[0] > line[1] + duration) {
+						line[1] = line[0] ;
+					} else if (nextLine[0] < line[1] + duration) {
+						line[1] = nextLine[0] ;
+					} else {
+						line[1] += duration ;
+					}
+				} else {
+					if (line[0] > line[1] + duration) {
+						line[1] = line[0] ;
+					} else {
+						line[1] += duration ;
+					}
+				}
+
+				$("#endTimeLabel" + index).text(secToTime(line[1] + offsetTime, ".")) ;
+
+				seekToVideo(line[1] + offsetTime - 1.0, true) ;
+			}
+
+			function subtitleBlock(index, subtitleData, detailData, offsetTime, converted) {
 				let startTime = subtitleData[0] + offsetTime ;
 				let endTime = subtitleData[1] + offsetTime ;
 				let checked = detailData["edited"] ? "checked" : "" ;
@@ -1529,12 +1604,54 @@
 				startTime = secToTime(startTime, ".") ;
 				endTime = secToTime(endTime, ".") ;
 
+				let controllerButtons = `<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="<%- __('再生') %>" name="playStartButton${index}" /></div>` ;
+				let timeAdjustingButtons = `<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>` ;
+
+				if (converted) {
+					controllerButtons = "" ;
+
+					let buttonClass = "btn btn-sm btn-outline-secondary px-1 py-0 time small" ;
+
+					timeAdjustingButtons = `<div class="col-auto time">
+												<div class="row">
+													<div id="startTimeLabel${index}" class="col fs-6">${startTime}</div>
+												</div>
+												<div class="row">
+													<div class="col">
+														<div class="btn-group" role="group" aria-label="Start Time Adjusting">
+															<button class="${buttonClass}" onclick="startTimeAdjusting(${index}, -0.5)">-.5</button>
+															<button class="${buttonClass}" onclick="startTimeAdjusting(${index}, -0.1)">-.1</button>
+															<button class="btn btn-sm btn-success px-1 py-0 time small" onclick="startTimeAdjusting(${index}, 0)">再生</button>
+															<button class="${buttonClass}" onclick="startTimeAdjusting(${index}, 0.1)">+.1</button>
+															<button class="${buttonClass}" onclick="startTimeAdjusting(${index}, 0.5)">+.5</button>
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="col-auto time">
+												<div class="row">
+													<div id="endTimeLabel${index}" class="col fs-6">${endTime}</div>
+												</div>
+												<div class="row">
+													<div class="col">
+														<div class="btn-group" role="group" aria-label="End Time Adjusting">
+															<button class="${buttonClass}" onclick="endTimeAdjusting(${index}, -0.5)">-.5</button>
+															<button class="${buttonClass}" onclick="endTimeAdjusting(${index}, -0.1)">-.1</button>
+															<button class="btn btn-sm btn-success px-1 py-0 time small" onclick="endTimeAdjusting(${index}, 0)">再生</button>
+															<button class="${buttonClass}" onclick="endTimeAdjusting(${index}, 0.1)">+.1</button>
+															<button class="${buttonClass}" onclick="endTimeAdjusting(${index}, 0.5)">+.5</button>
+														</div>
+													</div>
+												</div>
+											</div>` ;
+				}
+
 				return `<tr>
 							<td>
 								<div class="row p-0" id="subtitle${index}">
 									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
-									<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="<%- __('再生') %>" name="playStartButton${index}" /></div>
-									<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>
+									${controllerButtons}
+									${timeAdjustingButtons}
 									<div class="col-auto d-flex justify-content-end">
 										<div class="form-check">
 											<label class="form-check-label small" for="alreadyEditedCheckBox"><%- __('編集済み') %></label>
