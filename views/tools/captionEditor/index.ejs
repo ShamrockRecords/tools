@@ -1523,13 +1523,6 @@
 					});
 
 					$(textClassName).trigger('autoheight');
-
-					let buttonClassName = "#playStartButton" + Number(i) ;
-
-					$(buttonClassName).on("click", (e) => {
-						let offsetTime = Number($("#offsetTimeLength").val()) ;
-						seekToVideo(line[0] + offsetTime - 0.2, true) ;
-					}) ;
 				}
 			}
 
@@ -1632,7 +1625,7 @@
 				startTime = secToTime(startTime, ".") ;
 				endTime = secToTime(endTime, ".") ;
 
-				let controllerButtons = `<div class="col-auto d-flex align-items-center p-0"><input class="btn btn-success btn-sm px-1 py-0" id="playStartButton${index}" type="button" value="<%- __('再生') %>" name="playStartButton${index}" /></div>` ;
+				let controllerButtons = `<div class="col-auto d-flex align-items-center p-0"><button class="btn btn-success btn-sm px-1 py-0" onclick="startTimeAdjusting(${index}, 0)"><%- __('再生') %></button></div>` ;
 				let timeAdjustingButtons = `<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>` ;
 
 				if (converted) {
