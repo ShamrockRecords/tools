@@ -19,6 +19,7 @@ async function runSpeechRecognition(completion) {
 
     let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
     let profileId = $("#acpProfileId").val() ;
+    let profileWords = $("#acpProfileWords").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
     let ignoreReplyToken = $('#ignoreReplyToken').prop("checked") ;
@@ -77,6 +78,31 @@ async function runSpeechRecognition(completion) {
 
         domainId += "profileId=";
         domainId += encodeURIComponent(profileId);
+    }
+
+    if (profileWords != "") {
+        if (domainId.length > 0) {
+            domainId += ' ';
+        }
+
+        let array = convertToArray(profileWords) ;
+        
+        profileWords = "" ;
+
+        for (let key in array) {
+            let elements = array[key] ;
+
+            if (elements.length == 2) {
+                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + "|" ;
+            } else if (elements.length == 3) {
+                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + " " + elements[2] + "|" ;
+            }
+        }
+
+        profileWords = profileWords.slice( 0, -1 ) ;
+
+        domainId += "profileWords=";
+        domainId += encodeURIComponent(profileWords);
     }
 
     if (loggingOptOut != 0) {

@@ -65,6 +65,9 @@
 				width: 100px;
 			}
 
+			#acpProfileWords {
+				height: 200px;
+			}
 		</style>
 	</head>
 	<body>
@@ -575,7 +578,17 @@
 										<div class="col">
 											<div><%- __("サービスID") %></div>											
 											<input id="acpProfileId" name="acpProfileId" type="text" class="form-control" value="" placeholder="" aria-label="">
-											<div class="small ms-3"><%- __("サービスIDを指定するとAmiVoice Cloud Platform上での単語登録が有効になります。") %></div>
+											<div class="small ms-3"><%- __("サービスIDを指定するとAmiVoice APIでの単語登録が有効になります。") %></div>
+										</div>
+									</div>	
+									<div class="row mb-3">
+										<div class="col">
+											<div><%- __("単語登録") %></div>											
+											<textarea id="acpProfileWords" name="acpProfileWords" class="form-control" aria-label=""></textarea>
+											<div class="small ms-3"><%- __("書き表記,読み表記[改行]を繰り返して入力してください。") %></div>
+											<div class="small ms-3"><%- __("読み表記はひらがなかカタカナで入力してください。") %></div>
+											<div class="small ms-3"><%- __("ひらがなやカタカナのみの書き表記の場合も読み表記を入力してください。") %></div>
+											<div class="small ms-3"><%- __("サービスIDの指定での単語登録と併用できます。") %></div>
 										</div>
 									</div>		
 									<div class="row mb-3">
@@ -725,6 +738,7 @@
 				$("#saveAppKey").on('change', eventListener) ;
 				$("#acpGrammarFileNameSelect").on('change', eventListener) ;
 				$("#acpProfileId").on('input', eventListener) ;
+				$("#acpProfileWords").on('change', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
 				$("#acpLoggingOptOut").on('change', eventListener) ;
 				$("#ignoreReplyToken").on('change', eventListener) ;
@@ -2006,6 +2020,12 @@
 						$('#acpProfileId').val(acpProfileId) ;
 					}
 
+					let acpProfileWords = localStorage.getItem("acpProfileWords") ;
+
+					if (acpProfileWords != undefined) {
+						$('#acpProfileWords').val(acpProfileWords) ;
+					}
+
 					let acpAppKey = localStorage.getItem("acpAppKey") ;
 
 					if (acpAppKey != undefined) {
@@ -2056,6 +2076,7 @@
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
+					localStorageSetItem("acpProfileWords", $('#acpProfileWords').val()) ;
 				
 					if ($('#saveAppKey').prop("checked")) {
 						localStorageSetItem("acpAppKey", $('#acpAppKey').val()) ;
