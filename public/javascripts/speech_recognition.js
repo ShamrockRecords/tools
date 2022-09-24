@@ -93,7 +93,7 @@ async function runSpeechRecognition(completion) {
             let elements = array[key] ;
 
             if (elements.length == 2) {
-                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + "|" ;
+                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + " 固有名詞" + "|" ;
             } else if (elements.length == 3) {
                 profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + " " + elements[2] + "|" ;
             }
