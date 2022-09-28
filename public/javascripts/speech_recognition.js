@@ -92,10 +92,8 @@ async function runSpeechRecognition(completion) {
         for (let key in array) {
             let elements = array[key] ;
 
-            if (elements.length == 2) {
+            if (elements.length >= 2) {
                 profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + "|" ;
-            } else if (elements.length == 3) {
-                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + " " + elements[2] + "|" ;
             }
         }
 
