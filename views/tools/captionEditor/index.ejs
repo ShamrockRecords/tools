@@ -566,7 +566,7 @@
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<div><%- __("APPKEY") %></div>
+											<div class="h4"><%- __("APPKEY") %></div>
 											<input id="acpAppKey" name="acpAppKey" type="password" class="form-control" value="" placeholder="" autocomplete="new-password" aria-label="">
 											<div class="form-check">
 												<input class="form-check-input" type="checkbox" value="" id="saveAppKey" name="saveAppKey" value="" checked>
@@ -576,24 +576,57 @@
 									</div>
 									<div class="row mb-3">
 										<div class="col">
-											<div><%- __("サービスID") %></div>											
+											<div class="h4"><%- __("サービスID") %></div>											
 											<input id="acpProfileId" name="acpProfileId" type="text" class="form-control" value="" placeholder="" aria-label="">
 											<div class="small ms-3"><%- __("サービスIDを指定するとAmiVoice APIでの単語登録が有効になります。") %></div>
 										</div>
 									</div>	
 									<div class="row mb-3">
 										<div class="col">
-											<div><%- __("単語登録") %></div>											
-											<textarea id="acpProfileWords" name="acpProfileWords" class="form-control" aria-label=""></textarea>
-											<div class="small ms-3"><%- __("書き表記,[またはタブ]読み表記[改行]を繰り返して入力してください。") %></div>
-											<div class="small ms-3"><%- __("読み表記はひらがなかカタカナで入力してください。") %></div>
-											<div class="small ms-3"><%- __("ひらがなやカタカナのみの書き表記の場合も読み表記を入力してください。") %></div>
-											<div class="small ms-3"><%- __("サービスIDの指定での単語登録と併用できます。") %></div>
+											<div class="h4"><%- __("単語登録") %></div>
+
+											<div class="row mb-3">
+												<div class="col mb-1">
+													<textarea id="acpProfileWords" name="acpProfileWords" class="form-control" aria-label=""></textarea>
+													<div class="small ms-3"><%- __("書き表記,[またはタブ]読み表記[改行]を繰り返して入力してください。") %></div>
+													<div class="small ms-3"><%- __("読み表記はひらがなかカタカナで入力してください。") %></div>
+													<div class="small ms-3"><%- __("ひらがなやカタカナのみの書き表記の場合も読み表記を入力してください。") %></div>
+													<div class="small ms-3"><%- __("サービスIDの指定での単語登録と併用できます。") %></div>
+												</div>
+											</div>
+											
+											<div class="row">
+												<div class="col-auto mb-1">											
+													<input class="btn btn-primary btn-sm cmn-btn" id="saveAcpWordDataButton" type="button" value="<%- __("単語を保存") %>" name="saveAcpWordDataButton" />
+												</div>
+												<div class="col mb-1">
+													<input id="acpWordDataFileName" name="acpWordDataFileName" type="text" class="form-control btn-sm" value="" placeholder="<%- __("ファイル名") %>" aria-label="">
+												</div>
+											</div>
+											
+											<div class="row mb-3">
+												<div class="col mb-1">
+													<div class="small ms-3"><%- __("保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。") %></div>
+												</div>
+											</div>
+												
+											<div class="row">
+												<div class="col-auto mb-1">
+													<input class="btn btn-primary btn-sm cmn-btn" id="loadAcpWordDataButton" type="button" value="<%- __("ファイルを選択") %>" name="loadAcpWordDataButton" />
+													<input class="form-control" id="acpWordDataFile" type="file" accept=".txt, .csv, .tsv" style="display:none;"/>	
+												</div>
+											</div>
+											
+											<div class="row">
+												<div class="col mb-1">
+													<div class="small ms-3"><%- __("保存した単語を読み込みます。以前の内容はクリアされるので変更した場合は保存をしてから読み込んでください。") %></div>
+												</div>
+											</div>
 										</div>
 									</div>		
 									<div class="row mb-3">
 										<div class="col">
-											<div><%- __("接続エンジン名") %></div>
+											<div class="h4"><%- __("接続エンジン名") %></div>
 											<select class="form-select" id="acpGrammarFileNameSelect">
 												<option value="-a-general" selected><%- __("会話_汎用") %></option>
 												<option value="-a-general-en"><%- __("英語_汎用") %></option>
@@ -608,8 +641,8 @@
 									</div>		
 									<div class="row mb-3">
 										<div class="col-sm">
-											<div><%- __("音声認識API") %></div>
-											<select class="form-select" id="acpLoggingOptOut" name="acpLoggingOptOut" aria-label="<%- __("音声認識API") %>">
+											<div class="h4"><%- __("オプション設定") %></div>
+											<select class="form-select" id="acpLoggingOptOut" name="acpLoggingOptOut" aria-label="<%- __("オプション設定") %>">
 												<option value="0" selected><%- __("ログ保存あり") %></option>
 												<option value="1"><%- __("ログ保存なし") %></option>
 											</select>
@@ -739,6 +772,7 @@
 				$("#acpGrammarFileNameSelect").on('change', eventListener) ;
 				$("#acpProfileId").on('input', eventListener) ;
 				$("#acpProfileWords").on('change', eventListener) ;
+				$("#acpWordDataFileName").on('change', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
 				$("#acpLoggingOptOut").on('change', eventListener) ;
 				$("#ignoreReplyToken").on('change', eventListener) ;
@@ -1295,6 +1329,45 @@
 						details[i]["edited"] = $(alreadyEditedCheckBoxClassName).prop("checked") ;
 					}
 				}
+
+				$("#saveAcpWordDataButton").on("click", saveAcpWordDataButton) ;
+
+				function saveAcpWordDataButton(e) {
+					let fileName = $("#acpWordDataFileName").val() ;
+					
+					if (fileName == undefined || fileName == null || fileName == "") {
+						alert("ファイル名を入力してください。") ;
+						return ;
+					}
+
+					let acpProfileWords = $("#acpProfileWords").val() ;
+
+					saveAsFile(acpProfileWords , fileName) ;
+				} ;
+				
+				$("#loadAcpWordDataButton").on("click", (e) => {
+					if (window.confirm("現在の単語データを置き換えます。もし直接編集をしている場合は保存するのをお勧めします。続けますか？")) {
+						$("#acpWordDataFile").click() ;
+					}
+				}) ;
+
+				$("#acpWordDataFile").on('change', (e) => {
+					let fileList = $('#acpWordDataFile').get(0).files;
+					let result = fileList[0];
+					let reader = new FileReader() ;
+
+					reader.readAsText(result) ;
+
+					reader.addEventListener('load', function() {
+						let content = reader.result ;
+						
+						$("#acpProfileWords").val(content) ; 
+						$("#acpWordDataFileName").val(e.target.files[0].name) ;
+						$("#acpWordDataFile").val("") ;
+
+						storeSettings() ;
+					}) ;
+				}) ;
 
 				// AppData save&load
 				function saveAppDataFunction(e) {
@@ -2026,6 +2099,14 @@
 						$('#acpProfileWords').val(acpProfileWords) ;
 					}
 
+					let acpWordDataFileName = localStorage.getItem("acpWordDataFileName") ;
+
+					if (acpWordDataFileName != undefined && acpWordDataFileName != "") {
+						$('#acpWordDataFileName').val(acpWordDataFileName) ;
+					} else {
+						$('#acpWordDataFileName').val("単語登録.txt") ;
+					}
+
 					let acpAppKey = localStorage.getItem("acpAppKey") ;
 
 					if (acpAppKey != undefined) {
@@ -2077,7 +2158,8 @@
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
 					localStorageSetItem("acpProfileWords", $('#acpProfileWords').val()) ;
-				
+					localStorageSetItem("acpWordDataFileName", $('#acpWordDataFileName').val()) ;
+					
 					if ($('#saveAppKey').prop("checked")) {
 						localStorageSetItem("acpAppKey", $('#acpAppKey').val()) ;
 					} else {
