@@ -39,7 +39,7 @@ async function getSummary(text) {
       {"role": "system", "content": "日本語で要約してください。"},
       {"role": "user", "content": text}
       ],
-        "temperature": 0.7
+        "temperature": 0.2
     } ;
     const param = {
         method: "POST",
