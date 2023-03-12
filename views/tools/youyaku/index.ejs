@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<%- include('../../parts/head', {title: '字幕データから要約する'}) %>
+		<meta property="og:site_name" content="字幕データから要約する - UDトークツールズ"/>
+		<meta property="og:url" content="<%= rootURL %>"/>
+		<meta property="og:title" content="字幕データから要約する - UDトークツールズ"/>
+		<meta property="og:type" content="Website" />
+		<meta property="og:description" content=""/>
+
+		<script type="text/javascript" src="/javascripts/functions.js"></script>
+
+		<style>
+			h1 {
+			position: relative;
+			line-height: 1.4;
+			padding:0.25em 1em;
+			display: inline-block;
+			top:0;
+			}
+
+			h1:before, h1:after { 
+			position: absolute;
+			top: 0;
+			content:'';
+			width: 8px;
+			height: 100%;
+			display: inline-block;
+			}
+
+			h1:before {
+			border-left: solid 1px black;
+			border-top: solid 1px black;
+			border-bottom: solid 1px black;
+			left: 0;
+			}
+
+			h1:after {
+			content: '';
+			border-top: solid 1px black;
+			border-right: solid 1px black;
+			border-bottom: solid 1px black;
+			right: 0;
+			}
+
+			h2 {
+			padding: 0.4em 0.5em;/*文字の上下 左右の余白*/
+			color: #494949;/*文字色*/
+			background: #f4f4f4;/*背景色*/
+			border-left: solid 5px #7db4e6;/*左線*/
+			border-bottom: solid 3px #d7d7d7;/*下線*/
+			}
+		</style>
+	</head>
+	<body class="p-3">
+		<div class="container">
+			<div class="mb-3">
+				<a href="/">トップに戻る</a>
+			</div>
+			<h1 class="mb-3">字幕データから要約する
+			</h1>
+					
+			<div class="mb-3">
+				字幕データを読み込ませて要約を作成するアプリです。
+			</div>
+
+			<div class="mb-3">
+				
+				<div class="mb-5">
+					<div class="mb-3">
+						<h2>データを読み込み</h2>
+					</div>
+
+					<div class="tab-pane fade show active p-3" id="fromFile" role="tabpanel" aria-labelledby="fromFile-tab">
+						<div class="mb-3">
+							<label for="srtFile" class="form-label">字幕ファイル（.srt）</label>
+							<input class="form-control" id="srtFile" type="file" accept=".srt"/>
+						</div>
+					</div>
+
+					<div class="mb-3">
+						<div id="spinner"></div>
+					</div>
+						
+				<div class="mb-3">
+					<h2>結果を表示</h2>
+				</div>
+
+				<div class="ms-3">
+					<div class="mb-3">
+						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.txtで保存します。）</label>
+					</div>
+					
+					<div class="mb-3">
+						<div class="row g-2">
+							<div class="col">
+								<input class="form-control" id="fileTitle" type="text" name="fileTitle" value="" />
+							</div>
+							<div class="col-auto">
+								<input class="btn btn-primary" id="saveAsFileButton" type="button" value="ファイルで保存" name="saveAsFileButton" />
+							</div>
+						</div>
+					</div>
+									
+					<div class="mb-3">
+						<textarea class="form-control" id="output" name="output" style="height:500px" readonly></textarea>
+					</div>
+				</div>
+			</div>
+
+			<div class="container">
+				<div class="mb-3 small" style="text-align: center;">
+					Copyright © <a href="https://udtalk.jp">UDトーク</a>. All Rights Reserved.
+				</div>
+			</div>
+		</div>
+
+		<script>
+			$(function () {
+				
+			}) ;
+
+			let lines = null ;
+			
+			$("#srtFile").on('click', () => {
+				$("#srtFile").val("") ;
+			}) ;
+
+			$("#saveAsFileButton").on('click', () => {
+				let fileName = $("#fileTitle").val() ;
+
+				if (fileName == "" || fileName == undefined) {
+					fileName = "要約.txt" ;
+				}
+
+				saveAsFile($("#output").text(), fileName) ;
+			}) ;
+
+			$("#srtFile").on('change', (e) => {
+				$("#output").text("") ;
+				
+				let fileList = $('#srtFile').get(0).files;
+				let result = fileList[0];
+
+				let reader = new FileReader() ;
+				let fileName = result.name.split('.')[0] + ".txt" ;
+
+				reader.readAsText(result) ;
+
+				reader.addEventListener('load', async function() {
+					let content = reader.result ;
+					
+					await doAction(content, fileName) ;
+				}) ;
+
+				$("#srtFile").val("") ;
+			})
+
+			async function doAction(content, fileName) {
+				let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+				$("#spinner").empty() ;
+				$("#spinner").append(spinner) ;
+
+				data = loadSrtFile(content) ;
+
+				let lines = new Array() ;
+
+				let separator = "\t" ;
+
+				for (let i=0; i<data.length; i++) {
+					let element = data[i] ;
+					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '') ;
+
+					let line = element.time.start + separator + element.time.end + separator + text ;
+
+					lines.push(line) ;
+				}
+
+				const headers = {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				};
+
+				const param = {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({lines: lines}),
+				}
+
+				await fetch("/youyaku/data", param)
+					.then(response => response.json())
+					.then(data => {
+						$("#output").text(data) ;
+					});
+
+				$("#spinner").empty() ;
+
+				$("#fileTitle").val(fileName) ;
+			}
+		</script>
+	</body>
+</html>
