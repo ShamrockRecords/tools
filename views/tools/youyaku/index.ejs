@@ -165,18 +165,36 @@
 				data = loadSrtFile(content) ;
 
 				let lines = new Array() ;
-
-				let separator = "\t" ;
+				let count = 1 ;
+				let summary = "" ;
 
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
 					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '') ;
 
-					let line = element.time.start + separator + element.time.end + separator + text ;
+					if (element.time.start > 180 * count) {
+						summary += await getSummary(lines) ;
+						summary += "\n\n" ;
+						count++ ;
+						lines = new Array() ;
+						$("#output").text(summary) ;
+					}
 
-					lines.push(line) ;
+					lines.push(text) ;
 				}
 
+				if (lines.length != 0) {
+					summary += await getSummary(lines) ;
+				}
+
+				$("#output").text(summary) ;
+
+				$("#spinner").empty() ;
+
+				$("#fileTitle").val(fileName) ;
+			}
+
+			async function getSummary(lines) {
 				const headers = {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
@@ -188,15 +206,15 @@
 					body: JSON.stringify({lines: lines}),
 				}
 
+				let summary = "" ;
+
 				await fetch("/youyaku/data", param)
 					.then(response => response.text())
 					.then(data => {
-						$("#output").text(data) ;
+						summary = data ;
 					});
 
-				$("#spinner").empty() ;
-
-				$("#fileTitle").val(fileName) ;
+				return summary ;
 			}
 		</script>
 	</body>

@@ -20,33 +20,14 @@ router.post('/data', wrap(async function(req, res, next) {
     let output = "" ;
     let count = 1 ;
 
-    res.setHeader('Content-Type', 'text/plain');
+    let text = "" ;
 
     for (let key in lines) {
-        let line = lines[key]
-
-        let elemments = line.split("\t") ;
-
-        let startTime = elemments[0] ;
-        let endTime = elemments[1] ;
-        let text = elemments[2] ;
-
-        if (startTime > 180 * count) {
-            let summary = await getSummary(output) ;
-            count++ ;
-            output = "" ;
-            res.write(summary) ;
-        }
-
-        output += text ;
-    }
-
-    if (output != "") {
-        let summary = await getSummary(output) ;
-        res.write(summary) ;
+        text += lines[key]
     }
     
-    res.end("");
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(await getSummary(text));
 })) ;
 
 async function getSummary(text) {
