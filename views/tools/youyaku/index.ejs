@@ -189,7 +189,7 @@
 				}
 
 				await fetch("/youyaku/data", param)
-					.then(response => response.json())
+					.then(response => response.text())
 					.then(data => {
 						$("#output").text(data) ;
 					});
