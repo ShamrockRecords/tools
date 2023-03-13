@@ -80,8 +80,8 @@
 
 					<div class="ms-3">
 						<div class="mb-3">
-							<label for="srtFile" class="form-label">字幕ファイル（.srt）</label>
-							<input class="form-control" id="srtFile" type="file" accept=".srt"/>
+							<label for="srtFile" class="form-label">UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み</label>
+							<input class="form-control" id="srtFile" type="file" accept=".srt,.csv"/>
 						</div>
 
 						<div class="ms-3">
@@ -207,6 +207,33 @@
 					
 					data = loadSrtFile(content) ;
 
+					if (data.length == 0) {
+						let lines = convertToArray(content) ;
+						data = new Array() ;
+
+						let isFirstLine = true ;
+						let relativeStartTime = 0 ;
+
+						for (let key in lines) {
+							let line = lines[key] ;
+
+							if (isFirstLine) {
+								relativeStartTime = ParseToDate(line[0]) / 1000 ;
+								isFirstLine = false ;
+							}
+
+							let block = {} ;
+
+							let start = (ParseToDate(line[0]) / 1000) - relativeStartTime ;
+							let end = (ParseToDate(line[1]) / 1000) - relativeStartTime ;
+
+							block["time"] = {start: start, end: end} ;
+							block["text"] = line[2] ;
+
+							data.push(block) ;
+						}
+					}
+
 					$("#lineCount").text(data.length.toString() + "行の字幕を読み込みました。") ;
 				}) ;
 
@@ -267,7 +294,7 @@
 				if (distanceLength > 2000) {
 					distanceLength = 2000 ;
 				}
-				
+
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
 					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
