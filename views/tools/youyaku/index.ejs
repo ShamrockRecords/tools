@@ -11,6 +11,12 @@
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
 
 		<style>
+			body
+			{
+				height: 100%;
+				background-color:ghostwhite;
+			}
+
 			h1 {
 			position: relative;
 			line-height: 1.4;
@@ -60,8 +66,9 @@
 			<h1 class="mb-3">字幕データから要約する
 			</h1>
 					
-			<div class="mb-3">
-				字幕データを読み込ませて要約を作成するアプリです。
+			<div class="mb-3 small">
+				字幕データを読み込ませてChatGPTのAPIを使用して要約を作成するアプリです。<br /><br />
+				※しばらくの間はベータ版としての提供をします。ChatGPTのAPI利用にはお金がかかるのでしばらく様子を見てこちらで負担ができそうな金額であれば継続し、コストがかさむようならAPIキーを各自で取得していただき入力して使う方式に変更をします。
 			</div>
 
 			<div class="mb-3">
@@ -71,10 +78,16 @@
 						<h2>データを読み込み</h2>
 					</div>
 
-					<div class="tab-pane fade show active p-3" id="fromFile" role="tabpanel" aria-labelledby="fromFile-tab">
+					<div class="ms-3">
 						<div class="mb-3">
 							<label for="srtFile" class="form-label">字幕ファイル（.srt）</label>
 							<input class="form-control" id="srtFile" type="file" accept=".srt"/>
+						</div>
+	
+						<div class="mb-3 small">
+							字幕ファイル（.srt）を作成するには「<a href='/jimakueditor4file' target='_blank' rel='noopener'>字幕エディター for ファイル</a>」や「<a href='https://jimakudata.udtalk.jp' target='_blank' rel='noopener'>字幕データ変換くん</a>」をお使いください。<br>
+							YouTubeの自動字幕を.srtでダウンロードしてきたものも読み込ませることができます。<br />
+							誤認識を修正済みの字幕ファイルを入力した方が良い要約文が作成できるかもしれません。
 						</div>
 					</div>
 
@@ -88,7 +101,7 @@
 
 				<div class="ms-3">
 					<div class="mb-3">
-						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.txtで保存します。）</label>
+						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.srtで保存します。）</label>
 					</div>
 					
 					<div class="mb-3">
@@ -130,7 +143,7 @@
 				let fileName = $("#fileTitle").val() ;
 
 				if (fileName == "" || fileName == undefined) {
-					fileName = "要約.txt" ;
+					fileName = "要約.srt" ;
 				}
 
 				saveAsFile($("#output").text(), fileName) ;
@@ -143,7 +156,7 @@
 				let result = fileList[0];
 
 				let reader = new FileReader() ;
-				let fileName = result.name.split('.')[0] + ".txt" ;
+				let fileName = result.name.split('.')[0] + ".srt" ;
 
 				reader.readAsText(result) ;
 
@@ -167,15 +180,26 @@
 				let lines = new Array() ;
 				let count = 1 ;
 				let summary = "" ;
+				let startTime = -1 ;
+				let endTime = -1 ;
 
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
 					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '') ;
 
+					if (startTime < 0) {
+						startTime = element.time.start ;
+					}
+
+					endTime = element.time.end ;
+
 					if (element.time.start > 180 * count) {
+						summary += count.toString() + "\n";
+						summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
 						summary += await getSummary(lines) ;
 						summary += "\n\n" ;
 						count++ ;
+						startTime = -1 ;
 						lines = new Array() ;
 						$("#output").text(summary) ;
 					}
@@ -184,6 +208,8 @@
 				}
 
 				if (lines.length != 0) {
+					summary += count.toString() + "\n";
+					summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
 					summary += await getSummary(lines) ;
 				}
 
