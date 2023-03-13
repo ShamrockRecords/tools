@@ -116,6 +116,12 @@
 						</div>
 
 						<div class="mb-3">
+							<div class="ms-3 small">
+								300〜2000文字の間で設定してください。
+							</div>
+						</div>
+
+						<div class="mb-3">
 							<input class="btn btn-primary" id="summarizeButton" type="button" value="処理を実行する" name="summarizeButton" />
 						</div>
 
@@ -254,6 +260,14 @@
 				let distanceLength = $("#distanceLength").val() ;
 				let command = $("#command").val() ;
 
+				if (distanceLength < 300) {
+					distanceLength = 300 ;
+				}
+
+				if (distanceLength > 2000) {
+					distanceLength = 2000 ;
+				}
+				
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
 					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
