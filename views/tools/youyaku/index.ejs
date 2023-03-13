@@ -83,7 +83,42 @@
 							<label for="srtFile" class="form-label">字幕ファイル（.srt）</label>
 							<input class="form-control" id="srtFile" type="file" accept=".srt"/>
 						</div>
-	
+
+						<div class="ms-3">
+							<div class="mb-3 small" id="lineCount">
+						</div>
+
+						</div>
+						
+						<div class="mb-3">
+							<label for="srtFile" class="form-label">処理内容</label>
+							<input class="form-control mb-1" id="command" type="text" value="日本語で要約してください。"/>
+							<select class="form-select" id="sampleCommands" aria-label="Default select example">
+								<option selected>日本語で要約してください。</option>
+								<option>内容を列挙してください。</option>
+								<option>英語で要約してください。</option>
+							</select>
+						</div>
+
+						<div class="mb-3">
+							<div class="ms-3 small">
+								ChatGPTに支持する内容を具体的に書きます。プルダウンで選択することもできます。
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label for="file_select" class="form-label">処理をするタイミング（文字数）</label>
+							<div class="row">
+								<div class="col-auto">
+									<input class="form-control" id="distanceLength" type="number" name="distanceLength" value="800" style="text-align: right;" min="300" max="2000" />
+								</div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<input class="btn btn-primary" id="summarizeButton" type="button" value="処理を実行する" name="summarizeButton" />
+						</div>
+
 						<div class="mb-3 small">
 							字幕ファイル（.srt）を作成するには「<a href='/jimakueditor4file' target='_blank' rel='noopener'>字幕エディター for ファイル</a>」や「<a href='https://jimakudata.udtalk.jp' target='_blank' rel='noopener'>字幕データ変換くん</a>」をお使いください。<br>
 							YouTubeの自動字幕を.srtでダウンロードしてきたものも読み込ませることができます。<br />
@@ -149,6 +184,8 @@
 				saveAsFile($("#output").text(), fileName) ;
 			}) ;
 
+			let data = null ;
+
 			$("#srtFile").on('change', (e) => {
 				$("#output").text("") ;
 				
@@ -156,36 +193,70 @@
 				let result = fileList[0];
 
 				let reader = new FileReader() ;
-				let fileName = "要約_" + result.name.split('.')[0] + ".srt" ;
-
+				
 				reader.readAsText(result) ;
 
-				reader.addEventListener('load', async function() {
+				reader.addEventListener('load', function() {
 					let content = reader.result ;
 					
-					await doAction(content, fileName) ;
+					data = loadSrtFile(content) ;
+
+					$("#lineCount").text(data.length.toString() + "行の字幕を読み込みました。") ;
 				}) ;
 
-				$("#srtFile").val("") ;
+				let fileName = "要約_" + result.name.split('.')[0] + ".srt" ;
+
+				$("#fileTitle").val(fileName) ;
 			})
 
-			async function doAction(content, fileName) {
+			$("#sampleCommands").change(function() {
+				var selectedOptionText = $(this).children(':selected').text();
+ 
+ 				$("#command").val(selectedOptionText);
+			}) ;
+
+			$("#distanceTime").on('change', (e) => {
+				
+			}) ;
+
+			let isRunning = false ;
+
+			$("#summarizeButton").on('click', async () => {
+				if (data == null) {
+					alert("字幕ファイル（.srt）を読み込んでください。") ;
+					return ;
+				}
+
+				if (isRunning) {
+					alert("現在処理中です。") ;
+					return ;
+				}
+
+				isRunning = true ;
+				await doAction(data) ;
+				isRunning = false ;
+			}) ;
+			
+			async function doAction(data) {
+				$("#output").text("") ;
+
 				let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
 				
 				$("#spinner").empty() ;
 				$("#spinner").append(spinner) ;
 
-				data = loadSrtFile(content) ;
-
 				let lines = new Array() ;
 				let count = 1 ;
+				let textCount = 0 ;
 				let summary = "" ;
 				let startTime = -1 ;
 				let endTime = -1 ;
+				let distanceLength = $("#distanceLength").val() ;
+				let command = $("#command").val() ;
 
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
-					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '') ;
+					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
 
 					if (startTime < 0) {
 						startTime = element.time.start ;
@@ -193,34 +264,34 @@
 
 					endTime = element.time.end ;
 
-					if (element.time.start > 180 * count) {
+					if (textCount > distanceLength) {
 						summary += count.toString() + "\n";
 						summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
-						summary += await getSummary(lines) ;
+						summary += await getSummary(lines, command) ;
 						summary += "\n\n" ;
-						count++ ;
 						startTime = -1 ;
+						textCount = 0 ;
+						count++ ;
 						lines = new Array() ;
 						$("#output").text(summary) ;
 					}
 
+					textCount += text.length ;
 					lines.push(text) ;
 				}
 
 				if (lines.length != 0) {
 					summary += count.toString() + "\n";
 					summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
-					summary += await getSummary(lines) ;
+					summary += await getSummary(lines, command) ;
 				}
 
 				$("#output").text(summary) ;
 
 				$("#spinner").empty() ;
-
-				$("#fileTitle").val(fileName) ;
 			}
 
-			async function getSummary(lines) {
+			async function getSummary(lines, command) {
 				const headers = {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
@@ -229,7 +300,7 @@
 				const param = {
 					method: "POST",
 					headers: headers,
-					body: JSON.stringify({lines: lines}),
+					body: JSON.stringify({lines: lines, command: command}),
 				}
 
 				let summary = "" ;

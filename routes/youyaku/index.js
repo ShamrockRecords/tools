@@ -16,9 +16,8 @@ router.post('/data', wrap(async function(req, res, next) {
 		return ;
 	}
     
+    let command = req.body.command ;
     let lines = req.body.lines ;
-    let output = "" ;
-    let count = 1 ;
 
     let text = "" ;
 
@@ -27,16 +26,16 @@ router.post('/data', wrap(async function(req, res, next) {
     }
     
     res.setHeader('Content-Type', 'text/plain');
-    res.end(await getSummary(text));
+    res.end(await getSummary(text, command));
 })) ;
 
-async function getSummary(text) {
+async function getSummary(text, command) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let body = {
         "model": "gpt-3.5-turbo",
         "messages": [
-      {"role": "system", "content": "日本語で要約してください。"},
+      {"role": "user", "content": command},
       {"role": "user", "content": text}
       ],
         "temperature": 0.2
