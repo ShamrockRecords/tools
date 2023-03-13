@@ -84,51 +84,51 @@
 						</div>
 
 						<div class="ms-3">
-							<div class="mb-3 small" id="lineCount">
-						</div>
-
+							<div class="mb-3 small" id="lineCount"></div>
 						</div>
 						
 						<div class="mb-3">
-							<label for="srtFile" class="form-label">処理内容</label>
-							<input class="form-control mb-1" id="command" type="text" value="日本語で要約してください。"/>
-							<select class="form-select" id="sampleCommands" aria-label="Default select example">
-								<option selected>日本語で要約してください。</option>
-								<option>内容を列挙してください。</option>
-								<option>英語で要約してください。</option>
-							</select>
-						</div>
-
-						<div class="mb-3">
-							<div class="ms-3 small">
-								ChatGPTに指示する内容を具体的に書きます。プルダウンで選択することもできます。
-							</div>
-						</div>
-
-						<div class="mb-3">
-							<label for="file_select" class="form-label">処理をするタイミング（文字数）</label>
-							<div class="row">
-								<div class="col-auto">
-									<input class="form-control" id="distanceLength" type="number" name="distanceLength" value="800" style="text-align: right;" min="300" max="2000" />
-								</div>
-							</div>
-						</div>
-
-						<div class="mb-3">
-							<div class="ms-3 small">
-								300〜2000文字の間で設定してください。
-							</div>
-						</div>
-
-						<div class="mb-3">
 							<input class="btn btn-primary" id="summarizeButton" type="button" value="処理を実行する" name="summarizeButton" />
 						</div>
+						<div class="ms-3">
+							<div class="mb-3">
+								<label for="srtFile" class="form-label">処理内容</label>
+								<input class="form-control mb-1" id="command" type="text" value="日本語で要約してください。"/>
+								<select class="form-select" id="sampleCommands" aria-label="Default select example">
+									<option selected>日本語で要約してください。</option>
+									<option>内容を列挙してください。</option>
+									<option>キーワードを抽出してください。</option>
+									<option>英語で要約してください。</option>
+								</select>
+							</div>
 
-						<div class="mb-3 small">
-							「UDトークで音声認識→会話ログを書き出す→（誤認識を修正）→要約する」と言う流れで使用します。<br />
-							認識結果が良い場合は誤認識を修正しなくてもある程度の要約はできるかもしれません。<br />
-							編集済みの会話ログ（.csv）や字幕ファイル（.srt）を作成するには「<a href='/jimakueditor4file' target='_blank' rel='noopener'>字幕エディター for ファイル</a>」や「<a href='https://jimakudata.udtalk.jp' target='_blank' rel='noopener'>字幕データ変換くん</a>」をお使いください。<br>
-							YouTubeの自動字幕を.srtでダウンロードしてきたものも読み込ませることができます。
+							<div class="mb-3">
+								<div class="ms-3 small">
+									ChatGPTに指示する内容を具体的に書きます。プルダウンで選択することもできます。
+								</div>
+							</div>
+
+							<div class="mb-3">
+								<label for="file_select" class="form-label">処理をするタイミング（文字数）</label>
+								<div class="row">
+									<div class="col-auto">
+										<input class="form-control" id="distanceLength" type="number" name="distanceLength" value="800" style="text-align: right;" min="300" max="2000" />
+									</div>
+								</div>
+							</div>
+
+							<div class="mb-3">
+								<div class="ms-3 small">
+									300〜2000文字の間で設定してください。
+								</div>
+							</div>
+
+							<div class="mb-3 small">
+								「UDトークで音声認識→会話ログを書き出す→（誤認識を修正）→要約する」と言う流れで使用します。<br />
+								認識結果が良い場合は誤認識を修正しなくてもある程度の要約はできるかもしれません。<br />
+								編集済みの会話ログ（.csv）や字幕ファイル（.srt）を作成するには「<a href='/jimakueditor4file' target='_blank' rel='noopener'>字幕エディター for ファイル</a>」や「<a href='https://jimakudata.udtalk.jp' target='_blank' rel='noopener'>字幕データ変換くん</a>」をお使いください。<br>
+								YouTubeの自動字幕を.srtでダウンロードしてきたものも読み込ませることができます。
+							</div>
 						</div>
 					</div>
 
@@ -145,6 +145,29 @@
 						<label class="form-label" for="fileTitle">ファイル名（ファイル名に拡張子.srtで保存します。）</label>
 					</div>
 					
+					<div class="ms-3 mb-3">
+						<div class="row g-2">
+							<div class="col-auto">
+								<div class="form-check">
+									<input class="form-check-input" type="radio" name="formatType" id="formatType" value="0" checked>
+									<label class="form-check-label" for="formatType">字幕形式</label>
+								</div>		
+							</div>
+							<div class="col-auto">
+								<div class="form-check">
+									<input class="form-check-input" type="radio" name="formatType" id="formatType" value="1">
+									<label class="form-check-label" for="formatType">カンマ区切り</label>
+								</div>		
+							</div>
+							<div class="col-auto">
+								<div class="form-check">
+									<input class="form-check-input" type="radio" name="formatType" id="formatType" value="2">
+									<label class="form-check-label" for="formatType">テキスト</label>
+								</div>		
+							</div>
+						</div>
+					</div>
+
 					<div class="mb-3">
 						<div class="row g-2">
 							<div class="col">
@@ -191,10 +214,10 @@
 			}) ;
 
 			let data = null ;
+			let summaryData = null ;
+			let fileTitle = "" ;
 
 			$("#srtFile").on('change', (e) => {
-				$("#output").text("") ;
-				
 				let fileList = $('#srtFile').get(0).files;
 				let result = fileList[0];
 
@@ -207,7 +230,13 @@
 					
 					data = loadSrtFile(content) ;
 
-					if (data.length == 0) {
+					if (data.length != 0) {
+						for (let key in data) {
+							let element = data[key] ;
+
+							element["text"] = element["text"].replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
+						}
+					} else {
 						let lines = convertToArray(content) ;
 						data = new Array() ;
 
@@ -228,7 +257,7 @@
 							let end = (ParseToDate(line[1]) / 1000) - relativeStartTime ;
 
 							block["time"] = {start: start, end: end} ;
-							block["text"] = line[2] ;
+							block["text"] = line[2].replaceAll('\r', '\n').replaceAll('\n', '') ;
 
 							data.push(block) ;
 						}
@@ -237,9 +266,9 @@
 					$("#lineCount").text(data.length.toString() + "行の字幕を読み込みました。") ;
 				}) ;
 
-				let fileName = "要約_" + result.name.split('.')[0] + ".srt" ;
+				fileTitle = result.name.split('.')[0] ;
 
-				$("#fileTitle").val(fileName) ;
+				outputWithFormat(summaryData) ;
 			})
 
 			$("#sampleCommands").change(function() {
@@ -248,8 +277,8 @@
  				$("#command").val(selectedOptionText);
 			}) ;
 
-			$("#distanceTime").on('change', (e) => {
-				
+			$('[id="formatType"]').on('change', (e) => {
+				outputWithFormat(summaryData) ;
 			}) ;
 
 			let isRunning = false ;
@@ -281,7 +310,6 @@
 				let lines = new Array() ;
 				let count = 1 ;
 				let textCount = 0 ;
-				let summary = "" ;
 				let startTime = -1 ;
 				let endTime = -1 ;
 				let distanceLength = $("#distanceLength").val() ;
@@ -295,9 +323,11 @@
 					distanceLength = 2000 ;
 				}
 
+				summaryData = new Array() ;
+
 				for (let i=0; i<data.length; i++) {
 					let element = data[i] ;
-					let text = element.text.replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
+					let text = element.text ;
 
 					if (startTime < 0) {
 						startTime = element.time.start ;
@@ -306,15 +336,20 @@
 					endTime = element.time.end ;
 
 					if (textCount > distanceLength) {
-						summary += count.toString() + "\n";
-						summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
-						summary += await getSummary(lines, command) ;
-						summary += "\n\n" ;
+						let summary = {} ;
+
+						summary["count"] = count.toString() ;
+						summary["startTime"] = secToTime(startTime, '.') ;
+						summary["endTime"] = secToTime(endTime, '.') ;
+						summary["text"] = await getSummary(lines, command) ;
+
+						summaryData.push(summary) ;
+						outputWithFormat(summaryData) ;
+
 						startTime = -1 ;
 						textCount = 0 ;
 						count++ ;
 						lines = new Array() ;
-						$("#output").text(summary) ;
 					}
 
 					textCount += text.length ;
@@ -322,14 +357,56 @@
 				}
 
 				if (lines.length != 0) {
-					summary += count.toString() + "\n";
-					summary += secToTime(startTime, '.') + " --> " + secToTime(endTime, '.') + "\n";
-					summary += await getSummary(lines, command) ;
+					let summary = {} ;
+
+					summary["count"] = count.toString() ;
+					summary["startTime"] = secToTime(startTime, '.') ;
+					summary["endTime"] = secToTime(endTime, '.') ;
+					summary["text"] = await getSummary(lines, command) ;
+
+					summaryData.push(summary) ;
+					outputWithFormat(summaryData) ;
 				}
 
-				$("#output").text(summary) ;
-
+				
+				
 				$("#spinner").empty() ;
+			}
+
+			function outputWithFormat(summaryData) {
+
+				let formatType = $('[id="formatType"]:checked').val() ;
+				let output = "" ;
+
+				let fileName = "要約_" + fileTitle ;
+				
+				if (formatType == 0) {
+					fileName += ".srt" ;
+				} else if (formatType == 1) {
+					fileName += ".csv" ;
+				} else {
+					fileName += ".txt" ;
+				}
+
+				$("#fileTitle").val(fileName) ;
+
+				if (summaryData != null) {
+					for (let key in summaryData) {
+						let summary = summaryData[key] ;
+
+						if (formatType == 0) {
+							output += summary.count + "\n" ;
+							output += summary.startTime + " --> " + summary.endTime + "\n" ;
+							output += summary.text + "\n\n" ;
+						} else if (formatType == 1) {
+							output += summary.count + "," + summary.startTime + "," + summary.endTime + ",\"" + summary.text + "\"\n" ;
+						} else {
+							output += summary.text + "\n\n" ;
+						}
+					}
+				}
+
+				$("#output").text(output) ;
 			}
 
 			async function getSummary(lines, command) {
