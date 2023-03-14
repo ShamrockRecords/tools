@@ -95,7 +95,8 @@
 								<label for="srtFile" class="form-label">処理内容</label>
 								<input class="form-control mb-1" id="command" type="text" value="日本語で要約してください。"/>
 								<select class="form-select" id="sampleCommands" aria-label="Default select example">
-									<option selected>日本語で要約してください。</option>
+									<option selected></option>
+									<option>日本語で要約してください。</option>
 									<option>内容を列挙してください。</option>
 									<option>キーワードを抽出してください。</option>
 									<option>英語で要約してください。</option>
@@ -194,7 +195,23 @@
 
 		<script>
 			$(function () {
+				let formatType = localStorage.getItem("formatType") ;
+
+				if (formatType != undefined) {
+					$('[id="formatType"]').val([formatType]) ;
+				}
+
+				let distanceLength = localStorage.getItem("distanceLength") ;
+
+				if (distanceLength != undefined) {
+					$('#distanceLength').val(distanceLength) ;
+				}
+
+				let command = localStorage.getItem("command") ;
 				
+				if (command != undefined) {
+					$('#command').val(command) ;
+				}
 			}) ;
 
 			let lines = null ;
@@ -275,9 +292,21 @@
 				var selectedOptionText = $(this).children(':selected').text();
  
  				$("#command").val(selectedOptionText);
+				 localStorage.setItem("command", $('#command').val()) ;
+			}) ;
+
+			$('#command').on('change', (e) => {
+				localStorage.setItem("command", $('#command').val()) ;
+			}) ;
+
+			$('#distanceLength').on('change', (e) => {
+				localStorage.setItem("distanceLength", $('#distanceLength').val()) ;
 			}) ;
 
 			$('[id="formatType"]').on('change', (e) => {
+
+				localStorage.setItem("formatType", $('[id="formatType"]:checked').val()) ;
+
 				outputWithFormat(summaryData) ;
 			}) ;
 
