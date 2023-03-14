@@ -294,6 +294,12 @@
 					return ;
 				}
 
+				if ($("#output").text() != "") {
+					if (!confirm("現在の結果は上書きされますがよろしいですか？")) {
+						return ;
+					}
+				}
+
 				isRunning = true ;
 				await doAction(data) ;
 				isRunning = false ;
@@ -367,8 +373,6 @@
 					summaryData.push(summary) ;
 					outputWithFormat(summaryData) ;
 				}
-
-				
 				
 				$("#spinner").empty() ;
 			}
