@@ -50,12 +50,11 @@ async function getSummary(text, command) {
 
     try {
         data = await fetch("https://api.openai.com/v1/chat/completions", param).then(response => response.json()) ;
-
+        return data.choices[0].message.content ;
     } catch (e) {
         console.log(e) ;
-    }
-
-    return data.choices[0].message.content ;
+        return "" ;
+    }    
 }
 
 module.exports = router;
