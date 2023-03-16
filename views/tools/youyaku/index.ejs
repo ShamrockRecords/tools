@@ -248,12 +248,16 @@
 					let content = reader.result ;
 					
 					data = loadSrtFile(content) ;
+					
+					let totalCount = 0 ;
 
 					if (data.length != 0) {
 						for (let key in data) {
 							let element = data[key] ;
 
 							element["text"] = element["text"].replaceAll('\r', '\n').replaceAll('\n', '').replaceAll(' ', '') ;
+
+							totalCount += element["text"].length ;
 						}
 					} else {
 						let lines = convertToArray(content) ;
@@ -279,10 +283,12 @@
 							block["text"] = line[2].replaceAll('\r', '\n').replaceAll('\n', '') ;
 
 							data.push(block) ;
+
+							totalCount += block["text"].length ;
 						}
 					}
 
-					$("#lineCount").text(data.length.toString() + "行のデータを読み込みました。") ;
+					$("#lineCount").text(data.length.toString() + "行のデータ（" + totalCount + "文字）を読み込みました。") ;
 				}) ;
 
 				fileTitle = result.name.split('.')[0] ;
@@ -372,7 +378,16 @@
 
 					endTime = element.time.end ;
 
-					if (textCount > distanceLength) {
+					if ((textCount > distanceLength - 20 && text.indexOf("。") >= 0) || (textCount > distanceLength)) {
+					 //if (textCount > distanceLength) {
+						let index = text.indexOf("。") ;
+
+						if (index >= 0) {
+							lines.push(text.substring(0, index + 1)) ;
+							text = text.substring(index + 1) ;
+							alert(text) ;
+						}
+
 						let summary = {} ;
 
 						summary["count"] = count.toString() ;
