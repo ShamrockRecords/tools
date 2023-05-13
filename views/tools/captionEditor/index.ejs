@@ -583,6 +583,33 @@
 									</div>	
 									<div class="row mb-3">
 										<div class="col">
+											<div class="h4"><%- __("公開辞書") %></div>		
+											<div class="row mb-3">
+												<div class="small ms-3"><%- __("<a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>から公開辞書を使用することができます。", "https://words.udtalk.jp") %></div>
+											</div>
+						
+											<div class="row mb-3">
+												<div class="col">
+													<div><%- __("アクセストークン") %></div>								
+													<input id="accessToken" name="accessToken" type="password" class="form-control" value="" placeholder="" autocomplete="new-password" aria-label="">
+												</div>
+											</div>
+
+											<div class="row mb-3">
+												<div class="col">
+													<div><%- __("公開辞書") %></div>
+													<select class="form-select" id="publicDictionariesSelect">
+																
+													</select>
+												</div>
+											</div>
+										</div>
+									</div>	
+
+									
+
+									<div class="row mb-3">
+										<div class="col">
 											<div class="h4"><%- __("単語登録") %></div>
 
 											<div class="row mb-3">
@@ -757,6 +784,8 @@
 			$(function () {
 				restoreSettings() ;
 
+				updatePublicDictionaryComboBox() ;
+
 				function eventListener(e) {
 					storeSettings()
 
@@ -770,6 +799,7 @@
 				$("#playbackSeconds").on('change', eventListener) ;
 				$("#saveAppKey").on('change', eventListener) ;
 				$("#acpGrammarFileNameSelect").on('change', eventListener) ;
+				$("#publicDictionariesSelect").on('change', eventListener) ;
 				$("#acpProfileId").on('input', eventListener) ;
 				$("#acpProfileWords").on('change', eventListener) ;
 				$("#acpWordDataFileName").on('change', eventListener) ;
@@ -781,6 +811,12 @@
 				$("#showPreviewAlways").on('change', eventListener) ;
 				$("#acpDiarizationCount").on('change', eventListener) ;
 				
+				$("#accessToken").on('change', (e) => {
+					storeSettings() ;
+
+					updatePublicDictionaryComboBox() ;
+				}) ;
+
 				let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
 				$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
 
@@ -1487,6 +1523,29 @@
 				setupShortcuts() ;
 			}) ;
 
+			async function updatePublicDictionaryComboBox() {
+				$("#publicDictionariesSelect").empty() ;
+				
+				let accessToken = $('#accessToken').val() ;
+
+				if (accessToken != null && accessToken != undefined && accessToken != "") {
+					let result = await getPublicDictionaries($('#accessToken').val()) ;
+
+					for (let key in result.dictionaries) {
+						let dictionary = result.dictionaries[key] ;
+
+						var newOption = $("<option></option>").attr("value", dictionary.account).text(dictionary.display_name);
+						$("#publicDictionariesSelect").append(newOption);
+					}
+
+					let publicDictionary = localStorage.getItem("publicDictionary") ;
+
+					if (publicDictionary != undefined) {
+						$('#publicDictionariesSelect').val(publicDictionary) ;
+					}
+				}
+			}
+
 			// Update Subtitls
 			function updateSubtitleData() {
 				let offsetTime = Number($("#offsetTimeLength").val()) ;
@@ -2086,6 +2145,12 @@
 					if (acpGrammarFileNames != undefined) {
 						$('#acpGrammarFileNameSelect').val(acpGrammarFileNames) ;
 					}
+					
+					let accessToken = localStorage.getItem("accessToken") ;
+
+					if (accessToken != undefined) {
+						$('#accessToken').val(accessToken) ;
+					}
 
 					let acpProfileId = localStorage.getItem("acpProfileId") ;
 
@@ -2156,6 +2221,8 @@
 					localStorageSetItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
+					localStorageSetItem("publicDictionary", $('#publicDictionariesSelect').val()) ;
+					localStorageSetItem("accessToken", $('#accessToken').val()) ;
 					localStorageSetItem("acpProfileId", $('#acpProfileId').val()) ;
 					localStorageSetItem("acpProfileWords", $('#acpProfileWords').val()) ;
 					localStorageSetItem("acpWordDataFileName", $('#acpWordDataFileName').val()) ;
@@ -2243,6 +2310,21 @@
 						break ;
 					}
 				}
+			}
+
+			async function getPublicDictionaries(accessToken) {
+				const headers = {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				};
+
+				const param = {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({"token" : accessToken}),
+				}
+
+				return await fetch("/jimakueditor/get_public_dictionaries", param).then(response => response.json()) ;
 			}
 
 		</script>

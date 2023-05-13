@@ -17,6 +17,8 @@ async function runSpeechRecognition(completion) {
         }
     }
 
+    let accessToken = $("#accessToken").val() ;
+    let publicDictionary = $("#publicDictionariesSelect").val() ;
     let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
     let profileId = $("#acpProfileId").val() ;
     let profileWords = $("#acpProfileWords").val() ;
@@ -32,7 +34,6 @@ async function runSpeechRecognition(completion) {
     }
 
     isSpeechRecognizing = true ;
-
 
     let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
 				
@@ -80,27 +81,50 @@ async function runSpeechRecognition(completion) {
         domainId += encodeURIComponent(":" + profileId);
     }
 
+    let allProfileWords = "" ;
+
     if (profileWords != "") {
         if (domainId.length > 0) {
             domainId += ' ';
         }
 
         let array = convertToArray(profileWords) ;
-        
-        profileWords = "" ;
 
         for (let key in array) {
             let elements = array[key] ;
 
             if (elements.length >= 2) {
-                profileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] + "|" ;
+                if (allProfileWords != "") {
+                    allProfileWords += "|" ;
+                }
+
+                allProfileWords += elements[0].replaceAll(" ", "_") + " " + elements[1] ;
             }
         }
+    }
 
-        profileWords = profileWords.slice( 0, -1 ) ;
+    if (publicDictionary != null && publicDictionary != undefined && publicDictionary != "") {
+        let result = await getUserWordsByAccessToken(accessToken, publicDictionary) ;       
+        let words = result[publicDictionary] ;
 
+        for (let key in words) {
+            let word = words[key] ;
+
+            if (allProfileWords != "") {
+                allProfileWords += "|" ;
+            }
+
+            allProfileWords += word.written.replaceAll(" ", "_") + " " + word.spoken ;
+        }
+    }
+
+    if (allProfileWords != "") {
+        if (domainId.length > 0) {
+            domainId += ' ';
+        }
+        
         domainId += "profileWords=";
-        domainId += encodeURIComponent(profileWords);
+        domainId += encodeURIComponent(allProfileWords);
     }
 
     if (loggingOptOut != 0) {
@@ -350,4 +374,19 @@ function normalizeWrittenForm(written) {
     written = written.replaceAll("_", " ") ;
 
     return written ;
+}
+
+async function getUserWordsByAccessToken(accessToken, account) {
+    const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    };
+
+    const param = {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({"account" : account, "token" : accessToken}),
+    }
+
+    return await fetch("/jimakueditor/get_user_words_by_access_token", param).then(response => response.json()) ;
 }
