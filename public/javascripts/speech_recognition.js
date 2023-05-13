@@ -20,7 +20,6 @@ async function runSpeechRecognition(completion) {
     let accessToken = $("#accessToken").val() ;
     let publicDictionary = $("#publicDictionariesSelect").val() ;
     let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
-    let profileId = $("#acpProfileId").val() ;
     let profileWords = $("#acpProfileWords").val() ;
     let authorization = $("#acpAppKey").val() ; 
     let loggingOptOut = $('[name=acpLoggingOptOut]').val();
@@ -69,17 +68,6 @@ async function runSpeechRecognition(completion) {
 
     domainId += "grammarFileNames=";
     domainId += encodeURIComponent(grammarFileNames);
-    
-    if (profileId != "") {
-        if (domainId.length > 0) {
-            domainId += ' ';
-        }
-
-        profileId = profileId.trim() ;
-
-        domainId += "profileId=";
-        domainId += encodeURIComponent(":" + profileId);
-    }
 
     let allProfileWords = "" ;
 
