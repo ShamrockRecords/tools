@@ -96,7 +96,7 @@ router.post('/get_user_words_by_access_token', wrap(async function(req, res, nex
     let result = {} ;
 
     try {
-        result = await getUserWordsByAccessToken(req.body.token, req.body.account) ;
+        result = await getUserWordsByAccessToken(req.body.token, req.body.accounts) ;
     } catch (e) {
         console.log(e) ;
     }
@@ -122,7 +122,7 @@ async function getPublicDictionaries(accessToken) {
 	return await fetch("https://words.udtalk.jp/api/get_public_dictionaries", param).then(response => response.json()) ;
 }
 
-async function getUserWordsByAccessToken(accessToken, account) {
+async function getUserWordsByAccessToken(accessToken, accounts) {
 	const headers = {
 		'Accept': 'application/json',
 		'Content-Type': 'application/json'
@@ -131,7 +131,7 @@ async function getUserWordsByAccessToken(accessToken, account) {
 	const param = {
 		method: "POST",
 		headers: headers,
-		body: JSON.stringify({"accounts": [account], "token" : accessToken}),
+		body: JSON.stringify({"accounts": accounts, "token" : accessToken}),
 	}
 
 	return await fetch("https://words.udtalk.jp/api/get_user_words_by_access_token", param).then(response => response.json()) ;

@@ -18,7 +18,8 @@ async function runSpeechRecognition(completion) {
     }
 
     let accessToken = $("#accessToken").val() ;
-    let publicDictionary = $("#publicDictionariesSelect").val() ;
+    let publicDictionary1 = $("#publicDictionariesSelect1").val() ;
+    let publicDictionary2 = $("#publicDictionariesSelect2").val() ;
     let grammarFileNames = $("#acpGrammarFileNameSelect").val() ;
     let profileWords = $("#acpProfileWords").val() ;
     let authorization = $("#acpAppKey").val() ; 
@@ -91,18 +92,31 @@ async function runSpeechRecognition(completion) {
         }
     }
 
-    if (publicDictionary != null && publicDictionary != undefined && publicDictionary != "") {
-        let result = await getUserWordsByAccessToken(accessToken, publicDictionary) ;       
-        let words = result[publicDictionary] ;
+    let publicDictionaries = [] ;
+    
+    if (publicDictionary1 != null && publicDictionary1 != undefined && publicDictionary1 != "") {
+        publicDictionaries.push(publicDictionary1) ;
+    }
 
-        for (let key in words) {
-            let word = words[key] ;
+    if (publicDictionary2 != null && publicDictionary2 != undefined && publicDictionary2 != "") {
+        publicDictionaries.push(publicDictionary2) ;
+    }
 
-            if (allProfileWords != "") {
-                allProfileWords += "|" ;
+    if (publicDictionaries.length > 0) {
+        let result = await getUserWordsByAccessToken(accessToken, publicDictionaries) ;       
+
+        for (let key in publicDictionaries) {
+            let words = result[publicDictionaries[key]] ;
+
+            for (let key in words) {
+                let word = words[key] ;
+
+                if (allProfileWords != "") {
+                    allProfileWords += "|" ;
+                }
+
+                allProfileWords += word.written.replaceAll(" ", "_") + " " + word.spoken ;
             }
-
-            allProfileWords += word.written.replaceAll(" ", "_") + " " + word.spoken ;
         }
     }
 
@@ -364,7 +378,7 @@ function normalizeWrittenForm(written) {
     return written ;
 }
 
-async function getUserWordsByAccessToken(accessToken, account) {
+async function getUserWordsByAccessToken(accessToken, accounts) {
     const headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -373,7 +387,7 @@ async function getUserWordsByAccessToken(accessToken, account) {
     const param = {
         method: "POST",
         headers: headers,
-        body: JSON.stringify({"account" : account, "token" : accessToken}),
+        body: JSON.stringify({"accounts" : accounts, "token" : accessToken}),
     }
 
     return await fetch("/jimakueditor/get_user_words_by_access_token", param).then(response => response.json()) ;

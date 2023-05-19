@@ -537,7 +537,8 @@
 						</div>
 						<div class="col-auto">
 							<div><%- __("接続エンジン名") %> : </span><span id="acpGrammarFileNamesLabel"></div>
-							<div><%- __("選択中の公開辞書") %> : </span><span id="publicDictionaryLabel"></div>
+							<div><%- __("選択中の公開辞書1") %> : </span><span id="publicDictionaryLabel1"></div>
+							<div><%- __("選択中の公開辞書2") %> : </span><span id="publicDictionaryLabel2"></div>
 						</div>
 					</div>
 
@@ -592,8 +593,11 @@
 
 											<div class="row mb-3">
 												<div class="col">
-													<div><%- __("辞書を選択") %></div>
-													<select class="form-select" id="publicDictionariesSelect">
+													<div><%- __("辞書を選択（2つ選択できます）") %></div>
+													<select class="form-select mb-1" id="publicDictionariesSelect1">
+																
+													</select>
+													<select class="form-select" id="publicDictionariesSelect2">
 																
 													</select>
 												</div>
@@ -787,8 +791,11 @@
 					let grammarFileNamesLabel = $("#acpGrammarFileNameSelect option:selected").text() ;
 					$("#acpGrammarFileNamesLabel").text(grammarFileNamesLabel) ;
 
-					let publicDictionaryLabel = $("#publicDictionariesSelect option:selected").text() ;
-					$('#publicDictionaryLabel').text(publicDictionaryLabel) ;
+					let publicDictionaryLabel1 = $("#publicDictionariesSelect1 option:selected").text() ;
+					$('#publicDictionaryLabel1').text(publicDictionaryLabel1) ;
+
+					let publicDictionaryLabel2 = $("#publicDictionariesSelect2 option:selected").text() ;
+					$('#publicDictionaryLabel2').text(publicDictionaryLabel2) ;
 				} ;
 
 				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
@@ -797,7 +804,8 @@
 				$("#playbackSeconds").on('change', eventListener) ;
 				$("#saveAppKey").on('change', eventListener) ;
 				$("#acpGrammarFileNameSelect").on('change', eventListener) ;
-				$("#publicDictionariesSelect").on('change', eventListener) ;
+				$("#publicDictionariesSelect1").on('change', eventListener) ;
+				$("#publicDictionariesSelect2").on('change', eventListener) ;
 				$("#acpProfileWords").on('change', eventListener) ;
 				$("#acpWordDataFileName").on('change', eventListener) ;
 				$("#acpAppKey").on('input', eventListener) ;
@@ -1521,7 +1529,8 @@
 			}) ;
 
 			async function updatePublicDictionaryComboBox() {
-				$("#publicDictionariesSelect").empty() ;
+				$("#publicDictionariesSelect1").empty() ;
+				$("#publicDictionariesSelect2").empty() ;
 				
 				let accessToken = $('#accessToken').val() ;
 
@@ -1531,18 +1540,26 @@
 					for (let key in result.dictionaries) {
 						let dictionary = result.dictionaries[key] ;
 
-						var newOption = $("<option></option>").attr("value", dictionary.account).text(dictionary.display_name);
-						$("#publicDictionariesSelect").append(newOption);
+						$("#publicDictionariesSelect1").append($("<option></option>").attr("value", dictionary.account).text(dictionary.display_name));
+						$("#publicDictionariesSelect2").append($("<option></option>").attr("value", dictionary.account).text(dictionary.display_name));
 					}
 
-					let publicDictionary = localStorage.getItem("publicDictionary") ;
+					let publicDictionary1 = localStorage.getItem("publicDictionary1") ;
+					let publicDictionary2 = localStorage.getItem("publicDictionary2") ;
 
-					if (publicDictionary != undefined) {
-						$('#publicDictionariesSelect').val(publicDictionary) ;
+					if (publicDictionary1 != undefined) {
+						$('#publicDictionariesSelect1').val(publicDictionary1) ;
 					}
 
-					let publicDictionaryLabel = $("#publicDictionariesSelect option:selected").text() ;
-					$('#publicDictionaryLabel').text(publicDictionaryLabel) ;
+					if (publicDictionary2 != undefined) {
+						$('#publicDictionariesSelect2').val(publicDictionary2) ;
+					}
+
+					let publicDictionaryLabel1 = $("#publicDictionariesSelect1 option:selected").text() ;
+					$('#publicDictionaryLabel1').text(publicDictionaryLabel1) ;
+
+					let publicDictionaryLabel2 = $("#publicDictionariesSelect2 option:selected").text() ;
+					$('#publicDictionaryLabel2').text(publicDictionaryLabel2) ;
 				}
 			}
 
@@ -2215,7 +2232,8 @@
 					localStorageSetItem("saveAppKey", $('#saveAppKey').prop("checked")) ;
 					localStorageSetItem("acpLoggingOptOut", $('[name=acpLoggingOptOut]').val()) ;
 					localStorageSetItem("acpGrammarFileNames", $('#acpGrammarFileNameSelect').val()) ;
-					localStorageSetItem("publicDictionary", $('#publicDictionariesSelect').val()) ;
+					localStorageSetItem("publicDictionary1", $('#publicDictionariesSelect1').val()) ;
+					localStorageSetItem("publicDictionary2", $('#publicDictionariesSelect2').val()) ;
 					localStorageSetItem("accessToken", $('#accessToken').val()) ;
 					localStorageSetItem("acpProfileWords", $('#acpProfileWords').val()) ;
 					localStorageSetItem("acpWordDataFileName", $('#acpWordDataFileName').val()) ;
