@@ -617,7 +617,6 @@
 													<div class="small ms-3"><%- __("書き表記,[またはタブ]読み表記[改行]を繰り返して入力してください。") %></div>
 													<div class="small ms-3"><%- __("読み表記はひらがなかカタカナで入力してください。") %></div>
 													<div class="small ms-3"><%- __("ひらがなやカタカナのみの書き表記の場合も読み表記を入力してください。") %></div>
-													<div class="small ms-3"><%- __("サービスIDの指定での単語登録と併用できます。") %></div>
 												</div>
 											</div>
 											
@@ -715,7 +714,7 @@
 					</div>
 					<div class="row mb-3">
 						<div class="col">
-							<div class="box border">
+							<div class="box border" id="scroller">
 								<table class="table" id="subtitles">
 
 								</table>
@@ -1312,8 +1311,6 @@
 						text = text.replaceAll(/(\n)+/g, "\n") ;
 						text = text.trim() ;
 
-						
-
 						let element = (Number(num)) + "\n" + secToTime(startTime, ",") + " --> " + secToTime(endTime, ",") + "\n" + text + "\n\n" ;
 
 						num++ ;
@@ -1360,16 +1357,6 @@
 				$("#fastestSpeedButton").on("click", (e) => {
 					setPlaybackRate(2.0) ;
 				}) ;
-
-				function commitAppData() {
-					for (let i=0; i<lines.length; i++) {
-						let textClassName = "#text" + Number(i) ;
-						let alreadyEditedCheckBoxClassName = "#alreadyEditedCheckBox" + Number(i) ;
-
-						lines[i][2] = $(textClassName).val();
-						details[i]["edited"] = $(alreadyEditedCheckBoxClassName).prop("checked") ;
-					}
-				}
 
 				$("#saveAcpWordDataButton").on("click", saveAcpWordDataButton) ;
 
@@ -1528,6 +1515,20 @@
 				setupShortcuts() ;
 			}) ;
 
+			function commitAppData() {
+				for (let i=0; i<lines.length; i++) {
+					commitData(i) ;
+				}
+			}
+
+			function commitData(index) {
+				let textClassName = "#text" + Number(index) ;
+				let alreadyEditedCheckBoxClassName = "#alreadyEditedCheckBox" + Number(index) ;
+
+				lines[index][2] = $(textClassName).val();
+				details[index]["edited"] = $(alreadyEditedCheckBoxClassName).prop("checked") ;
+			}
+
 			async function updatePublicDictionaryComboBox() {
 				$("#publicDictionariesSelect1").empty() ;
 				$("#publicDictionariesSelect2").empty() ;
@@ -1586,7 +1587,7 @@
 					let nextTextClassName = "#text" + (Number(i) + 1) ;
 					let alreadyEditedCheckBoxClassName = "#alreadyEditedCheckBox" + Number(i) ;
 
-					$(textClassName).height(30);
+					//$(textClassName).height(30);
 					$(textClassName).css("lineHeight","20px");
 					$(textClassName).on("keydown", function(e) {
 						if (e.keyCode == 13) {
@@ -1667,25 +1668,30 @@
 						line[2] = $(textClassName).val() ;
 					}) ;
 
-					$(textClassName).on("autoheight", function(e) {
-						var target = e.target;
-						var lineHeight = Number($(target).css("lineHeight").split("px")[0]);
+					function adjustTextareaHeight() {
+						const textarea = $(textClassName);
+						const tempDiv = $('<div>').css({
+							'position': 'absolute',
+							'top': '-9999px',
+							'width': textarea.width(),
+							'fontSize': textarea.css('fontSize'),
+							'fontFamily': textarea.css('fontFamily'),
+							'lineHeight': textarea.css('lineHeight'),
+							'padding': textarea.css('padding'),
+							'border': textarea.css('border'),
+							'boxSizing': textarea.css('boxSizing'),
+							'whiteSpace': 'pre-wrap',
+							'wordWrap': 'break-word'
+						}).text(textarea.val() + '\n');
+						
+						$('body').append(tempDiv);
+						textarea.height(tempDiv.height() + 20);
+						tempDiv.remove();
+					}
 
-						if (target.scrollHeight > target.offsetHeight) {
-							$(target).height(target.scrollHeight + lineHeight);
-						} else {
-							while (true) {
-								$(target).height($(target).height() - lineHeight);
+					$(textClassName).on('input', adjustTextareaHeight);
 
-								if (target.scrollHeight > target.offsetHeight) {
-									$(target).height(target.scrollHeight + lineHeight);
-									break;
-								}
-							}
-						}
-					});
-
-					$(textClassName).trigger('autoheight');
+					adjustTextareaHeight() ;
 				}
 			}
 
@@ -1780,6 +1786,84 @@
 				prevEndTimeAdjustingIndex = index ;
 			}
 
+			function appendDataButton(index) {
+				if (index == 0) {
+					alert("先頭の発話でこの操作は実行できません。") ;
+					return ;
+				}
+
+				commitData(index) ;
+
+				if (!window.confirm("一つ前の発話と結合します。この操作は元に戻せません、よろしいですか？")) {
+					return ;
+				}
+
+				let line1 = lines[index-1] ;
+				let line2 = lines[index] ;
+
+				line1[1] = line2[1] ;
+
+				for (let key = 2; key < line1.length; key++) {
+					if (line1[key] != line2[key]) {
+						line1[key] = line1[key] + line2[key] ;
+					}
+				}
+				
+				lines.splice(index, 1) ;
+				details.splice(index, 1) ;
+
+				let scrollTop = $("#scroller")[0].scrollTop ;
+
+				updateSubtitleData() ;
+
+				$("#scroller")[0].scrollTop = scrollTop ;
+			}
+
+			function divideDataButton(index) {
+				commitData(index) ;
+
+				let line = lines[index] ;
+
+				let textClassName = "#text" + Number(index) ;
+				let textarea = $(textClassName)[0] ;
+
+				let text = line[2] ;
+				let selectionStart = textarea.selectionStart;
+
+				if (selectionStart <= 0 || selectionStart >= text.length) {
+					alert("発話を分割可能なカーソル位置を設定していください。") ;
+					return ;
+				}
+
+				if (!window.confirm("現在のカーソル位置で発話を分割します。この操作は元に戻せません、よろしいですか？")) {
+					return ;
+				}
+
+				let duration = line[1] - line[0] ;
+				let timeOfChar = duration / text.length ;
+
+				let duration1 = timeOfChar * selectionStart ;
+				let duration2 = timeOfChar * (text.length - selectionStart) ;
+
+				line[1] = line[0] + duration1 ;
+				line[2] = text.substr(0, selectionStart) ;
+
+				let newLine = Array.from(line)
+
+				newLine[0] = line[1] ;
+				newLine[1] = newLine[0] + duration2 ;
+				newLine[2] = text.substr(selectionStart, text.length - selectionStart) ;
+
+				lines.splice(index + 1, 0, newLine) ;
+				details.splice(index + 1, 0, {}) ;
+
+				let scrollTop = $("#scroller")[0].scrollTop ;
+
+				updateSubtitleData() ;
+
+				$("#scroller")[0].scrollTop = scrollTop ;
+			}
+
 			function subtitleBlock(index, subtitleData, detailData, offsetTime, converted) {
 				let startTime = subtitleData[0] + offsetTime ;
 				let endTime = subtitleData[1] + offsetTime ;
@@ -1790,7 +1874,7 @@
 
 				let controllerButtons = `<div class="col-auto d-flex align-items-center p-0"><button class="btn btn-success btn-sm px-1 py-0" onclick="startTimeAdjusting(${index}, 0)"><%- __('再生') %></button></div>` ;
 				let timeAdjustingButtons = `<div class="col-auto d-flex align-items-center time small">${startTime} - ${endTime}</div>` ;
-
+		
 				if (converted) {
 					controllerButtons = "" ;
 
@@ -1832,7 +1916,7 @@
 
 				return `<tr>
 							<td>
-								<div class="row p-0" id="subtitle${index}">
+								<div class="row" id="subtitle${index}">
 									<div class="col-auto d-flex align-items-center time">${Number(index) + 1}</div>
 									${controllerButtons}
 									${timeAdjustingButtons}
@@ -1842,15 +1926,13 @@
 											<input class="form-check-input" type="checkbox" value="" id="alreadyEditedCheckBox${index}" name="alreadyEditedCheckBox${index}" value="" ${checked}>
 										</div>
 									</div>
-									<!--<div class="col">
-										<div class="row p-0">
-											<div class="col-auto"><input class="btn btn-outline-secondary btn-sm mid-btn px-0 py-0" id="appendDataButton${index}" type="button" value="<%- __('前に加える') %>" name="appendDataButton${index}" /></div>
-											<div class="col-auto"><input class="btn btn-outline-secondary btn-sm mid-btn px-0 py-0" id="divideDataButton${index}" type="button" value="<%- __('カーソルで分割') %>" name="divideDataButton${index}" /></div>
-										</div>
-									</div>-->
 								</div>
-								<div class="row">
+								<div class="row py-0">
 									<textarea id="text${index}">${subtitleData[2]}</textarea>
+								</div>
+								<div class="row py-0 mb-2">			
+									<div class="col-auto p-0"><button class="btn btn-outline-secondary btn-sm py-0" onclick="appendDataButton(${index})"><%- __('前の発話と結合する') %></button></div>
+									<div class="col-auto px-1 py-0"><button class="btn btn-outline-secondary btn-sm py-0" onclick="divideDataButton(${index})"><%- __('カーソル位置で分割') %></button></div>
 								</div>
 							</td>
 						</tr>` ;
