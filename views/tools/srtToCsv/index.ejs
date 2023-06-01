@@ -132,7 +132,6 @@
 
 			$(function () {
 				let separatorType = localStorage.getItem("separatorType") ;
-				console.log(separatorType) ;
 
 				if (separatorType != undefined) {
 					$('[id="separatorType"]').val([separatorType]) ;
@@ -157,8 +156,6 @@
 				updateResult() ;
 
 				localStorage.setItem("separatorType", $('[id="separatorType"]:checked').val()) ;
-
-				console.log($('[id="separatorType"]:checked').val()) ;
 			} ;
 
 			$('[id="separatorType"]').on('change', eventListener) ;

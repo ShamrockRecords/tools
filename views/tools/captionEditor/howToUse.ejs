@@ -1,0 +1,208 @@
+<div class="accordion" id="accordionMainMenu">
+	<div class="accordion-item">
+		<h2 class="accordion-header" id="mainMenu-menu1-header">
+			<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu1" aria-expanded="true" aria-controls="mainMenu-menu1">
+				<%- __("操作メニュー（クリックして表示／非表示）") %>
+			</button>
+		</h2>
+
+		<div id="mainMenu-menu1" class="accordion-collapse collapse show" aria-labelledby="mainMenu-menu1">
+			<div class="accordion-body">
+				<div class="row p-3">
+					<div class="col-md">
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+								<% if (mediaType == "file") { %>
+									<div class="form-label"><%- __("①ファイルを読み込み") %></div>
+								<% } else { %>
+									<div class="form-label"><%- __("①動画を読み込み") %></div>
+								<% } %>
+								</div>
+							</div>
+
+						<% if (mediaType == "youtube") { %>
+							<div class="row">	
+								<div class="col mb-1">		
+									<div class="input-group">	
+										<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="<%- __('YouTubeのURLをペーストして読み込みボタンを押してください') %>" aria-label="">
+										<button class="btn btn-outline-secondary" type="button" id="videoLoadButton"><%- __('読み込み') %></button>
+									</div>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("YouTubeのURLをペーストして読み込んでください。") %></div>
+									<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
+									<div class="small ms-3"><%- __("ローカルのファイルを読み込んで使用したい時は<a href='/jimakueditor4file'>字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。") %></div>
+								</div>
+							</div>
+						<% } else if (mediaType == "file") { %>
+							<div class="row">	
+								<div class="col mb-1">		
+									<div class="input-group">
+										<input class="form-control" id="mediaFile" type="file" accept="audio/*,video/*,"/>
+									</div>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルを読み込んでください。") %></div>
+									<div class="small ms-3"><%- __("動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。") %></div>
+									<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
+									<div class="small ms-3"><%- __("YouTubeの動画を再生しながら使用したい時は<a href='/jimakueditor'>字幕エディター for YouTube</a>をご利用ください。") %></div>
+								</div>
+							</div>
+						<% } %>
+						</div>
+
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+									<div class="form-label"><%- __("②UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み") %></div>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-auto mb-1">
+									<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="<%- __("ファイルを選択") %>" name="loadSubtitleButton" />
+									<input class="form-control" id="subtitleFile" type="file" accept=".csv,.srt" style="display:none;"/>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。") %></div>
+
+									<% if (mediaType == "file") { %>
+										<div class="small ms-3"><%- __("このデータは「音声認識結果を取得する」で作成することもできます") %></div>
+									<% } %>
+								</div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+									<div class="form-label"><%- __("③読み込み後の調整") %></div>
+								</div>
+							</div>
+							<div class="row">	
+								<div class="col-auto mb-1">			
+									<div class="input-group">		
+										<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3"><%- __("字幕の開始時間の調整（秒）") %></span></label>	
+										<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
+										<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton"><%- __("更新") %></button>
+									</div>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。") %></div>
+									<div class="small ms-3"><%- __("時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が%sから始まっているときは%sを入力して更新ボタンを押します。", "00:00:16.128", "16.128") %></div>
+									<div class="small ms-3"><%- __("音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。") %></div>
+								</div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+									<div class="form-label"><%- __("④作業中のデータの保存") %></div>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col-auto mb-1">											
+									<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="<%- __("データを保存") %>" name="saveAppDataButton" />
+								</div>
+								<div class="col mb-1">
+									<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="<%- __("ファイル名") %>" aria-label="">
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。") %></div>
+									<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルパスは保存されません。編集するたびに都度読み込んでください。") %></div>
+								</div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+									<div class="form-label"><%- __("⑤作業中のデータの読み込み") %></div>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col-auto mb-1">
+									<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="<%- __("ファイルを選択") %>" name="loadAppDataButton" />
+									<input class="form-control" id="appDataFile" type="file" accept=".captionEditor, .jimakuEditor" style="display:none;"/>	
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("保存した作業中のデータを読み込んで続きを行うことができます。") %></div>
+								</div>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<div class="row">
+								<div class="col-auto mb-1">
+									<div class="form-label"><%- __("⑥編集したデータエクスポート") %></div>
+								</div>
+							</div>
+
+							<div class="row mb-1">
+								<div class="col">
+									<%- __("編集データの言語") %>
+								</div>
+							</div>
+							<div class="row mb-3">
+								<div class="col">
+									<select class="form-select mb-1" id="fromLanguageSelect">
+		
+									</select>
+								</div>
+								<div class="col">
+
+								</div>
+								<div class="col">
+
+								</div>
+								<div class="col">
+
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col-auto mb-1">		
+									<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="<%- __("CSVファイル（.csv）で保存") %>" name="saveAsCsvButton" />
+								</div>
+								<div class="col-auto mb-1">	
+									<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="<%- __("テキスト（.txt）で保存") %>" name="saveAsTextButton" />
+								</div>
+								<div class="col-auto mb-1">	
+									<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtButton" />
+									<div id="toExportSrtSpinner"></div>
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col mb-1">
+									<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。") %></div>
+									<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存後、作成してください。", "https://jimakudata.udtalk.jp") %></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>	
+			</div>				
+		</div>
+	</div>
+</div>

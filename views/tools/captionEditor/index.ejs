@@ -11,6 +11,7 @@
 		<script type="text/javascript" src="/javascripts/shortcut.js"></script>
 		<script type="text/javascript" src="/javascripts/functions.js"></script>
 		<script type="text/javascript" src="/javascripts/speech_recognition.js"></script>
+		<script type="text/javascript" src="/javascripts/video_control.js"></script>
 		
 		<script type="text/javascript" src="/javascripts/ffmpeg.min.js"></script>
 
@@ -19,7 +20,6 @@
 		<script defer src="https://use.fontawesome.com/releases/v5.15.4/js/all.js" integrity="sha384-rOA1PnstxnOBLzCLMcre8ybwbTmemjzdNlILg8O7z1lUkLXozs4DHonlDtnE7fpc" crossorigin="anonymous"></script>
 		
 		<style>
-
 			html,
 			body
 			{
@@ -98,620 +98,68 @@
 				</div>
 			</div>
 
-			<div class="row">
-				<div class="col-md">
-					<div class="row">
-						<div class="col-md mb-3">
-							<h3><%= appTitle %></h3>
-						</div>
-					</div>
+			<div class="row mb-3">
+				<div class="col">
+					<h3><%= appTitle %></h3>
+				</div>	
+			</div>
 
-					<div class="accordion" id="accordionMainMenu">
-						<div class="accordion-item">
-							<h2 class="accordion-header" id="mainMenu-menu1-header">
-								<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu1" aria-expanded="true" aria-controls="mainMenu-menu1">
-									<%- __("操作メニュー（クリックして表示／非表示）") %>
-								</button>
-						  	</h2>
-							<div id="mainMenu-menu1" class="accordion-collapse collapse show" aria-labelledby="mainMenu-menu1">
-								<div class="accordion-body">
-									<div class="row p-3">
-										<div class="col-md">
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<% if (mediaType == "file") { %>
-															<div class="form-label"><%- __("①ファイルを読み込み") %></div>
-														<% } else { %>
-															<div class="form-label"><%- __("①動画を読み込み") %></div>
-														<% } %>
+			<div class="row mb-3">
+				<div class="col">
+					<%- include('howToUse', {}) %>
+				</div>	
+			</div>
 
-													</div>
-												</div>
-
-												<% if (mediaType == "youtube") { %>
-													<div class="row">	
-														<div class="col mb-1">		
-															<div class="input-group">	
-																<input id="videoURL" name="videoURL" type="text" class="form-control" value="" placeholder="<%- __('YouTubeのURLをペーストして読み込みボタンを押してください') %>" aria-label="">
-																<button class="btn btn-outline-secondary" type="button" id="videoLoadButton"><%- __('読み込み') %></button>
-															</div>
-														</div>
-													</div>
-
-													<div class="row">
-														<div class="col mb-1">
-															<div class="small ms-3"><%- __("YouTubeのURLをペーストして読み込んでください。") %></div>
-															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
-															<div class="small ms-3"><%- __("ローカルのファイルを読み込んで使用したい時は<a href='/jimakueditor4file'>字幕エディター for ファイル</a>をご利用ください。AmiVoice Cloud Platformの声認識APIを使用してファイルから音声認識の結果を作成することができます。") %></div>
-														</div>
-													</div>
-												<% } else if (mediaType == "file") { %>
-													<div class="row">	
-														<div class="col mb-1">		
-															<div class="input-group">
-																<input class="form-control" id="mediaFile" type="file" accept="audio/*,video/*,"/>
-															</div>
-														</div>
-													</div>
-
-													<div class="row">
-														<div class="col mb-1">
-															<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルを読み込んでください。") %></div>
-															<div class="small ms-3"><%- __("動画または音声ファイルを読み込む時にボタンに「アップロード」と表示されますがアップロードをするわけではありません。") %></div>
-															<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた動画を確認できます。") %></div>
-															<div class="small ms-3"><%- __("YouTubeの動画を再生しながら使用したい時は<a href='/jimakueditor'>字幕エディター for YouTube</a>をご利用ください。") %></div>
-														</div>
-													</div>
-												<% } %>
-											</div>
-
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("②UDトークの会話ログ（.csv）または字幕ファイル（.srt）を読み込み") %></div>
-													</div>
-												</div>
-												<div class="row">
-													<div class="col-auto mb-1">
-														<input class="btn btn-primary btn-sm cmn-btn" id="loadSubtitleButton" type="button" value="<%- __("ファイルを選択") %>" name="loadSubtitleButton" />
-														<input class="form-control" id="subtitleFile" type="file" accept=".csv,.srt" style="display:none;"/>
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("画面をスクロールするか操作メニューをクリックして非表示にすると読み込まれた内容を確認できます。") %></div>
-
-														<% if (mediaType == "file") { %>
-															<div class="small ms-3"><%- __("このデータは「音声認識結果を取得する」で作成することもできます") %></div>
-														<% } %>
-													</div>
-												</div>
-											</div>
-
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("③読み込み後の調整") %></div>
-													</div>
-												</div>
-												<div class="row">	
-													<div class="col-auto mb-1">			
-														<div class="input-group">		
-															<label for="offsetTimeLength" class="me-3 col-form-label"><span class="small ms-3"><%- __("字幕の開始時間の調整（秒）") %></span></label>	
-															<input id="offsetTimeLength" name="offsetTimeLength" type="text" class="form-control" value="0" placeholder="" aria-label="" style="text-align: right;">
-															<button class="btn btn-outline-primary" type="button" id="offsetTimeLengthUpdateButton"><%- __("更新") %></button>
-														</div>
-													</div>
-												</div>
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("字幕データ全体を指定の時間だけ前後に移動して調整します。マイナスの時間を設定すると0秒以前の字幕は非表示となります。") %></div>
-														<div class="small ms-3"><%- __("時間は小数点以下を含む秒で指定をしてください。例えば動画内で最初の字幕が%sから始まっているときは%sを入力して更新ボタンを押します。", "00:00:16.128", "16.128") %></div>
-														<div class="small ms-3"><%- __("音楽やノイズが入っていて最初の字幕で調整が難しい時は２〜３個目のしっかり発話している途中の字幕でプラスマイナスの時間を入力して全体を調整をしてみてください。") %></div>
-													</div>
-												</div>
-											</div>
-
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("④作業中のデータの保存") %></div>
-													</div>
-												</div>
-				
-												<div class="row">
-													<div class="col-auto mb-1">											
-														<input class="btn btn-primary btn-sm cmn-btn" id="saveAppDataButton" type="button" value="<%- __("データを保存") %>" name="saveAppDataButton" />
-													</div>
-													<div class="col mb-1">
-														<input id="appDataFileName" name="appDataFileName" type="text" class="form-control btn-sm" value="" placeholder="<%- __("ファイル名") %>" aria-label="">
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。") %></div>
-														<div class="small ms-3"><%- __("ローカルに保存された動画または音声ファイルパスは保存されません。編集するたびに都度読み込んでください。") %></div>
-													</div>
-												</div>
-											</div>
-
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("⑤作業中のデータの読み込み") %></div>
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col-auto mb-1">
-														<input class="btn btn-primary btn-sm cmn-btn" id="loadAppDataButton" type="button" value="<%- __("ファイルを選択") %>" name="loadAppDataButton" />
-														<input class="form-control" id="appDataFile" type="file" accept=".captionEditor, .jimakuEditor" style="display:none;"/>	
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("保存した作業中のデータを読み込んで続きを行うことができます。") %></div>
-													</div>
-												</div>
-											</div>
-				
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("⑥編集したデータエクスポート") %></div>
-													</div>
-												</div>
-					
-												<div class="row">
-													<div class="col-auto mb-1">		
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsCsvButton" type="button" value="<%- __("CSVファイル（.csv）で保存") %>" name="saveAsCsvButton" />
-													</div>
-													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsTextButton" type="button" value="<%- __("テキスト（.txt）で保存") %>" name="saveAsTextButton" />
-													</div>
-													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtButton" />
-														<div id="toExportSrtSpinner"></div>
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。") %></div>
-														<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存後、作成してください。", "https://jimakudata.udtalk.jp") %></div>
-													</div>
-												</div>
-											</div>
-
-											<hr />
-
-											<div class="mb-3">
-												<div class="row">
-													<div class="col-auto mb-1">
-														<div class="form-label"><%- __("【おまけ】ハコ割りをして内容を編集する") %></div>
-													</div>
-												</div>
-					
-												<div class="row">
-													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でハコ割りをする") %>" name="convertToSrtButton" />
-													</div>
-												</div>
-
-												<div class="row mb-3">
-													<div class="col mb-1">
-														<div class="small ms-3"><%- __("現在の編集結果を字幕を表示するのに適度な長さに分割してからマニュアルで内容を編集できます。") %></div>
-													</div>
-												</div>
-
-												<div class="row">
-													<div class="col-auto mb-1">	
-														<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
-														<div id="toExportSrtSpinner"></div>
-														<div class="form-check">
-															<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
-															<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>
-														</div>	
-														<div class="small ms-3"><%- __("ハコ割りを保持して字幕ファイルを作成します。") %></div>
-														<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>	
-								</div>				
-							</div>
-						</div>
-
-						<div class="accordion-item">
-							<h2 class="accordion-header" id="mainMenu-menu2-header">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu-menu2" aria-expanded="false" aria-controls="mainMenu-menu2">
-									<%- __("ショートカット一覧（クリックして表示／非表示）") %>
-							  	</button>
-							</h2>
-							<div id="mainMenu-menu2" class="accordion-collapse collapse" aria-labelledby="mainMenu-menu2">
-							  	<div class="accordion-body">
-									<div class="row">
-										<div class="col-md">
-											<div class="card">
-												<div class="card-body">
-													<strong class="card-title"><%- __("編集時のショートカットキー") %></strong>
-													<div class="ms-3">
-														<div class="row"><div class="col"><%- __("⌘またはCtrl + ↓") %></div><div class="col"><%- __("再生／停止") %></div></div>
-														<div class="row"><div class="col"><%- __("⌘またはCtrl + ←") %></div><div class="col"><%- __("指定秒戻す") %></div></div>
-														<div class="row"><div class="col"><%- __("⌘またはCtrl + →") %></div><div class="col"><%- __("指定秒送る") %></div></div>
-														<div class="row"><div class="col"><%- __("Enter") %></div><div class="col"><%- __("次の字幕データへ移動") %></div></div>
-														<div class="row"><div class="col"><%- __("⌘またはCtrl + Enter") %></div><div class="col"><%- __("改行") %></div></div>
-														<div class="row"><div class="col"><%- __("⌘またはCtrl + ↑") %></div><div class="col"><%- __("この時間の字幕を表示") %></div></div>
-													</div>
-												</div>
-											</div>		
-										</div>
-										<div class="col-md">
-											<div class="row">
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord1" class="me-3 col-form-label"><span class="small ms-3">F1</span></label>
-														<input id="shortcutWord1" name="shortcutWord1" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord2" class="me-3 col-form-label"><span class="small ms-3">F2</span></label>
-														<input id="shortcutWord2" name="shortcutWord2" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-											</div>
-											<div class="row">
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord3" class="me-3 col-form-label"><span class="small ms-3">F3</span></label>
-														<input id="shortcutWord3" name="shortcutWord3" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord4" class="me-3 col-form-label"><span class="small ms-3">F4</span></label>
-														<input id="shortcutWord4" name="shortcutWord4" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-											</div><div class="row">
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord5" class="me-3 col-form-label"><span class="small ms-3">F5</span></label>
-														<input id="shortcutWord5" name="shortcutWord5" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-												<div class="col p-1">
-													<div class="input-group">
-														<label for="shortcutWord6" class="me-3 col-form-label"><span class="small ms-3">F6</span></label>
-														<input id="shortcutWord6" name="shortcutWord6" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-							  	</div>
-							</div>
-						</div>
-					</div>	
+			<div class="row mb-3">
+				<div class="col">
+					<%- include('translation', {}) %>
 				</div>
+			</div>
+
+			<div class="row mb-3">
+				<div class="col">
+					<%- include('convertBlocks', {}) %>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<div class="col">
+					<%- include('shortcut', {}) %>
+				</div>	
 			</div>
 
 			<hr />
 
-			<div id="audio"></div>
-
 			<div class="row mb-3">	
-				<div class="col-md mb-5">		
-					<div class="row mb-3">
+				<div class="col-md mb-3">	
+					<div class="row">
 						<div class="col">
-							<div class="mb-3 fw-bold" id="videoTitle"></div>
-						</div>
-					</div>
-					<div class="row mb-3">
-						<div class="col text-center">
-							<div>
-								<div class="border mb-3" id="onlineVideoPreview" style="display:none;"></div>
-							</div>
-							<div>
-								<video id="localVideoPreview" width="480px" style="display:none;" controls><p><%- __("ご使用のブラウザでは動画再生に対応していません") %></p></video>
-							</div>
-						</div>
-					</div>
-
-					<div class="row mb-3" style="height: 80px";>
-						<div class="col"></div>
-						<div class="col-auto">
-							<p id="subtitlePreview"></p>
-						</div>
-						<div class="col"></div>
-					</div>
-
-					<div class="row mb-3">
-						<div class="col">
-							<div class="btn-group" role="group" aria-label="Basic example">
-								<button type="button" id="rwButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-backward"></i></button>
-								<button type="button" id="playButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-play"></i></button>
-								<button type="button" id="pauseButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-pause"></i></button>
-								<button type="button" id="ffButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-forward"></i></button>
-							</div>
-						</div>
-						<div class="col-auto">
-							<div class="btn-group" role="group" aria-label="Basic example">
-								<button type="button" id="slowSpeedButton" class="btn btn-sm btn-secondary">x 0.7</button>
-								<button type="button" id="normalSpeedButton" class="btn btn-sm btn-secondary">x 1.0</button>
-								<button type="button" id="fastSpeedButton" class="btn btn-sm btn-secondary">x 1.5</button>
-								<button type="button" id="fastestSpeedButton" class="btn btn-sm btn-secondary">x 2.0</button>
-							</div>
-						</div>
-					</div>
-
-					<div class="row mb-3">
-						<div class="col text-center">
-							<div class="fs-4 time" id="videoTime">00:00:00.000</div>
+							<%- include('videoControl', {}) %>
 						</div>
 					</div>
 
 					<div class="row">
-						<div class="col-auto mb-3 text-center">
-							<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="<%- __("この時間の字幕を表示") %>" name="jumpToSubtitleButton" />
-						</div>
-						<div class="col-auto mb-3 text-center">
-							<input class="btn btn-success btn-sm wide-btn" id="jumpToLastEditedButton" type="button" value="<%- __("編集済みの末尾を表示") %>" name="jumpToLastEditedButton" />
+						<div class="col">
+							<%- include('settings', {}) %>
 						</div>
 					</div>
-
-					<div class="accordion mb-3" id="accordionSettings">
-						<div class="accordion-item">
-						  	<h2 class="accordion-header" id="settings-menu1-header">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu1" aria-expanded="true" aria-controls="settings-menu1">
-									<%- __("動作設定（クリックして表示／非表示）") %>
-								</button>
-						  	</h2>
-						  	<div id="settings-menu1" class="accordion-collapse collapse" aria-labelledby="settings-menu1">
-								<div class="accordion-body">
-									<div class="row mb-3">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="autoStopWhenEdtingStarted" name="autoStopWhenEdtingStarted" value="" checked>
-												<label class="form-check-label" for="autoStopWhenEdtingStarted"><%- __("編集開始時に自動的に再生を停止する") %></label>
-												<div class="small ms-3"><%- __("文字が入力されたタイミングで再生を停止します。文字の削除とショートカットキーによる入力では停止しません。") %></div>
-											</div>
-										</div>
-									</div>
-									<div class="row mb-3 ms-3">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="nonStopWhenDotsInput" name="nonStopWhenDotsInput" value="" checked>
-												<label class="form-check-label" for="nonStopWhenDotsInput"><%- __("句読点の入力では自動的に再生を停止しない") %></label>
-											</div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="autoPlayWhenEdtingFinished" name="autoPlayWhenEdtingFinished" value="" checked>
-												<label class="form-check-label" for="autoPlayWhenEdtingFinished"><%- __("編集を完了（エンターキー押下）で自動的に再生を開始する") %></label>
-											</div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<label for="seekingSeconds" class="me-3 col-form-label"><%- __("早戻しと早送りの間隔（秒）") %></label>
-										</div>
-										<div class="col">				
-											<input id="seekingSeconds" name="seekingSeconds" type="text" class="form-control" value="5" placeholder="" aria-label="" style="text-align: right;">
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<label for="playbackSeconds" class="me-3 col-form-label"><%- __("再生を再開時に戻す間隔（秒）") %></label>	
-										</div>
-										<div class="col">	
-											<input id="playbackSeconds" name="playbackSeconds" type="text" class="form-control" value="2" placeholder="" aria-label="" style="text-align: right;">
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="showPreviewAlways" name="showPreviewAlways" value="">
-												<label class="form-check-label" for="showPreviewAlways"><%- __("ハコ割り前でもプレビューを表示する") %></label>
-											</div>
-										</div>
-									</div>
-								</div>
-						  	</div>
+					
+				<% if (mediaType == "file") { %>
+					<div class="row">
+						<div class="col">
+							<%- include('speechRecognition', {}) %>
 						</div>
 					</div>
-				
-					<% if (mediaType == "file") { %>
-					<div class="row mb-3">
-						<div class="col-auto">
-							<button class="btn btn-primary btn-sm wide-btn" id="speechRecognitionButton" type="button" value="" name="speechRecognitionButton"><%- __("音声認識結果を取得") %></button>
-							<div id="toRunSpeechRecognitionSpinner"></div>
-						</div>
-						<div class="col-auto">
-							<div><%- __("接続エンジン名") %> : </span><span id="acpGrammarFileNamesLabel"></div>
-							<div><%- __("選択中の公開辞書1") %> : </span><span id="publicDictionaryLabel1"></div>
-							<div><%- __("選択中の公開辞書2") %> : </span><span id="publicDictionaryLabel2"></div>
-						</div>
-					</div>
-
-					<div class="accordion" id="accordionSettings">
-						<div class="accordion-item">
-							<h2 class="accordion-header" id="settings-menu2-header">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-menu2" aria-expanded="false" aria-controls="settings-menu2">
-									<%- __("音声認識設定（クリックして表示／非表示）") %>
-								</button>
-							</h2>
-							<div id="settings-menu2" class="accordion-collapse collapse" aria-labelledby="settings-menu2">
-								<div class="accordion-body">
-									<div class="row small mb-3">
-										<div class="col">
-											<div class="mb-3"><%- __("音声認識API<a href='%s' target='_blank' rel='noopener'>AmiVoice Cloud Platform</a>のAmiVoice APIを使用して音声認識の結果を取得します。", "https://acp.amivoice.com") %></div>
-											<div class="mb-3">
-												<div><%- __("読み込んだ動画または音声ファイルに対して音声認識処理を行いテキスト化します。動画の場合はブラウザ上で音声を抽出しサーバーにアップロードします。") %></div>
-												<div><%- __("音声認識APIのご利用は有料となります（※毎月60分無料枠があるのでお試しいただけます）") %></div>
-											</div>
-											<div class="mb-3"><%- __("①AmiVoice Cloud Platformのページを開き右上のメニューからサービスを開き「AmiVoice API」をクリックします。初めての方は「無料で利用を開始」で始めてください。既にご利用の方はマイページを開きます。") %></div>
-											<div class="mb-3"><%- __("②左のメニューの「接続情報」をクリックし「APPKEY」に表示されている文字列をコピーします。このAPPKEYはとても重要な情報なので取り扱いにはご注意ください。") %></div>
-											<div class="mb-3"><%- __("③「字幕エディター」に戻り「音声認識設定」の「APPKEY」にペーストします。APPKEYをブラウザに保存しておきたいときは「APPKEYをブラウザに保存する」にチェックを入れてください。") %></div>
-											<div class="mb-3"><%- __("④AmiVoice Cloud Platformのご利用内容に応じて「接続エンジン名」の設定を変更できます。初期値は「会話_汎用」が設定されています。") %></div>
-											<div class="mb-3"><%- __("⑤音声認識サーバーで「ログ保存あり」または「ログ保存なし」を選択します。内容の機密性に応じて選択してご利用ください。") %></div>
-											<div class="mb-3"><%- __("⑥「音声認識結果を取得」ボタンを押します。ファイルの長さによっては時間はかかりますが、ページを閉じないでしばらくお待ちください。音声認識が完了すると右側に認識結果が表示されます。") %></div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div class="h4"><%- __("APPKEY") %></div>
-											<input id="acpAppKey" name="acpAppKey" type="text" class="form-control" value="" placeholder="" aria-label="">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="saveAppKey" name="saveAppKey" value="" checked>
-												<label class="form-check-label" for="saveAppKey"><%- __("APPKEYをブラウザに保存する") %></label>
-											</div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div class="h4"><%- __("UDトークの公開辞書") %></div>		
-											<div class="row mb-3">
-												<div class="small ms-3"><%- __("<a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>で作成した公開辞書を選択して読み込むことができます。", "https://words.udtalk.jp") %></div>
-												<div class="small ms-3"><%- __("単語登録画面でアクセストークンを生成してセットすると作成済みの公開辞書をプルダウンで選択して音声認識することができます。") %></div>
-											</div>
-						
-											<div class="row mb-3">
-												<div class="col">
-													<div><%- __("アクセストークン") %></div>								
-													<input id="accessToken" name="accessToken" type="text" class="form-control" value="" placeholder="" aria-label="">
-												</div>
-											</div>
-
-											<div class="row mb-3">
-												<div class="col">
-													<div><%- __("辞書を選択（2つ選択できます）") %></div>
-													<select class="form-select mb-1" id="publicDictionariesSelect1">
-																
-													</select>
-													<select class="form-select" id="publicDictionariesSelect2">
-																
-													</select>
-												</div>
-											</div>
-										</div>
-									</div>	
-
-									
-
-									<div class="row mb-3">
-										<div class="col">
-											<div class="h4"><%- __("単語登録") %></div>
-
-											<div class="row mb-3">
-												<div class="col mb-1">
-													<textarea id="acpProfileWords" name="acpProfileWords" class="form-control" aria-label=""></textarea>
-													<div class="small ms-3"><%- __("書き表記,[またはタブ]読み表記[改行]を繰り返して入力してください。") %></div>
-													<div class="small ms-3"><%- __("読み表記はひらがなかカタカナで入力してください。") %></div>
-													<div class="small ms-3"><%- __("ひらがなやカタカナのみの書き表記の場合も読み表記を入力してください。") %></div>
-												</div>
-											</div>
-											
-											<div class="row">
-												<div class="col-auto mb-1">											
-													<input class="btn btn-primary btn-sm cmn-btn" id="saveAcpWordDataButton" type="button" value="<%- __("単語を保存") %>" name="saveAcpWordDataButton" />
-												</div>
-												<div class="col mb-1">
-													<input id="acpWordDataFileName" name="acpWordDataFileName" type="text" class="form-control btn-sm" value="" placeholder="<%- __("ファイル名") %>" aria-label="">
-												</div>
-											</div>
-											
-											<div class="row mb-3">
-												<div class="col mb-1">
-													<div class="small ms-3"><%- __("保存先に同じファイル名がある場合はブラウザが自動的にリネームをして保存します。") %></div>
-												</div>
-											</div>
-												
-											<div class="row">
-												<div class="col-auto mb-1">
-													<input class="btn btn-primary btn-sm cmn-btn" id="loadAcpWordDataButton" type="button" value="<%- __("ファイルを選択") %>" name="loadAcpWordDataButton" />
-													<input class="form-control" id="acpWordDataFile" type="file" accept=".txt, .csv, .tsv" style="display:none;"/>	
-												</div>
-											</div>
-											
-											<div class="row">
-												<div class="col mb-1">
-													<div class="small ms-3"><%- __("保存した単語を読み込みます。以前の内容はクリアされるので変更した場合は保存をしてから読み込んでください。") %></div>
-												</div>
-											</div>
-										</div>
-									</div>		
-									<div class="row mb-3">
-										<div class="col">
-											<div class="h4"><%- __("接続エンジン名") %></div>
-											<select class="form-select" id="acpGrammarFileNameSelect">
-												<option value="-a-general" selected><%- __("会話_汎用") %></option>
-												<option value="-a-general-en"><%- __("英語_汎用") %></option>
-												<option value="-a-general-zh"><%- __("中国語_汎用") %></option>
-												<option value="-a-medgeneral"><%- __("会話_医療") %></option>
-												<option value="-a-bizmrreport"><%- __("会話_製薬") %></option>
-												<option value="-a-bizfinance"><%- __("会話_金融") %></option>
-												<option value="-a-bizinsurance"><%- __("会話_保険") %></option>
-											</select>
-											<div class="small ms-3"><%- __("音声認識エンジンはAmiVoice Cloud Platformのマイページ内の「プラン申込」で行うことができます。価格もそちらでご確認ください。") %></div>
-										</div>
-									</div>		
-									<div class="row mb-3">
-										<div class="col-sm">
-											<div class="h4"><%- __("オプション設定") %></div>
-											<select class="form-select" id="acpLoggingOptOut" name="acpLoggingOptOut" aria-label="<%- __("オプション設定") %>">
-												<option value="0" selected><%- __("ログ保存あり") %></option>
-												<option value="1"><%- __("ログ保存なし") %></option>
-											</select>
-											<div class="small ms-3"><%- __("ログ保存ありとなしで価格が異なります。詳しくはAmiVoice Cloud Platformのマイページ内でご確認ください。") %></div>
-										</div>
-									</div>
-									<div class="row mb-3">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="ignoreReplyToken" name="ignoreReplyToken" value="" checked>
-												<label class="form-check-label" for="acpDiarization"><%- __("「はい」「うん」などの相槌をカットする（日本語のみ）") %></label>
-											</div>
-										</div>
-									</div>	
-									<div class="row">
-										<div class="col">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" value="" id="acpDiarization" name="acpDiarization" value="">
-												<label class="form-check-label" for="acpDiarization"><%- __("話者識別を行う") %></label>
-											</div>
-										</div>
-									</div>	
-									<div class="row">
-										<div class="col">
-											<label for="acpDiarizationCount" class="mx-3"><%- __("識別する人数") %></label>	
-											<div class="small ms-3"><%- __("音声認識と同時に最大で10人の話者を識別して表示します。") %></div>
-										</div>
-										<div class="col">	
-											<input id="acpDiarizationCount" name="acpDiarizationCount" type="text" class="form-control" value="10" placeholder="" aria-label="" style="text-align: right;">
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					<% } %>
+				<% } %>
 				</div>
 
-				<div class="col-md mb-5">
-					<div class="row mb-1">
-						<div class="col-auto mb-1" >											
+				<div class="col-md mb-3">
+					<div class="row mb-3">
+						<div class="col" >											
 							<input class="btn btn-primary btn-sm" id="quickSaveAppDataButton" type="button" value="<%- __("今すぐデータを保存") %>" name="quickSaveAppDataButton" />
 						</div>
 					</div>
+
 					<div class="row mb-3">
 						<div class="col">
 							<div class="box border" id="scroller">
@@ -724,53 +172,19 @@
 
 					<div class="row mb-3">
 						<div class="col">
-							<div class="accordion" id="accordionEditing">
-								<div class="accordion-item">
-									<h2 class="accordion-header" id="accordionEditing-header">
-										<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordionEditing-menu" aria-expanded="false" aria-controls="accordionEditing-menu">
-											<%- __("編集（クリックして表示／非表示）") %>
-										</button>
-									</h2>
-									<div id="accordionEditing-menu" class="accordion-collapse collapse" aria-labelledby="accordionEditing-menu">
-										<div class="accordion-body">
-											<div class="row mb-3">
-												<div class="col">
-													<div class="input-group">
-														<label for="searchWord" class="me-3 col-form-label"><span class="small ms-3"><%- __("検索") %></span></label>
-														<input id="searchWord" name="searchWord" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-											</div>
-											<div class="row mb-3">
-												<div class="col">
-													<div class="input-group">
-														<label for="replaceWord" class="me-3 col-form-label"><span class="small ms-3"><%- __("置換") %></span></label>
-														<input id="replaceWord" name="replaceWord" type="text" class="form-control" value="" placeholder="" aria-label="">
-													</div>
-												</div>
-											</div>
-											<div class="row mb-3">
-												<div class="col">
-													<button class="btn btn-primary" type="button" id="replaceAllButton"><%- __("全て置換する") %></button>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
+							<%- include('findAndReplace', {}) %>
 						</div>
 					</div>
 				</div>
 			</div>
-
-			<div class="container">
-				<div class="mb-3 small" style="text-align: center;">
-					Copyright © <a href="https://udtalk.jp"><%- __("UDトーク") %></a>. All Rights Reserved.
-				</div>
-			</div>
-			
 		</div>
 		
+		<div class="row mb-3">	
+			<div class="col">
+				<div class="mb-3 small" style="text-align: center;">Copyright © <a href="https://udtalk.jp"><%- __("UDトーク") %></a>. All Rights Reserved.</div>
+			</div>
+		</div>
+
 		<script>
 			let ytPlayer = null ;
 			let localPlayer = null ;
@@ -779,7 +193,7 @@
 			let mediafile = null ;
 			let appDataProperties = {} ;
 
-			$(function () {
+			$(async function () {
 				restoreSettings() ;
 
 				updatePublicDictionaryComboBox() ;
@@ -795,6 +209,8 @@
 
 					let publicDictionaryLabel2 = $("#publicDictionariesSelect2 option:selected").text() ;
 					$('#publicDictionaryLabel2').text(publicDictionaryLabel2) ;
+
+					appDataProperties["language"] = $("#fromLanguageSelect").val() ;
 				} ;
 
 				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
@@ -814,6 +230,8 @@
 				$("#replacingDots").on('change', eventListener) ;
 				$("#showPreviewAlways").on('change', eventListener) ;
 				$("#acpDiarizationCount").on('change', eventListener) ;
+				
+				$("#fromLanguageSelect").on('change', eventListener) ;
 				
 				$("#accessToken").on('change', (e) => {
 					storeSettings() ;
@@ -839,6 +257,21 @@
 					return "" ;
 				});
 
+				let result = await getTranslationLanguages("ja") ;
+				let languages = result.data.languages ;
+
+				$("#fromLanguageSelect").empty() ;
+				$("#toLanguageSelect").empty() ;
+
+				for (let key in languages) {
+					let language = languages[key] ;
+
+					$("#fromLanguageSelect").append($("<option></option>").attr("value", language.language).text(language.name));
+					$("#toLanguageSelect").append($("<option></option>").attr("value", language.language).text(language.name));
+				}
+				
+				$("#fromLanguageSelect").val("ja") ;
+
 				$(window).keydown(function(e){
 					if (e.originalEvent.code == "F1" ||
 						e.originalEvent.code == "F2" ||
@@ -862,8 +295,6 @@
 						let textClassName = "#text" + Number(i) ;
 
 						let text = $(textClassName).val() ;
-
-						console.log(text) ;
 
 						text = text.replaceAll(searchWord, replaceWord) ;
 
@@ -928,6 +359,7 @@
 							// SRT File
 							lines = [] ;
 							details = [] ;
+							appDataProperties = {} ;
 
 							for (let key in srtElements) {
 								let srt = srtElements[key] ;
@@ -942,12 +374,13 @@
 								details.push({}) ;
 							}
 
-							console.log(lines); 
+							appDataProperties["converted"] = true ; 
 						} else {
 							// CSV File
 							lines = convertToArray(content) ;
 
 							details = [] ;
+							appDataProperties = {} ;
 
 							let isFirstLine = true ;
 
@@ -984,6 +417,10 @@
 								details.push({}) ;
 							}
 						}
+
+						appDataProperties["language"] = "ja" ;
+
+						$("#fromLanguageSelect").val(appDataProperties["language"]) ;
 
 						updateSubtitleData() ;
 					}) ;
@@ -1035,12 +472,16 @@
 				*/
 				
 					// Speech Recognition by AmiVoice Cloud Platform
-					await runSpeechRecognition((message) => {
+					await runSpeechRecognition((message, language) => {
 					
 						if (message != "") {
 							alert(message) ;
 						}
 						
+						appDataProperties["language"] = language ;
+
+						$("#fromLanguageSelect").val(appDataProperties["language"]) ;
+
 						$("#speechRecognitionButton").html("<%- __('音声認識結果を取得') %>") ;
 					}) ;
 				}) ;
@@ -1160,17 +601,23 @@
 						element["startTime"] = startTime ;
 						element["endTime"] = endTime ;
 						element["content"] = line[2] ;
+						element["translation"] = line[3] ;
 
 						copiedLines.push(element) ;
 					}
 
-					let content = await generateSrtData(copiedLines, true) ;
+					let content = await generateSrtData(copiedLines, true, appDataProperties["language"]) ;
 
 					let fileName = $("#appDataFileName").val() ;
 
 					fileName = fileName.replaceAll(".captionEditor", "") ;
 					fileName = fileName.replaceAll(".jimakuEditor", "") ;
-					fileName += ".ja_JP.srt" ;
+
+					if (appDataProperties["language"] == "ja") {
+						fileName += ".ja_JP.srt" ;
+					} else {
+						fileName += "." + appDataProperties["language"] + ".srt" ;
+					}
 
 					$("#toExportSrtSpinner").empty() ;
 
@@ -1230,11 +677,12 @@
 						element["startTime"] = startTime ;
 						element["endTime"] = endTime ;
 						element["content"] = line[2] ;
+						element["translation"] = line[3] ;
 
 						copiedLines.push(element) ;
 					}
 
-					let content = await convertSrtData(copiedLines, false) ;
+					let content = await convertSrtData(copiedLines, false, appDataProperties["language"]) ;
 					
 					$("#toExportSrtSpinner").empty() ;
 					
@@ -1254,10 +702,6 @@
 					}
 
 					$("#offsetTimeLength").val("0") ;
-
-					if (appDataProperties == undefined || appDataProperties == null) {
-						appDataProperties = {} ;
-					}
 
 					appDataProperties["converted"] = true ;
 
@@ -1321,7 +765,12 @@
 
 					fileName = fileName.replaceAll(".captionEditor", "") ;
 					fileName = fileName.replaceAll(".jimakuEditor", "") ;
-					fileName += ".ja_JP.srt" ;
+
+					if (appDataProperties["language"] == "ja") {
+						fileName += ".ja_JP.srt" ;
+					} else {
+						fileName += "." + appDataProperties["language"] + ".srt" ;
+					}
 
 					saveAsFile(srtData, fileName) ;
 				}) ;
@@ -1399,41 +848,8 @@
 
 				// AppData save&load
 				function saveAppDataFunction(e) {
-					let fileName = $("#appDataFileName").val() ;
-					
-					if (fileName == undefined || fileName == null || fileName == "") {
-						alert("ファイル名を入力してください。") ;
-						return ;
-					}
-
-					let appData = {} ;
-
-					commitAppData() ;
-					
-					if ($("#videoURL").val() != undefined) {
-						appData["videoURL"] = $("#videoURL").val() ;
-					}
-
-					appData["lines"] = lines ;
-					appData["details"] = details ;
-					appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
-					appData["appDataFileName"] = $("#appDataFileName").val() ;
-					
-					let shortcutWords = {} ;
-
-					shortcutWords["shortcutWord1"] = $("#shortcutWord1").val() ;
-					shortcutWords["shortcutWord2"] = $("#shortcutWord2").val() ;
-					shortcutWords["shortcutWord3"] = $("#shortcutWord3").val() ;
-					shortcutWords["shortcutWord4"] = $("#shortcutWord4").val() ;
-					shortcutWords["shortcutWord5"] = $("#shortcutWord5").val() ;
-					shortcutWords["shortcutWord6"] = $("#shortcutWord6").val() ;
-
-					appData["shortcutWords"] = shortcutWords ;
-
-					appData["properties"] = appDataProperties ;
-
-					saveAsFile(JSON.stringify(appData) , fileName) ;
-				} ;
+					saveAppData(lines, details, appDataProperties) ;
+				}
 
 				$("#saveAppDataButton").on("click", saveAppDataFunction) ;
 				$("#quickSaveAppDataButton").on("click", saveAppDataFunction) ;
@@ -1481,6 +897,12 @@
 						let appDataFileName = appData["appDataFileName"] ;
 
 						appDataProperties = appData["properties"] == undefined ? {} : appData["properties"] ;
+
+						if (appDataProperties["language"] == undefined) {
+							appDataProperties["language"] = "ja" ;
+						}
+
+						$("#fromLanguageSelect").val(appDataProperties["language"]) ;
 
 						$("#offsetTimeLength").val(offsetTimeLength) ;
 						$("#videoURL").val(videoURL) ;
@@ -1568,6 +990,7 @@
 			function updateSubtitleData() {
 				let offsetTime = Number($("#offsetTimeLength").val()) ;
 				let converted = appDataProperties["converted"] ;
+				let translated = appDataProperties["translated"] ;
 
 				$("#subtitles").empty() ;
 
@@ -1581,7 +1004,7 @@
 						continue ;
 					}
 
-					$("#subtitles").append(subtitleBlock(i, line, detail, offsetTime, converted)) ;
+					$("#subtitles").append(subtitleBlock(i, line, detail, offsetTime, converted, translated)) ;
 
 					let textClassName = "#text" + Number(i) ;
 					let nextTextClassName = "#text" + (Number(i) + 1) ;
@@ -1803,9 +1226,15 @@
 
 				line1[1] = line2[1] ;
 
+				let insertChars = "" ;
+
+				if (appDataProperties["language"] != "ja") {
+					insertChars = " " ;
+				}
+
 				for (let key = 2; key < line1.length; key++) {
 					if (line1[key] != line2[key]) {
-						line1[key] = line1[key] + line2[key] ;
+						line1[key] = line1[key] + insertChars + line2[key] ;
 					}
 				}
 				
@@ -1864,7 +1293,7 @@
 				$("#scroller")[0].scrollTop = scrollTop ;
 			}
 
-			function subtitleBlock(index, subtitleData, detailData, offsetTime, converted) {
+			function subtitleBlock(index, subtitleData, detailData, offsetTime, converted , translated) {
 				let startTime = subtitleData[0] + offsetTime ;
 				let endTime = subtitleData[1] + offsetTime ;
 				let checked = detailData["edited"] ? "checked" : "" ;
@@ -1914,6 +1343,12 @@
 											</div>` ;
 				}
 
+				let originalText = "" ;
+
+				if (translated && subtitleData[3] != undefined && subtitleData[3] != ""  && subtitleData[3] != null) {
+					originalText = '<div class="row p-0 mx-3 mb-3 small">' + subtitleData[3] + '</div>' ;
+				}
+
 				return `<tr>
 							<td>
 								<div class="row" id="subtitle${index}">
@@ -1927,7 +1362,10 @@
 										</div>
 									</div>
 								</div>
-								<div class="row py-0">
+								
+								${originalText}
+								
+								<div class="row py-0 mb-1">
 									<textarea id="text${index}">${subtitleData[2]}</textarea>
 								</div>
 								<div class="row py-0 mb-2">			
@@ -1936,222 +1374,6 @@
 								</div>
 							</td>
 						</tr>` ;
-			}
-
-			// Local API
-			function loadLocalVideo(file) {
-				localPlayer = $("#localVideoPreview").get(0) ;
-
-				localPlayer.src = URL.createObjectURL(file) ;	
-				
-				$("#localVideoPreview").css("display", "initial") ;	
-
-				$("#localVideoPreview").on("timeupdate", function(e) {
-					updatePlayingTime(localPlayer.currentTime) ;
-				}) ;
-			
-				$("#localVideoPreview").on("loadedmetadata", function(e) {
-					
-				});
-
-				$("#videoTitle").text(file.name) ;
-
-				let fileTitle = file.name.split('.').slice(0, -1).join('.')
-				$("#appDataFileName").val(fileTitle + ".jimakuEditor") ;
-
-				updatePlayingTime(0) ;
-			}
-
-			// YouTube API
-			function loadOnlineVideo(videoURL) {
-				if (videoURL == "") {
-					alert("YouTube動画のURLを入力してください。") ;
-					return ;
-				}
-				
-				let videoId = getVideoIdFromYouTubeURL(videoURL) ;
-
-				if (videoId == "") {
-					alert("YouTube動画のURLではありません。") ;
-					return ;
-				}
-
-				if (ytPlayer != null) {
-					ytPlayer.destroy() ;
-				}
-
-				$("#onlineVideoPreview").css("display", "initial") ;
-
-				ytPlayer = new YT.Player(
-					"onlineVideoPreview",
-						{
-						width: 16*30,
-						height: 9*30,
-						videoId: videoId,
-						
-						events: {
-							'onReady': onPlayerReady,
-							'onStateChange': onPlayerStateChange,
-							'onError': onPlayerError
-						}
-					}
-				);
-			}
-
-			let playingTimer = null ;
-
-			function onPlayerReady(event) {				
-				$("#videoTitle").text(ytPlayer.getVideoData().title) ;
-
-				if ($("#appDataFileName").val() == "") {
-					$("#appDataFileName").val(ytPlayer.getVideoData().title + ".jimakuEditor") ;
-				}
-				
-				updatePlayingTime(ytPlayer.getCurrentTime()) ;
-			}
-
-			function onPlayerStateChange(event) {
-				switch (event.data) {
-					case YT.PlayerState.ENDED:
-						clearTimeout(playingTimer);
-						playingTimer = null ;
-						console.log("YT.PlayerState.ENDED") ;
-						break ;
-					case YT.PlayerState.PLAYING:
-						clearTimeout(playingTimer);
-						playingTimer = setInterval(onPlaying, 200);
-						console.log("YT.PlayerState.PLAYING") ;
-						break ;
-					case YT.PlayerState.PAUSED:
-						playerPlaying = false ;
-						clearTimeout(playingTimer);
-						playingTimer = null ;
-						console.log("YT.PlayerState.PAUSED") ;
-						break ;
-					case YT.PlayerState.BUFFERING:
-						console.log("YT.PlayerState.BUFFERING") ;
-						break ;
-					case YT.PlayerState.CUED:
-						console.log("YT.PlayerState.CUED") ;
-						break ;
-				}
-			}
-
-			function onPlaying() {
-				updatePlayingTime(ytPlayer.getCurrentTime()) ;
-			}
-
-			function onPlayerError(event) {
-
-			}
-
-			function updatePlayingTime(currentTime) {
-				$("#videoTime").text(secToTime(Number(currentTime), '.')) ;
-
-				if ($('#showPreviewAlways').prop("checked") || appDataProperties["converted"] == true) {
-					let subtitle = getCurrentSubtitle(currentTime) ;
-
-					subtitle = subtitle.replaceAll("\n", "<br />") ;
-
-					$("#subtitlePreview").html(subtitle) ;
-				} else {
-					$("#subtitlePreview").html("") ;
-				}
-			}
-
-			function getVideoIdFromYouTubeURL(url) {
-				var parser = new URL(url) ;
-
-				if (parser.hostname == "youtu.be") {
-					return parser.pathname ;
-				} else {
-					if (parser.searchParams.has("v")) {
-						return parser.searchParams.get("v") ;
-					}
-				}
-
-				return "" ;
-			}
-
-			// Player wrapper
-			function playVideo() {
-				subtitleIndex = 0 ;
-
-				if (ytPlayer) {
-					return ytPlayer.playVideo() ;
-				} else if (localPlayer) {
-					return localPlayer.play() ;
-				}
-			}
-
-			function pauseVideo() {
-				if (ytPlayer) {
-					return ytPlayer.pauseVideo()
-				} else if (localPlayer) {
-					return localPlayer.pause() ;
-				}
-			}
-
-			function isPlayingVideo() {
-				if (ytPlayer) {
-					return playingTimer != null ;
-				} else if (localPlayer) {
-					return localPlayer.paused == false ;
-				}
-			}
-
-			function seekToVideo(time, autoPlay) {
-				subtitleIndex = 0 ;
-
-				if (ytPlayer) {
-					ytPlayer.seekTo(time) ;
-					if (autoPlay) {
-						ytPlayer.playVideo() ;
-					}
-				} else if (localPlayer) {
-					localPlayer.currentTime = time ;
-					if (autoPlay) {
-						localPlayer.play() ;
-					}
-				}
-			}
-
-			function playingGetCurrentTime() {
-				if (ytPlayer) {
-					return ytPlayer.getCurrentTime();
-				} else if (localPlayer) {
-					return localPlayer.currentTime ;
-				}
-			}
-
-			function setPlaybackRate(rate) {
-				if (ytPlayer != null) {
-					ytPlayer.setPlaybackRate(rate) ;
-				} else if (localPlayer) {
-					localPlayer.playbackRate = rate ;
-				}
-			}
-
-			function playingToggle() {
-				if (!isPlayingVideo()) {
-					playVideo()
-				} else {
-					pauseVideo() ;
-				}
-			}
-
-			function playingFastForword(sec) {
-				let currentTime = playingGetCurrentTime();
-
-				seekToVideo(currentTime + sec, false) ;
-				updatePlayingTime(currentTime + sec) ;
-			}
-
-			function playingRewind(sec) {
-				let currentTime = playingGetCurrentTime();
-
-				seekToVideo(currentTime - sec, false) ;
-				updatePlayingTime(currentTime - sec) ;
 			}
 
 			// Shortcut
@@ -2418,6 +1640,264 @@
 				}
 
 				return await fetch("/jimakueditor/get_public_dictionaries", param).then(response => response.json()) ;
+			}
+
+			function saveAppData(_lines, _details, _appDataProperties) {
+				let fileName = $("#appDataFileName").val() ;
+				
+				if (fileName == undefined || fileName == null || fileName == "") {
+					alert("ファイル名を入力してください。") ;
+					return ;
+				}
+
+				let appData = {} ;
+
+				commitAppData() ;
+				
+				if ($("#videoURL").val() != undefined) {
+					appData["videoURL"] = $("#videoURL").val() ;
+				}
+
+				appData["lines"] = _lines ;
+				appData["details"] = _details ;
+				appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
+				appData["appDataFileName"] = $("#appDataFileName").val() ;
+				
+				let shortcutWords = {} ;
+
+				shortcutWords["shortcutWord1"] = $("#shortcutWord1").val() ;
+				shortcutWords["shortcutWord2"] = $("#shortcutWord2").val() ;
+				shortcutWords["shortcutWord3"] = $("#shortcutWord3").val() ;
+				shortcutWords["shortcutWord4"] = $("#shortcutWord4").val() ;
+				shortcutWords["shortcutWord5"] = $("#shortcutWord5").val() ;
+				shortcutWords["shortcutWord6"] = $("#shortcutWord6").val() ;
+
+				appData["shortcutWords"] = shortcutWords ;
+
+				appData["properties"] = _appDataProperties ;
+
+				saveAsFile(JSON.stringify(appData) , fileName) ;
+			} ;
+
+			let translationDialog ;
+
+			async function onClickModalTranslationDialogButton() {
+				if (lines.length == 0) {
+					alert("データを読み込んでください。") ;
+					return ;
+				}
+
+				if (appDataProperties["converted"] == true) {
+					alert("すでにハコ割りされています。翻訳はハコ割り前のデータを使って行ってください。") ;
+					return ;
+				}
+
+				if (appDataProperties["translated"] == true) {
+					if (!window.confirm("すでに翻訳されています。内容が上書きされるので現在の作業中のデータを一度保存してからこの処理を行うことをお勧めします。続行しますか？")) {
+						return ;
+					}
+				}
+					
+				let toLanguage = localStorage.getItem("toLanguage") ;
+
+				if (toLanguage != undefined) {
+					$('#toLanguageSelect').val(toLanguage) ;
+				} else {
+					$('#toLanguageSelect').val("en") ;
+				}
+
+				translationDialog = new bootstrap.Modal(document.getElementById('translationDialog'));
+				translationDialog.show() ;
+			}
+
+			async function onClickMakeTranslationButton() {
+				$("#makeTranslationButton").prop("disabled", true);
+				$("#makeTranslationCancelButton").prop("disabled", true);
+				
+				let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
+				
+				$("#makingTranslationSpinner").empty() ;
+				$("#makingTranslationSpinner").append(spinner) ;
+
+				let fromLanguage = $("#fromLanguageSelect").val() ;
+				let toLanguage = $("#toLanguageSelect").val() ;
+
+				localStorage.setItem("toLanguage", toLanguage) ;
+
+				if (appDataProperties["translated"] == true) {
+					for (let key in lines) {
+						let line = lines[key] ;
+
+						line[2] = line[3] ;
+						line[3] = "" ;
+						line[5] = line[2] ;
+					}
+
+					fromLanguage = appDataProperties["originalLanguage"] ;
+				}
+
+				if (fromLanguage == toLanguage) {
+					alert("同じ言語への翻訳はできません。") ;
+				} else {
+					lines = await getTranslation(fromLanguage, toLanguage) ;
+
+					appDataProperties["translated"] = true ;
+					appDataProperties["language"] = toLanguage ;
+					appDataProperties["originalLanguage"] = fromLanguage ;
+
+					$("#fromLanguageSelect").val(appDataProperties["language"]) ;
+
+					updateSubtitleData() ;
+				}
+
+				$("#makeTranslationButton").prop("disabled", false);
+				$("#makeTranslationCancelButton").prop("disabled", false);
+				
+				$("#makingTranslationSpinner").empty() ;
+
+				translationDialog.hide();
+			}
+
+			function onClickSaveOriginalDataButton() {
+				if (appDataProperties["translated"] != true) {
+					alert("この操作は翻訳後に行うことができます。") ;
+					return ;
+				}
+
+				let newAppDataProperties = {} ;
+
+				for (let key in appDataProperties) {
+					newAppDataProperties[key] = appDataProperties[key] ;
+				}
+
+				newAppDataProperties["language"] = newAppDataProperties["originalLanguage"] ;
+				
+				delete newAppDataProperties["translated"] ;
+				delete newAppDataProperties["originalLanguage"] ;
+
+				let newLines = [] ;
+
+				for (let key in lines) {
+					let line = lines[key] ;
+
+					let newLine = Array.from(line) ;
+
+					newLine[2] = newLine[3] ;
+					newLine[3] = "" ;
+					newLine[5] = newLine[2] ;
+
+					newLines.push(newLine) ;
+				}
+
+				saveAppData(newLines, details, newAppDataProperties) ;
+			}
+
+			async function getTranslationLanguages(locale) {
+				const headers = {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				};
+
+				const param = {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({"target" : locale}),
+				}
+
+				return await fetch("/jimakueditor/get_translation_languages", param).then(response => response.json()) ;
+			}
+
+			async function getTranslation(from, to) {
+				const headers = {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				};
+
+				const param = {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({
+						"from" : from,
+						"to" : to,
+						"lines" : lines}),
+				}
+
+				return await fetch("/jimakueditor/get_translation", param).then(response => response.json()) ;
+			}
+
+			// unused
+			function onClickSeparateByDotButton() {
+				if (lines.length == 0) {
+					alert("データを読み込んでください。") ;
+					return ;
+				}
+
+				if (appDataProperties["converted"] == true) {
+					alert("すでにハコ割りされています。この操作はハコ割り前のデータを使って行ってください。") ;
+					return ;
+				}
+
+				if (appDataProperties["translated"] == true) {
+					alert("すでに翻訳されています。この操作は翻訳前のデータに対して行うことができます。") ;
+					return ;
+				}
+
+				if (appDataProperties["language"] != "ja") {
+					alert("この操作は日本語の編集データに対してのみ行うことができます。") ;
+					return ;
+				}
+
+				let newLines = [] ;
+				let newDetails = [] ;
+
+				for (let key in lines) {
+					let line = lines[key] ;
+					let detail = details[key] ;
+
+					let duration = line[1] - line[0] ;
+					let text = line[2] ;
+
+					if (text == "") {
+						continue ;
+					}
+
+					let timePerChar = duration / text.length ;
+
+					let blocks = text.split("。") ;
+
+					if (blocks.length > 1) {
+						let startTime = line[0] ;
+
+						for (let blockkey in blocks) {
+							let block = blocks[blockkey] ;
+
+							if (block == "") {
+								continue ;
+							}
+
+							let endTime = startTime + block.length * timePerChar ;
+
+							let newLine = Array.from(line) ;
+
+							newLine[0] = startTime ;
+							newLine[1] = endTime ;
+							newLine[2] = block + "。" ;
+
+							newLines.push(newLine) ;
+							newDetails.push(detail) ;
+
+							startTime = endTime ;
+						}
+					} else {
+						newLines.push(line) ;
+						newDetails.push(detail) ;
+					}
+				}
+
+				lines = newLines ;
+				details = newDetails ;
+
+				updateSubtitleData() ;
 			}
 
 		</script>

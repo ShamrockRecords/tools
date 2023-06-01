@@ -1,0 +1,39 @@
+<div class="accordion" id="accordionConvertBlocks">
+	<div class="accordion-item">
+		<h2 class="accordion-header" id="accordionConvertBlocks-header">
+			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordionConvertBlocks-menu" aria-expanded="false" aria-controls="accordionConvertBlocks-menu">
+				<%- __("ハコ割り（クリックして表示／非表示）") %>
+			</button>
+		</h2>
+		<div id="accordionConvertBlocks-menu" class="accordion-collapse collapse" aria-labelledby="accordionConvertBlocks-menu">
+			<div class="accordion-body">
+				<div class="mb-3">
+					<div class="row">
+						<div class="col-auto mb-1">	
+							<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でハコ割りをする") %>" name="convertToSrtButton" />
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col mb-1">
+							<div class="small ms-3"><%- __("現在の編集結果を字幕を表示するのに適度な長さに分割してからマニュアルで内容を編集できます。") %></div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-auto mb-1">	
+							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
+							<div id="toExportSrtSpinner"></div>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
+								<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>
+							</div>	
+							<div class="small ms-3"><%- __("ハコ割りを保持して字幕ファイルを作成します。") %></div>
+							<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

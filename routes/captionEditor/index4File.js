@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router() ;
+var i18n = require("i18n");
 
 const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
@@ -7,7 +8,7 @@ router.get('/', wrap(async function(req, res, next) {
     res.render('tools/captionEditor/index', {
         appTitle: res.__('字幕エディター for ファイル'),
         rootURL: process.env.ROOT_URL + "/jimakueditor",
-        mediaType: "file",
+        mediaType: "file"
     });		 
 })) ;
 

@@ -1,0 +1,93 @@
+
+<div class="accordion" id="accordionTranslation">
+	<div class="accordion-item">
+		<h2 class="accordion-header" id="accordionTranslation-header">
+			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordionTranslation-menu" aria-expanded="false" aria-controls="accordionTranslation-menu">
+				<%- __("翻訳（クリックして表示／非表示）") %>
+			</button>
+		</h2>
+		<div id="accordionTranslation-menu" class="accordion-collapse collapse" aria-labelledby="accordionTranslation-menu">
+			<div class="accordion-body">
+				<div class="row mb-3">
+					<div class="col">
+						<div class="small"><%- __("1つの発話データをGoogle翻訳APIを使用して選択された言語に翻訳をします。") %></div>
+						<div class="small"><%- __("作成する前に発話の結合と分割して翻訳されやすいブロックに形成してください。") %></div>	
+						<div class="small"><%- __("主語を足したり「。」で終わるようにするなどして翻訳されやすいように書き換えると良い結果が得られます。") %></div>
+					</div>
+				</div>
+
+				<!--
+				<div class="row mb-3">
+					<div class="col">
+						<div class="small"><%- __("前処理としてひとつの発話が長くなりすぎないように「。」で分割することもできます。") %></div>
+						<div class="small"><%- __("※この処理は元に戻せないので一度データを保存しておくことをお勧めします。") %></div>
+					</div>
+				</div>
+				
+				<div class="row mb-3">
+					<div class="col">
+						<button type="button" class="btn btn-primary" onclick="onClickSeparateByDotButton()">
+							<%- __("「。」で発話を分割する") %>
+						</button>
+					</div>
+				</div>
+				-->
+
+				<div class="row mb-3">
+					<div class="col">
+						<div class="small"><%- __("操作メニューの「⑥編集したデータエクスポート」で現在編集している編集データの言語を選択してください。") %></div>
+						<div class="small"><%- __("編集データの言語から選択された言語へ発話単位で翻訳をします。") %></div>
+						<div class="small"><%- __("※この処理は元に戻せないので一度データを保存しておくことをお勧めします。") %></div>
+					</div>
+				</div>
+				
+				<div class="row mb-3">
+					<div class="col">
+						<button type="button" class="btn btn-primary" onclick="onClickModalTranslationDialogButton()">
+							<%- __("言語を選択して翻訳") %>
+						</button>
+					</div>
+				</div>
+
+				<div class="row mb-3">
+					<div class="col">
+						<div class="small"><%- __("翻訳前のデータを保存して原文の編集をやり直すことができます。") %></div>
+					</div>
+				</div>
+
+				<div class="row mb-3">
+					<div class="col">
+						<button type="button" class="btn btn-primary" onclick="onClickSaveOriginalDataButton()">
+							<%- __("翻訳前のデータを保存する") %>
+						</button>
+					</div>
+				</div>
+				
+				<div class="modal fade" id="translationDialog" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="translationDialogLabel" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content">
+						<div class="modal-header">
+						<h5 class="modal-title" id="translationDialogLabel"><%- __("言語を選択して翻訳") %></h5>
+						</div>
+						<div class="modal-body">
+							<div class="row">
+								<div class="col">
+									<%- __("翻訳する言語") %>
+								</div>
+								<div class="col">
+									<select class="form-select mb-1" id="toLanguageSelect"></select>
+								</div>
+							</div>
+						</div>
+						<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" id="makeTranslationCancelButton" data-bs-dismiss="modal"><%- __("閉じる") %></button>
+						<button type="button" class="btn btn-primary" id="makeTranslationButton" onclick="onClickMakeTranslationButton()"><%- __("作成") %></button>
+						</div>
+						<div id="makingTranslationSpinner"></div>
+					</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

@@ -33,6 +33,16 @@ async function runSpeechRecognition(completion) {
         return ;
     }
 
+    let language ;
+
+    if (grammarFileNames.endsWith("-en")) {
+        language = "en" 
+    } else if (grammarFileNames.endsWith("-zh")) {
+        language = "zh" 
+    } else {
+        language = "ja" 
+    }
+
     isSpeechRecognizing = true ;
 
     let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
@@ -153,8 +163,6 @@ async function runSpeechRecognition(completion) {
         }
     }
 
-    console.log(domainId) ;
-
     if (authorization != "") {
         authorization = authorization.trim() ;
         authorization= encodeURIComponent(authorization);
@@ -175,11 +183,11 @@ async function runSpeechRecognition(completion) {
 
     if (data["sessionid"] == undefined) {
         alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
-        completion("") ;
+        completion("", language) ;
         isSpeechRecognizing = false ;
     } else if (data["sessionid"] == "") {
         alert("音声認識を開始することができませんでした。" + "\n" + data["message"]) ;
-        completion("") ;
+        completion("", language) ;
         isSpeechRecognizing = false ;
     } else {
         let sessionId = data["sessionid"] ;
@@ -337,7 +345,7 @@ async function runSpeechRecognition(completion) {
 
                 updateSubtitleData() ;
 
-                completion("") ;
+                completion("", language) ;
                 
                 isSpeechRecognizing = false ;
                 $("#toRunSpeechRecognitionSpinner").empty() ;

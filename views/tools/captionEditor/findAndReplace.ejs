@@ -1,0 +1,35 @@
+
+<div class="accordion" id="accordionEditing">
+	<div class="accordion-item">
+		<h2 class="accordion-header" id="accordionEditing-header">
+			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordionEditing-menu" aria-expanded="false" aria-controls="accordionEditing-menu">
+				<%- __("編集（クリックして表示／非表示）") %>
+			</button>
+		</h2>
+		<div id="accordionEditing-menu" class="accordion-collapse collapse" aria-labelledby="accordionEditing-menu">
+			<div class="accordion-body">
+				<div class="row mb-3">
+					<div class="col">
+						<div class="input-group">
+							<label for="searchWord" class="me-3 col-form-label"><span class="small ms-3"><%- __("検索") %></span></label>
+							<input id="searchWord" name="searchWord" type="text" class="form-control" value="" placeholder="" aria-label="">
+						</div>
+					</div>
+				</div>
+				<div class="row mb-3">
+					<div class="col">
+						<div class="input-group">
+							<label for="replaceWord" class="me-3 col-form-label"><span class="small ms-3"><%- __("置換") %></span></label>
+							<input id="replaceWord" name="replaceWord" type="text" class="form-control" value="" placeholder="" aria-label="">
+						</div>
+					</div>
+				</div>
+				<div class="row mb-3">
+					<div class="col">
+						<button class="btn btn-primary" type="button" id="replaceAllButton"><%- __("全て置換する") %></button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

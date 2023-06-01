@@ -1,4 +1,4 @@
-async function convertSrtData(copiedlines, replacingDots) {
+async function convertSrtData(copiedlines, replacingDots, language) {
 	const headers = {
 		'Accept': 'application/json',
 		  'Content-Type': 'application/json'
@@ -7,17 +7,17 @@ async function convertSrtData(copiedlines, replacingDots) {
 	const param = {
 		method: "POST",
 		headers: headers,
-		body: JSON.stringify(copiedlines),
+		body: JSON.stringify({"lines" : copiedlines, "language" : language}),
 	}
 
 	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
 
-	return generateResult(copiedlines, replacingDots, function(num, tempBeginSec, tempEndSec, tempContent) {
-		return tempBeginSec + ',' + tempEndSec + ',\"' + tempContent + '\"\n' ;
+	return generateResult(copiedlines, replacingDots, language, function(num, tempBeginSec, tempEndSec, tempContent, tempTranslation) {
+		return tempBeginSec + ',' + tempEndSec + ',\"' + tempContent + '\",\"' + tempTranslation + '\"\n' ;
 	}) ;
 }
 
-async function generateSrtData(copiedlines, replacingDots) {
+async function generateSrtData(copiedlines, replacingDots, language) {
 	const headers = {
 		'Accept': 'application/json',
 		  'Content-Type': 'application/json'
@@ -26,12 +26,12 @@ async function generateSrtData(copiedlines, replacingDots) {
 	const param = {
 		method: "POST",
 		headers: headers,
-		body: JSON.stringify(copiedlines),
+		body: JSON.stringify({"lines" : copiedlines, "language" : language}),
 	}
 
 	copiedlines = await fetch("/jimakueditor/data", param).then(response => response.json()) ;
 
-	return generateResult(copiedlines, replacingDots, function(num, tempBeginSec, tempEndSec, tempContent) {
+	return generateResult(copiedlines, replacingDots, language, function(num, tempBeginSec, tempEndSec, tempContent, tempTranslation) {
         let tempBeginTimeF = secToTime(tempBeginSec, ".") ;
         let tempEndTimeF = secToTime(tempEndSec, ".") ;
 
@@ -39,8 +39,12 @@ async function generateSrtData(copiedlines, replacingDots) {
 	}) ;
 }
 
-function generateResult(copiedlines, replacingDots, listener) {
+function generateResult(copiedlines, replacingDots, language, listener) {
 	
+    if (language == null || language == undefined || language == "") {
+        language = "ja" ;
+    }
+
     let dividing = true ;
  
     let result = "" ;
@@ -52,6 +56,7 @@ function generateResult(copiedlines, replacingDots, listener) {
 		let beginTime = elements["startTime"] ;
 		let endTime = elements["endTime"] ;
 		let contentArray = elements["content"] ;
+        let translation = elements["translation"] ;
 
         if (contentArray.length == 0) {
             continue ;
@@ -65,8 +70,8 @@ function generateResult(copiedlines, replacingDots, listener) {
 		}
 
 		timeOfChar = (endTime - beginTime) / contentLength ;
-        
-        let countPerLine = 30 ;
+
+        let countPerLine = (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
         let currnetIndex = 0 ;
         
         let tempContentArray = [] ;
@@ -125,7 +130,7 @@ function generateResult(copiedlines, replacingDots, listener) {
                     let tempEndSec = Number((beginTime).toString()) + tempEndTime ;
 
                     if (tempBeginSec >= 0 && tempEndSec >= 0) {
-                        result += listener(num, tempBeginSec, tempEndSec, contentString) ;
+                        result += listener(num, tempBeginSec, tempEndSec, contentString, translation) ;
                         num++ ;
                     }
                 }

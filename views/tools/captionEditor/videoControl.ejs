@@ -1,0 +1,59 @@
+<div id="audio"></div>
+
+<div class="row mb-3">
+	<div class="col">
+		<div class="mb-3 fw-bold" id="videoTitle"></div>
+	</div>
+</div>
+<div class="row mb-3">
+	<div class="col text-center">
+		<div>
+			<div class="border mb-3" id="onlineVideoPreview" style="display:none;"></div>
+		</div>
+		<div>
+			<video id="localVideoPreview" width="480px" style="display:none;" controls><p><%- __("ご使用のブラウザでは動画再生に対応していません") %></p></video>
+		</div>
+	</div>
+</div>
+
+<div class="row mb-3" style="height: 80px";>
+	<div class="col"></div>
+	<div class="col-auto">
+		<p id="subtitlePreview"></p>
+	</div>
+	<div class="col"></div>
+</div>
+
+<div class="row mb-3">
+	<div class="col">
+		<div class="btn-group" role="group" aria-label="Basic example">
+			<button type="button" id="rwButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-backward"></i></button>
+			<button type="button" id="playButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-play"></i></button>
+			<button type="button" id="pauseButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-pause"></i></button>
+			<button type="button" id="ffButton" class="btn btn-sm px-3 btn-primary"><i class="fas fa-fast-forward"></i></button>
+		</div>
+	</div>
+	<div class="col-auto">
+		<div class="btn-group" role="group" aria-label="Basic example">
+			<button type="button" id="slowSpeedButton" class="btn btn-sm btn-secondary">x 0.7</button>
+			<button type="button" id="normalSpeedButton" class="btn btn-sm btn-secondary">x 1.0</button>
+			<button type="button" id="fastSpeedButton" class="btn btn-sm btn-secondary">x 1.5</button>
+			<button type="button" id="fastestSpeedButton" class="btn btn-sm btn-secondary">x 2.0</button>
+		</div>
+	</div>
+</div>
+
+<div class="row mb-3">
+	<div class="col text-center">
+		<div class="fs-4 time" id="videoTime">00:00:00.000</div>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-auto mb-3 text-center">
+		<input class="btn btn-success btn-sm wide-btn" id="jumpToSubtitleButton" type="button" value="<%- __("この時間の字幕を表示") %>" name="jumpToSubtitleButton" />
+	</div>
+	<div class="col-auto mb-3 text-center">
+		<input class="btn btn-success btn-sm wide-btn" id="jumpToLastEditedButton" type="button" value="<%- __("編集済みの末尾を表示") %>" name="jumpToLastEditedButton" />
+	</div>
+</div>

@@ -116,8 +116,7 @@
 	"「字幕ファイル（": {
 		"srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。": "[Save as Subtitle File (.srt)] is saving data with separating to subtitle's block."
 	},
-	"【おまけ】ハコ割りをして内容を編集する": "[Extened]",
-	"自動でハコ割りをする": "Separate to block automatically",
+	"自動でハコ割りをする": "Separate to blocks automatically",
 	"現在の編集結果を字幕を表示するのに適度な長さに分割してからマニュアルで内容を編集できます。": "You can edit manually after separating to subtitle's block.",
 	"句読点を半角スペースに置換する": "Japanese dots are replaced to white space.",
 	"ハコ割りを保持して字幕ファイルを作成します。": "Save as Subtitle File (.srt)",
@@ -141,11 +140,22 @@
 	"オプション設定": "Option Settings",
 	"選択中の公開辞書1": "Selected Dictionary 1",
 	"選択中の公開辞書2": "Selected Dictionary 2",
-	"UDトークの公開辞書": "UDトークの公開辞書",
-	"<a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>で作成した公開辞書を選択して読み込むことができます。": "<a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>で作成した公開辞書を選択して読み込むことができます。",
-	"単語登録画面でアクセストークンを生成してセットすると作成済みの公開辞書をプルダウンで選択して音声認識することができます。": "単語登録画面でアクセストークンを生成してセットすると作成済みの公開辞書をプルダウンで選択して音声認識することができます。",
-	"アクセストークン": "アクセストークン",
-	"辞書を選択（2つ選択できます）": "辞書を選択（2つ選択できます）",
+	"UDトークの公開辞書": "Public dictionary of UD Talk",
+	"<a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>で作成した公開辞書を選択して読み込むことができます。": "You can choose public dictionaries made by <a href='%s' target='_blank' rel='noopener'>UDトーク単語登録</a>.",
+	"単語登録画面でアクセストークンを生成してセットすると作成済みの公開辞書をプルダウンで選択して音声認識することができます。": "After you set access token generated from UDトーク単語登録, you can select dictionaries by combo box and use for speech recognition.",
+	"アクセストークン": "Access Token",
+	"辞書を選択（2つ選択できます）": "Dictionary (you can choose 2 dictionary)",
 	"前の発話と結合する": "Join",
-	"カーソル位置で分割": "Devide"
+	"カーソル位置で分割": "Devide",
+	"編集データの言語": "Data language",
+	"翻訳（クリックして表示／非表示）": "Translation (Click to show/hide)",
+	"1つの発話データをGoogle翻訳APIを使用して選択された言語に翻訳をします。": "1つの発話データをGoogle翻訳APIを使用して選択された言語に翻訳をします。",
+	"作成する前に発話の結合と分割して翻訳されやすいブロックに形成してください。": "作成する前に発話の結合と分割して翻訳されやすいブロックに形成してください。",
+	"主語を足したり「。」で終わるようにするなどして翻訳されやすいように書き換えると良い結果が得られます。": "主語を足したり「。」で終わるようにするなどして翻訳されやすいように書き換えると良い結果が得られます。",
+	"言語を選択して翻訳": "Translate language",
+	"翻訳前のデータを保存する": "Save original data",
+	"翻訳する言語": "Language",
+	"閉じる": "Close",
+	"作成": "Translate",
+	"ハコ割り（クリックして表示／非表示）": "Separate to blocks (Click to show/hide)"
 }
