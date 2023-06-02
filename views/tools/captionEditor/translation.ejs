@@ -78,12 +78,19 @@
 									<select class="form-select mb-1" id="toLanguageSelect"></select>
 								</div>
 							</div>
+							<div class="row">
+								<div class="col text-center">
+									<div id="makingTranslationSpinner"></div>
+									<div id="translationProgressing"></div>
+								</div>
+							</div>
 						</div>
+						
 						<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" id="makeTranslationCancelButton" data-bs-dismiss="modal"><%- __("閉じる") %></button>
 						<button type="button" class="btn btn-primary" id="makeTranslationButton" onclick="onClickMakeTranslationButton()"><%- __("作成") %></button>
 						</div>
-						<div id="makingTranslationSpinner"></div>
+						
 					</div>
 					</div>
 				</div>

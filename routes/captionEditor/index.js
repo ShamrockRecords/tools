@@ -137,24 +137,18 @@ router.post('/get_translation', wrap(async function(req, res, next) {
 		return ;
 	}
 
-    let lines = req.body.lines ;
+    let translation = "" ;
 
     try {
-        for (let key in lines) {
-            let line = lines[key] ;
+        let result = await translate(req.body.text, req.body.from, req.body.to, process.env.GOOGLE_API_KEY) ;
 
-            let result = await translate(line[2], req.body.from, req.body.to, process.env.GOOGLE_API_KEY) ;
-
-            line[3] = line[2] ;
-            line[2] = result.data.translations[0].translatedText ;
-            line[5] = line[2] ;
-        }
-    } catch (e) {
+        translation = result.data.translations[0].translatedText ;
+} catch (e) {
         console.log(e) ;
     }
 
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(lines));
+    res.end(JSON.stringify({"translation" : translation}));
 })) ;
 
 // functions

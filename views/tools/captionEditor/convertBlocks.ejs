@@ -18,6 +18,7 @@
 					<div class="row">
 						<div class="col-auto mb-1">	
 							<input class="btn btn-primary btn-sm wider-btn" id="convertToSrtButton" type="button" value="<%- __("自動でハコ割りをする") %>" name="convertToSrtButton" />
+							<div id="convertToSrtSpinner"></div>
 						</div>
 					</div>
 
@@ -30,7 +31,6 @@
 					<div class="row">
 						<div class="col-auto mb-1">	
 							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
-							<div id="toExportSrtSpinner"></div>
 							<div class="form-check">
 								<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
 								<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>

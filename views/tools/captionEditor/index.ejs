@@ -483,6 +483,8 @@
 						$("#fromLanguageSelect").val(appDataProperties["language"]) ;
 
 						$("#speechRecognitionButton").html("<%- __('音声認識結果を取得') %>") ;
+
+						alert("音声認識が完了しました。内容を確認してください。") ;
 					}) ;
 				}) ;
 
@@ -644,8 +646,8 @@
 
 					let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
 				
-					$("#toExportSrtSpinner").empty() ;
-					$("#toExportSrtSpinner").append(spinner) ;
+					$("#convertToSrtSpinner").empty() ;
+					$("#convertToSrtSpinner").append(spinner) ;
 
 					let offsetTime = Number($("#offsetTimeLength").val()) ;
 					let copiedLines = [] ;
@@ -684,7 +686,7 @@
 
 					let content = await convertSrtData(copiedLines, false, appDataProperties["language"]) ;
 					
-					$("#toExportSrtSpinner").empty() ;
+					$("#convertToSrtSpinner").empty() ;
 					
 					isExportingSrt = false ;
 
@@ -706,6 +708,8 @@
 					appDataProperties["converted"] = true ;
 
 					updateSubtitleData() ;
+
+					alert("ハコ割りが完了しました。") ;
 				}) ;
 
 				$("#saveAsSrtDataButton").on("click", async (e) => {
@@ -1739,7 +1743,9 @@
 				if (fromLanguage == toLanguage) {
 					alert("同じ言語への翻訳はできません。") ;
 				} else {
-					lines = await getTranslation(fromLanguage, toLanguage) ;
+					await getTranslation(fromLanguage, toLanguage, (length, index, line) => {
+						$("#translationProgressing").text(index + "/" + length) ;
+					}) ;
 
 					appDataProperties["translated"] = true ;
 					appDataProperties["language"] = toLanguage ;
@@ -1754,7 +1760,8 @@
 				$("#makeTranslationCancelButton").prop("disabled", false);
 				
 				$("#makingTranslationSpinner").empty() ;
-
+				$("#translationProgressing").text("") ;
+				
 				translationDialog.hide();
 			}
 
@@ -1812,22 +1819,32 @@
 				return await fetch("/jimakueditor/get_translation_languages", param).then(response => response.json()) ;
 			}
 
-			async function getTranslation(from, to) {
+			async function getTranslation(from, to, progression) {
 				const headers = {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
 				};
 
-				const param = {
-					method: "POST",
-					headers: headers,
-					body: JSON.stringify({
-						"from" : from,
-						"to" : to,
-						"lines" : lines}),
-				}
+				for (let key in lines) {
+					let line = lines[key] ;
 
-				return await fetch("/jimakueditor/get_translation", param).then(response => response.json()) ;
+					const param = {
+						method: "POST",
+						headers: headers,
+						body: JSON.stringify({
+							"from" : from,
+							"to" : to,
+							"text" : line[2]}),
+					}
+
+					let result = await fetch("/jimakueditor/get_translation", param).then(response => response.json()) ;
+
+					line[3] = line[2] ;
+					line[5] = line[3] ;
+					line[2] = result.translation ;
+					
+					progression(lines.length, key, line) ;
+				}
 			}
 
 			// unused
