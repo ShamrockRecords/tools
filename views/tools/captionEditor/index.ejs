@@ -1228,7 +1228,7 @@
 
 				let insertChars = "" ;
 
-				if (appDataProperties["language"] != "ja") {
+				if (appDataProperties["language"] != "ja" && !appDataProperties["language"].startsWith("zh-")) {
 					insertChars = " " ;
 				}
 
@@ -1761,6 +1761,11 @@
 			function onClickSaveOriginalDataButton() {
 				if (appDataProperties["translated"] != true) {
 					alert("この操作は翻訳後に行うことができます。") ;
+					return ;
+				}
+
+				if (appDataProperties["converted"] == true) {
+					alert("すでにハコ割りされています。この操作はハコ割り前にのみ行うことができます。") ;
 					return ;
 				}
 

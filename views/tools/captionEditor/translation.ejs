@@ -32,16 +32,8 @@
 					</div>
 				</div>
 				-->
-
-				<div class="row mb-3">
-					<div class="col">
-						<div class="small"><%- __("操作メニューの「⑥編集したデータエクスポート」で現在編集している編集データの言語を選択してください。") %></div>
-						<div class="small"><%- __("編集データの言語から選択された言語へ発話単位で翻訳をします。") %></div>
-						<div class="small"><%- __("※この処理は元に戻せないので一度データを保存しておくことをお勧めします。") %></div>
-					</div>
-				</div>
 				
-				<div class="row mb-3">
+				<div class="row mb-1">
 					<div class="col">
 						<button type="button" class="btn btn-primary" onclick="onClickModalTranslationDialogButton()">
 							<%- __("言語を選択して翻訳") %>
@@ -50,12 +42,14 @@
 				</div>
 
 				<div class="row mb-3">
-					<div class="col">
-						<div class="small"><%- __("翻訳前のデータを保存して原文の編集をやり直すことができます。") %></div>
+					<div class="col ms-3">
+						<div class="small"><%- __("操作メニューの「⑥編集したデータエクスポート」で現在編集している編集データの言語を選択してください。") %></div>
+						<div class="small"><%- __("編集データの言語から選択された言語へ発話単位で翻訳をします。") %></div>
+						<div class="small"><%- __("※この処理は元に戻せないので一度データを保存しておくことをお勧めします。") %></div>
 					</div>
 				</div>
 
-				<div class="row mb-3">
+				<div class="row mb-1">
 					<div class="col">
 						<button type="button" class="btn btn-primary" onclick="onClickSaveOriginalDataButton()">
 							<%- __("翻訳前のデータを保存する") %>
@@ -63,6 +57,12 @@
 					</div>
 				</div>
 				
+				<div class="row mb-3">
+					<div class="col ms-3">
+						<div class="small"><%- __("翻訳前のデータを保存して原文の編集をやり直すことができます。") %></div>
+					</div>
+				</div>
+
 				<div class="modal fade" id="translationDialog" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="translationDialogLabel" aria-hidden="true">
 					<div class="modal-dialog modal-dialog-centered">
 					<div class="modal-content">
