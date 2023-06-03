@@ -192,6 +192,7 @@
 			let details = [] ;
 			let mediafile = null ;
 			let appDataProperties = {} ;
+			let translationLanguages = {} ;
 
 			$(async function () {
 				restoreSettings() ;
@@ -268,6 +269,8 @@
 
 					$("#fromLanguageSelect").append($("<option></option>").attr("value", language.language).text(language.name));
 					$("#toLanguageSelect").append($("<option></option>").attr("value", language.language).text(language.name));
+
+					translationLanguages[language.language] = language.name ;
 				}
 				
 				$("#fromLanguageSelect").val("ja") ;
@@ -483,8 +486,6 @@
 						$("#fromLanguageSelect").val(appDataProperties["language"]) ;
 
 						$("#speechRecognitionButton").html("<%- __('音声認識結果を取得') %>") ;
-
-						alert("音声認識が完了しました。内容を確認してください。") ;
 					}) ;
 				}) ;
 
@@ -1710,6 +1711,14 @@
 					$('#toLanguageSelect').val("en") ;
 				}
 
+				let fromLanguage = $("#fromLanguageSelect").val() ;
+				
+				if (appDataProperties["translated"] == true) {
+					fromLanguage = appDataProperties["originalLanguage"] ;
+				}
+
+				$("#originalLanguageLabel").text(translationLanguages[fromLanguage]) ;
+
 				translationDialog = new bootstrap.Modal(document.getElementById('translationDialog'));
 				translationDialog.show() ;
 			}
@@ -1761,7 +1770,7 @@
 				
 				$("#makingTranslationSpinner").empty() ;
 				$("#translationProgressing").text("") ;
-				
+
 				translationDialog.hide();
 			}
 

@@ -67,10 +67,19 @@
 					<div class="modal-dialog modal-dialog-centered">
 					<div class="modal-content">
 						<div class="modal-header">
-						<h5 class="modal-title" id="translationDialogLabel"><%- __("言語を選択して翻訳") %></h5>
+							<h5 class="modal-title" id="translationDialogLabel"><%- __("言語を選択して翻訳") %></h5>
 						</div>
 						<div class="modal-body">
-							<div class="row">
+							<div class="row mb-3">
+								<div class="col">
+									<%- __("編集データの言語") %>
+								</div>
+								<div class="col">
+									<div id="originalLanguageLabel"></div>
+								</div>
+							</div>
+
+							<div class="row mb-3">
 								<div class="col">
 									<%- __("翻訳する言語") %>
 								</div>
@@ -78,6 +87,7 @@
 									<select class="form-select mb-1" id="toLanguageSelect"></select>
 								</div>
 							</div>
+
 							<div class="row">
 								<div class="col text-center">
 									<div id="makingTranslationSpinner"></div>
