@@ -72,6 +72,11 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 		timeOfChar = (endTime - beginTime) / contentLength ;
 
         let countPerLine = (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
+
+        if (contentLength % countPerLine < countPerLine / 2) {
+            countPerLine *= 1.2 ;
+        }
+
         let currnetIndex = 0 ;
         
         let tempContentArray = [] ;
