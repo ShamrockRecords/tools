@@ -154,7 +154,7 @@
 	"翻訳する言語": "Language",
 	"閉じる": "Close",
 	"作成": "Translate",
-	"ハコ割り（クリックして表示／非表示）": "Separate to blocks (Click to show/hide)",
+	"ハコ割りと読み振り（クリックして表示／非表示）": "Separate to blocks (Click to show/hide)",
 	"ハコ割りを行い開始時間をマニュアル操作で調整できます。": "You can adjust start and end time after separating to each blogks.",
 	"ハコ割りをすると翻訳ができなくなるのでハコ割り前のデータを保存しておくことをお勧めします。": "You can not translate after separating to blocks. You should save current data.",
 	"選択中の公開辞書1": "Selected Dictionary 1",
@@ -165,5 +165,12 @@
 	"アクセストークン": "Access Token",
 	"辞書を選択（2つ選択できます）": "Dictionary (you can choose 2 dictionary)",
 	"前の発話と結合する": "Join",
-	"カーソル位置で分割": "Devide"
+	"カーソル位置で分割": "Devide",
+	"漢字に読みを振る": "Make Rubies (for Japanese)",
+	"ハコ割り後のデータに読みを振ります。読みは「[漢字|かんじ]」と言う形式で書式化されて作成されます。この操作は元に戻せないので一度保存をしておくことをお勧めします。": "Rubies data is made as [written_form|spoken_form]. You should save current data.",
+	"読み仮名付き字幕ファイル（": {
+		"srv3）で保存": "Save as Formatted Subtitle File (.srv3)"
+	},
+	".srtで保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。": "When you save as srt format, rubies were saved as written_form(spoken_form)",
+	".srv3で保存するときは読み仮名付きのXMLファイルで出力されます。": "When you save as srv, you can save as Formatted Subtitle File."
 }

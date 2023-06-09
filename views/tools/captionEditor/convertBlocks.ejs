@@ -2,7 +2,7 @@
 	<div class="accordion-item">
 		<h2 class="accordion-header" id="accordionConvertBlocks-header">
 			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordionConvertBlocks-menu" aria-expanded="false" aria-controls="accordionConvertBlocks-menu">
-				<%- __("ハコ割り（クリックして表示／非表示）") %>
+				<%- __("ハコ割りと読み振り（クリックして表示／非表示）") %>
 			</button>
 		</h2>
 		<div id="accordionConvertBlocks-menu" class="accordion-collapse collapse" aria-labelledby="accordionConvertBlocks-menu">
@@ -30,13 +30,30 @@
 
 					<div class="row">
 						<div class="col-auto mb-1">	
+							<input class="btn btn-primary btn-sm wider-btn" id="appendReadingButton" type="button" value="<%- __("漢字に読みを振る") %>" name="appendReadingButton" />
+							<div id="appendReadingSpinner"></div>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col mb-1">
+							<div class="small ms-3"><%- __("ハコ割り後のデータに読みを振ります。読みは「[漢字|かんじ]」と言う形式で書式化されて作成されます。この操作は元に戻せないので一度保存をしておくことをお勧めします。") %></div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-auto mb-1">	
 							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
+							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrvDataButton" type="button" value="<%- __("読み仮名付き字幕ファイル（.srv3）で保存") %>" name="saveAsSrvDataButton" />
+							
 							<div class="form-check">
 								<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
 								<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>
 							</div>	
 							<div class="small ms-3"><%- __("ハコ割りを保持して字幕ファイルを作成します。") %></div>
 							<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
+							<div class="small ms-3"><%- __(".srtで保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。") %></div>
+							<div class="small ms-3"><%- __(".srv3で保存するときは読み仮名付きのXMLファイルで出力されます。") %></div>
 						</div>
 					</div>
 				</div>

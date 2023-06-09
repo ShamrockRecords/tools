@@ -113,7 +113,7 @@ function updatePlayingTime(currentTime) {
 
 		subtitle = subtitle.replaceAll("\n", "<br />") ;
 
-		$("#subtitlePreview").html(subtitle) ;
+		$("#subtitlePreview").html(formatReadingForHtml(subtitle)) ;
 	} else {
 		$("#subtitlePreview").html("") ;
 	}

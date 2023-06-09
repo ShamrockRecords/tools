@@ -159,3 +159,137 @@ function loadSrtFile(contents) {
 
 	return data ;
 }
+
+function saveAppData(_lines, _details, _appDataProperties) {
+	let fileName = $("#appDataFileName").val() ;
+	
+	if (fileName == undefined || fileName == null || fileName == "") {
+		alert("ファイル名を入力してください。") ;
+		return ;
+	}
+
+	let appData = {} ;
+
+	commitAppData() ;
+	
+	if ($("#videoURL").val() != undefined) {
+		appData["videoURL"] = $("#videoURL").val() ;
+	}
+
+	appData["lines"] = _lines ;
+	appData["details"] = _details ;
+	appData["offsetTimeLength"] = $("#offsetTimeLength").val() ;
+	appData["appDataFileName"] = $("#appDataFileName").val() ;
+	
+	let shortcutWords = {} ;
+
+	shortcutWords["shortcutWord1"] = $("#shortcutWord1").val() ;
+	shortcutWords["shortcutWord2"] = $("#shortcutWord2").val() ;
+	shortcutWords["shortcutWord3"] = $("#shortcutWord3").val() ;
+	shortcutWords["shortcutWord4"] = $("#shortcutWord4").val() ;
+	shortcutWords["shortcutWord5"] = $("#shortcutWord5").val() ;
+	shortcutWords["shortcutWord6"] = $("#shortcutWord6").val() ;
+
+	appData["shortcutWords"] = shortcutWords ;
+
+	appData["properties"] = _appDataProperties ;
+
+	saveAsFile(JSON.stringify(appData) , fileName) ;
+}
+
+async function appendReading(contents, language) {
+	const headers = {
+		'Accept': 'application/json',
+		'Content-Type': 'application/json'
+	};
+
+	const param = {
+		method: "POST",
+		headers: headers,
+		body: JSON.stringify({"contents" : contents, "language" : language}),
+	}
+
+	contents = await fetch("/jimakueditor/appendReading", param).then(response => response.json()) ;
+
+	return contents ;
+}
+
+function formatReadingForSrt(text) {
+	let resultText = "" ;
+	let IsEnteredBracket = false ;
+
+	for (let i=0; i<text.length; i++) {
+		let c = text[i] ;
+
+		if (c == "[") {
+			IsEnteredBracket = true ;
+		} else if (c == "]") {
+			IsEnteredBracket = false ;
+			resultText += "）" ;
+		} else if (IsEnteredBracket && c == "|") {
+			resultText += "（" ;
+		} else {
+			resultText += c ;
+		}
+	}
+
+	return resultText ;
+}
+
+function formatReadingForSrv(text) {
+	let resultText = "" ;
+	let IsEnteredBracket = false ;
+	let lineCount = 0 ;
+
+	for (let i=0; i<text.length; i++) {
+		let c = text[i] ;
+
+		if (c == "[") {
+			resultText += '<s p="2">' ;
+			IsEnteredBracket = true ;
+		} else if (c == "]") {
+			resultText += '</s><s p="3">)</s>' ;
+			IsEnteredBracket = false ;
+		} else if (IsEnteredBracket && c == "|") {
+			if (lineCount < 1) {
+				resultText += '</s><s p="3">(</s><s p="4">' ;
+			} else {
+				resultText += '</s><s p="3">(</s><s p="5">' ;
+			}
+		} else if (c == "\n") {
+			lineCount++ ;
+			resultText += c ;
+		} else {
+			if (IsEnteredBracket) {
+				resultText += c ;
+			} else {
+				resultText += '<s p="1">' + c + '</s>' ;
+			}
+		}
+	}
+
+	return resultText ;
+}
+
+function formatReadingForHtml(text) {
+	let resultText = "" ;
+	let IsEnteredBracket = false ;
+
+	for (let i=0; i<text.length; i++) {
+		let c = text[i] ;
+
+		if (c == "[") {
+			IsEnteredBracket = true ;
+			resultText += '<ruby>' ;
+		} else if (c == "]") {
+			IsEnteredBracket = false ;
+			resultText += '</rt></ruby>' ;
+		} else if (IsEnteredBracket && c == "|") {
+			resultText += '<rt>' ;
+		} else {
+			resultText += c ;
+		}
+	}
+
+	return resultText ;
+}
