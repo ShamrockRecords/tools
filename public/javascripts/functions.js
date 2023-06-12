@@ -214,9 +214,10 @@ async function appendReading(contents, language) {
 	return contents ;
 }
 
-function formatReadingForSrt(text) {
+function formatReadingForSrt(text, hasReading) {
 	let resultText = "" ;
 	let IsEnteredBracket = false ;
+	let IsEnteredReading = false ;
 
 	for (let i=0; i<text.length; i++) {
 		let c = text[i] ;
@@ -225,11 +226,25 @@ function formatReadingForSrt(text) {
 			IsEnteredBracket = true ;
 		} else if (c == "]") {
 			IsEnteredBracket = false ;
-			resultText += "）" ;
+			IsEnteredReading = false ;
+
+			if (hasReading) {
+				resultText += "）" ;
+			}
 		} else if (IsEnteredBracket && c == "|") {
-			resultText += "（" ;
+			IsEnteredReading = true ;
+
+			if (hasReading) {
+				resultText += "（" ;
+			}	
 		} else {
-			resultText += c ;
+			if (IsEnteredReading) {
+				if (hasReading) {
+					resultText += c ;
+				}
+			} else {
+				resultText += c ;
+			}
 		}
 	}
 

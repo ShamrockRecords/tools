@@ -41,19 +41,34 @@
 						</div>
 					</div>
 
+					<hr />
+
+					<div class="row mb-3">
+						<div class="col">
+							<div class="small"><%- __("字幕ファイルを保存します。") %></div>
+						</div>
+					</div>
+
 					<div class="row">
 						<div class="col-auto mb-1">	
-							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtDataButton" />
-							<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrvDataButton" type="button" value="<%- __("読み仮名付き字幕ファイル（.srv3）で保存") %>" name="saveAsSrvDataButton" />
-							
+							<div class="mb-3">
+								<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataWithoutReadingButton" type="button" value="<%- __("字幕ファイル（.srt）「読み仮名なし」で保存") %>" name="saveAsSrtDataWithoutReadingButton" />
+							</div>
+							<div class="mb-3">
+								<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrtDataButton" type="button" value="<%- __("字幕ファイル（.srt）「読み仮名あり」で保存") %>" name="saveAsSrtDataButton" />
+							</div>
+							<div class="mb-3">
+								<input class="btn btn-primary btn-sm wider-btn" id="saveAsSrvDataButton" type="button" value="<%- __("字幕ファイル（.srv3）「読み仮名あり」で保存") %>" name="saveAsSrvDataButton" />
+							</div>
 							<div class="form-check">
 								<input class="form-check-input" type="checkbox" value="" id="replacingDots" name="replacingDots" value="" checked>
 								<label class="form-check-label small" for="replacingDots"><%- __("句読点を半角スペースに置換する") %></label>
 							</div>	
 							<div class="small ms-3"><%- __("ハコ割りを保持して字幕ファイルを作成します。") %></div>
 							<div class="small ms-3"><%- __("YouTubeから自動生成された字幕ファイルをダウンロードして編集した時もここで書き出すことでタイミングを保持して字幕ファイルを作成できます。") %></div>
-							<div class="small ms-3"><%- __(".srtで保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。") %></div>
-							<div class="small ms-3"><%- __(".srv3で保存するときは読み仮名付きのXMLファイルで出力されます。") %></div>
+							<div class="small ms-3"><%- __("「字幕ファイル（.srt）読み仮名なし」で保存するときは読み仮名を無視して字幕ファイルとして書き出されます。") %></div>
+							<div class="small ms-3"><%- __("「字幕ファイル（.srt）読み仮名あり」で保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。") %></div>
+							<div class="small ms-3"><%- __("「字幕ファイル（.srv3）読み仮名あり」で保存するときは読み仮名ありのXMLファイルで出力されます。") %></div>
 						</div>
 					</div>
 				</div>

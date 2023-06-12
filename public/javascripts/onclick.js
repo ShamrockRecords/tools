@@ -99,7 +99,7 @@ async function onClickSaveAsSrtButton(e) {
 
 		element["startTime"] = startTime ;
 		element["endTime"] = endTime ;
-		element["content"] = formatReadingForSrt(line[2]) ;
+		element["content"] = formatReadingForSrt(line[2], true) ;
 		element["translation"] = line[3] ;
 
 		copiedLines.push(element) ;
@@ -255,12 +255,30 @@ async function onClicAppendReadingButton(e) {
 	updateSubtitleData() ;
 }
 
-async function onClickSaveAsSrtDataButton(e) {
+function onClickSaveAsSrtDataWithoutReadingButton(e) {
 	if (appDataProperties["converted"] != true) {
 		alert("この機能はハコ割りをした後に使用できます。") ;
 		return ;
 	}
 
+	saveAsSrtData(false) ;
+}
+
+function onClickSaveAsSrtDataButton(e) {
+	if (appDataProperties["converted"] != true) {
+		alert("この機能はハコ割りをした後に使用できます。") ;
+		return ;
+	}
+
+	if (appDataProperties["apppendReading"] != true) {
+		alert("この機能は漢字に読みを振った後に使用できます。") ;
+		return ;
+	}
+
+	saveAsSrtData(true) ;
+}
+
+function saveAsSrtData(hasReading) {
 	let srtData = "" ;
 	let replacingDots = $('#replacingDots').prop("checked") ;
 
@@ -297,7 +315,7 @@ async function onClickSaveAsSrtDataButton(e) {
 			text = text.replaceAll("。", "") ;
 		}
 
-		text = formatReadingForSrt(text) ;
+		text = formatReadingForSrt(text, hasReading) ;
 		
 		text = text.replaceAll("\r\n", "\n") ;
 		text = text.replaceAll(/(\n)+/g, "\n") ;
@@ -315,7 +333,15 @@ async function onClickSaveAsSrtDataButton(e) {
 	fileName = fileName.replaceAll(".jimakuEditor", "") ;
 
 	if (appDataProperties["language"] == "ja") {
-		fileName += ".ja_JP.srt" ;
+		if (appDataProperties["apppendReading"] != true) {
+			fileName += ".ja_JP.srt" ;
+		} else {
+			if (hasReading) {
+				fileName += "_読み仮名あり.ja_JP.srt" ;
+			} else {
+				fileName += "_読み仮名なし.ja_JP.srt" ;
+			}
+		}
 	} else {
 		fileName += "." + appDataProperties["language"] + ".srt" ;
 	}
@@ -326,6 +352,11 @@ async function onClickSaveAsSrtDataButton(e) {
 function onClickSaveAsSrvDataButton(e) {
 	if (appDataProperties["converted"] != true) {
 		alert("この機能はハコ割りをした後に使用できます。") ;
+		return ;
+	}
+
+	if (appDataProperties["apppendReading"] != true) {
+		alert("この機能は漢字に読みを振った後に使用できます。") ;
 		return ;
 	}
 
@@ -397,7 +428,7 @@ function onClickSaveAsSrvDataButton(e) {
 	fileName = fileName.replaceAll(".jimakuEditor", "") ;
 
 	if (appDataProperties["language"] == "ja") {
-		fileName += ".ja_JP.srv3" ;
+		fileName += "_読み仮名あり.ja_JP.srv3" ;
 	} else {
 		fileName += "." + appDataProperties["language"] + ".srv3" ;
 	}

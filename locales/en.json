@@ -33,7 +33,10 @@
 		"txt）で保存": "Save as Text File (.txt)"
 	},
 	"字幕ファイル（": {
-		"srt）で保存": "Save as Subtitle File (.srt)"
+		"srt）で保存": "Save as Subtitle File (.srt)",
+		"srt）「読み仮名なし」で保存": "Save as Subtitle File without reading (.srt)",
+		"srt）「読み仮名あり」で保存": "Save as Subtitle File with reading (.srt)",
+		"srv3）「読み仮名あり」で保存": "Save as Subtitle File with reading (.srv3)"
 	},
 	"字幕データ変換くん": "here",
 	"で作成してください。": ".",
@@ -114,7 +117,10 @@
 	"⌘またはCtrl + Enter": "⌘ or Ctrl + Enter",
 	"改行": "New line",
 	"「字幕ファイル（": {
-		"srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。": "[Save as Subtitle File (.srt)] is saving data with separating to subtitle's block."
+		"srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。": "[Save as Subtitle File (.srt)] is saving data with separating to subtitle's block.",
+		"srt）読み仮名なし」で保存するときは読み仮名を無視して字幕ファイルとして書き出されます。": "[Save as Subtitle File without reading (.srt)] is saving data without Japanese reading.",
+		"srt）読み仮名あり」で保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。": "[Save as Subtitle File with reading (.srt)] is saving data with Japanese reading.",
+		"srv3）読み仮名あり」で保存するときは読み仮名ありのXMLファイルで出力されます。": "[Save as Subtitle File with reading (.srv3)] is saving data with Japanese reading."
 	},
 	"自動でハコ割りをする": "Separate to blocks automatically",
 	"現在の編集結果を字幕を表示するのに適度な長さに分割してからマニュアルで内容を編集できます。": "You can edit manually after separating to subtitle's block.",
@@ -168,9 +174,5 @@
 	"カーソル位置で分割": "Devide",
 	"漢字に読みを振る": "Make Rubies (for Japanese)",
 	"ハコ割り後のデータに読みを振ります。読みは「[漢字|かんじ]」と言う形式で書式化されて作成されます。この操作は元に戻せないので一度保存をしておくことをお勧めします。": "Rubies data is made as [written_form|spoken_form]. You should save current data.",
-	"読み仮名付き字幕ファイル（": {
-		"srv3）で保存": "Save as Formatted Subtitle File (.srv3)"
-	},
-	".srtで保存するときは「[漢字|かんじ]」で書式化された読みは「漢字（かんじ）」に変換されて書き出されます。": "When you save as srt format, rubies were saved as written_form(spoken_form)",
-	".srv3で保存するときは読み仮名付きのXMLファイルで出力されます。": "When you save as srv, you can save as Formatted Subtitle File."
+	"字幕ファイルを保存します。": "字幕ファイルを保存します。"
 }
