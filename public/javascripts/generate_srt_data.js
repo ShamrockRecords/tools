@@ -71,10 +71,10 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 
 		timeOfChar = (endTime - beginTime) / contentLength ;
 
-        let countPerLine = (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
+        let tokenPerLine =  (language == "ja" || language.startsWith("zh-")) ? 8 : 10 ;
 
-        if (contentLength % countPerLine < countPerLine / 2) {
-            countPerLine *= 1.2 ;
+        while (contentArray.length > tokenPerLine && contentArray.length % tokenPerLine < 3) {
+            tokenPerLine++ ;
         }
 
         let currnetIndex = 0 ;
@@ -91,8 +91,8 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 
             tempContentArray.push(content) ;
 
-            if (content.endsWith("。") || contentLengthFromArray(tempContentArray) > countPerLine || i == contentArray.length) {
-                
+            if (content.endsWith("。") || (language != "ja" && !language.startsWith("zh-") && isEnglishEndOfToken(content) && tempContentArray.length > tokenPerLine / 2) || tempContentArray.length > tokenPerLine || i == contentArray.length) {
+
                 let contentLength = 0 ;
 
                 for (let key in tempContentArray) {
@@ -100,6 +100,13 @@ function generateResult(copiedlines, replacingDots, language, listener) {
                 }
 
                 if (dividing) {
+                    let countPerLine = (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
+                    let contentLength = contentLengthFromArray(tempContentArray) ;
+
+                    if (countPerLine < contentLength) {
+                        countPerLine = contentLength ;
+                    }
+
                     tempContentArray = devideWith(tempContentArray, countPerLine / 2) ;
                 }
 
@@ -148,6 +155,23 @@ function generateResult(copiedlines, replacingDots, language, listener) {
     }
 
     return result ;
+}
+
+function isEnglishEndOfToken(content) {
+
+    content = content.trim() ;
+
+    let dict = {} ;
+
+    dict["Dr."] = "" ;
+    dict["Mr."] = "" ;
+    dict["Ms."] = "" ;
+
+    if (dict[content] != null) {
+        return false ;
+    }
+
+    return content.endsWith(".") || content.endsWith("!") || content.endsWith("?") ;
 }
 
 function contentLengthFromArray(array) {
