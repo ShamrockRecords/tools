@@ -13,7 +13,7 @@ router.post('/webhook', wrap(async function(req, res, next) {
 
     const bot = new line.Client (config);
 
-    const events = res.body.events ;
+    const events = req.body.events ;
 
     events.forEach (async (event) => {
 
