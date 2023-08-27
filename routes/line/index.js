@@ -84,7 +84,8 @@ async function getReplyMessage(prompt) {
     let body = {
         "model": process.env.OPEN_AI_MODEL,
         "messages": messages,
-        "temperature": 0.0
+        "temperature": 0.0,
+        "max_tokens": Number(process.env.OPEN_AI_MAX_TOKENS),
     } ;
 
     const param = {
