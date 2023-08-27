@@ -27,7 +27,7 @@ router.post('/webhook', wrap(async function(req, res, next) {
                 let filteredKeywords = [] ;
 
                 for (let key in array) {
-                    let keyword = array(key) ;
+                    let keyword = array[key] ;
 
                     if (keyword == "UDトーク") {
                         continue ;
@@ -56,9 +56,20 @@ router.post('/debug', wrap(async function(req, res, next) {
 
     let keywords = await geKeywords(replyMessage) ;
     let array = keywords.split(",") ;
+    let filteredKeywords = [] ;
 
-    let URL = `動画から検索\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(array.join("|"))}` ;
-                
+    for (let key in array) {
+        let keyword = array[key] ;
+
+        if (keyword == "UDトーク") {
+            continue ;
+        }
+
+        filteredKeywords.push(keyword) ;
+    }
+
+    let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(filteredKeywords.join("|"))}` ;
+          
     res.send(JSON.stringify({replyMessage: replyMessage, URL: URL})) ;
 })) ;
 
