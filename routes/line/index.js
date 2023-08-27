@@ -42,6 +42,10 @@ router.post('/debug', wrap(async function(req, res, next) {
 })) ;
 
 async function makeReplyContent(prompt) {
+    if (prompt == undefined || prompt == "") {
+        return "テキスト形式で質問は受け付けています。";
+    }
+
     let replyMessage = await getReplyMessage(prompt) ;
 
     return replyMessage ;
