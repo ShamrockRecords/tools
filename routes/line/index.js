@@ -20,27 +20,11 @@ router.post('/webhook', wrap(async function(req, res, next) {
 
             if (event.type === 'message') {
                 
-                let replyMessage = await getReplyMessage(event.message.text) ;
-
-                let keywords = await geKeywords(replyMessage) ;
-                let array = keywords.split(",") ;
-                let filteredKeywords = [] ;
-
-                for (let key in array) {
-                    let keyword = array[key] ;
-
-                    if (keyword == "UDトーク") {
-                        continue ;
-                    }
-
-                    filteredKeywords.push(keyword) ;
-                }
-
-                let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(filteredKeywords.join("|"))}` ;
+                let content = await makeReplyContent(event.message.text) ;
                 
                 bot.replyMessage (event.replyToken, {
                     type: 'text',
-                    text: replyMessage + "\n\n" + URL,
+                    text: content,
                 }) ;
             }
         }) ;
@@ -52,16 +36,25 @@ router.post('/webhook', wrap(async function(req, res, next) {
 })) ;
 
 router.post('/debug', wrap(async function(req, res, next) {
-    let replyMessage = await getReplyMessage(req.body.prompt) ;
+    let content = await makeReplyContent(req.body.prompt) ;
+          
+    res.send(content) ;
+})) ;
 
-    let keywords = await geKeywords(replyMessage) ;
+async function makeReplyContent(prompt) {
+    let replyMessage = await getReplyMessage(prompt) ;
+
+    let keywords = await geKeywords(prompt + "\n" + replyMessage) ;
     let array = keywords.split(",") ;
     let filteredKeywords = [] ;
 
     for (let key in array) {
         let keyword = array[key] ;
 
-        if (keyword == "UDトーク") {
+        keyword = keyword.trim() ;
+
+        if (keyword == "UDトーク" || 
+            keyword == "トーク") {
             continue ;
         }
 
@@ -69,9 +62,9 @@ router.post('/debug', wrap(async function(req, res, next) {
     }
 
     let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(filteredKeywords.join("|"))}` ;
-          
-    res.send(JSON.stringify({replyMessage: replyMessage, URL: URL})) ;
-})) ;
+
+    return replyMessage + "\n\n" + URL ;
+}
 
 async function getReplyMessage(prompt) {
     let authorization = process.env.OPEN_AI_KEY ;
@@ -113,7 +106,7 @@ async function geKeywords(prompt) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let messages = [
-        {"role": "system", "content": "オンラインマニュアルを検索するために使えそうなキーワードを与えられた文章の中から3つくらい作ります。結果はカンマ区切りで返します。"},
+        {"role": "system", "content": "オンラインマニュアルを検索するために使えそうな短いキーワードを与えられた文章の中から3つ作ります。結果はカンマ区切りで返します。"},
         {"role": "user", "content": prompt},
     ] ;
 
