@@ -20,18 +20,18 @@ router.post('/webhook', wrap(async function(req, res, next) {
 
             if (event.type === 'message') {
                 
-                //let replyMessage = await getReplyMessage(event.message.text) ;
+                let replyMessage = await getReplyMessage(event.message.text) ;
                 
                 bot.replyMessage (event.replyToken, {
                     type: 'text',
-                    text: "こんにちは",
+                    text: replyMessage,
                 }) ;
             }
         }) ;
     } catch (e) {
 
     }
-    
+
     res.status(200).send("OK") ;
 })) ;
 
@@ -43,7 +43,7 @@ async function getReplyMessage(prompt) {
     ] ;
 
     let body = {
-        "model": "gpt-3.5-turbo-16k",
+        "model": "ft:gpt-3.5-turbo-0613:shamrock-records-inc::7rz54EyF",
         "messages": messages,
         "temperature": 0.0
     } ;
