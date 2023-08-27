@@ -44,6 +44,8 @@ router.post('/debug', wrap(async function(req, res, next) {
 async function makeReplyContent(prompt) {
     let replyMessage = await getReplyMessage(prompt) ;
 
+    return replyMessage ;
+    /*
     let keywords = await geKeywords(prompt + "\n" + replyMessage) ;
     let array = keywords.split(",") ;
     let filteredKeywords = [] ;
@@ -64,6 +66,7 @@ async function makeReplyContent(prompt) {
     let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(filteredKeywords.join("|"))}` ;
 
     return replyMessage + "\n\n" + URL ;
+    */
 }
 
 async function getReplyMessage(prompt) {
