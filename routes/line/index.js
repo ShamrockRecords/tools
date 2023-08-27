@@ -19,7 +19,7 @@ router.post('/webhook', wrap(async function(req, res, next) {
 
         if (event.type === 'message') {
             
-            let replyMessage = await getReplyMessage(event.text) ;
+            let replyMessage = await getReplyMessage(event.message.text) ;
             
             bot.replyMessage (event.replyToken, {
                 type: 'text',
