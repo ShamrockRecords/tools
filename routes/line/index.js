@@ -39,11 +39,12 @@ async function getReplyMessage(prompt) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let messages = [
+        {"role": "system", "content": "コミュニケーション支援・会話の見える化アプリ「UDトーク」についての質問に答えます。"},
         {"role": "user", "content": prompt},
     ] ;
 
     let body = {
-        "model": "ft:gpt-3.5-turbo-0613:shamrock-records-inc::7rz54EyF",
+        "model": process.env.OPEN_AI_MODEL,
         "messages": messages,
         "temperature": 0.0
     } ;
