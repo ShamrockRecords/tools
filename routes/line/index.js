@@ -39,7 +39,7 @@ async function getReplyMessage(prompt) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let messages = [
-        {"role": "system", "content": "コミュニケーション支援・会話の見える化アプリ「UDトーク」についての質問に答えます。"},
+        {"role": "system", "content": process.env.OPEN_AI_SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ] ;
 
