@@ -6,28 +6,32 @@ const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
 router.post('/webhook', wrap(async function(req, res, next) {
     
-    const config = { 
-        channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-        channelSecret: process.env.LINE_CHANNEL_SECRET,
-    } ;
+    try {
+        const config = { 
+            channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+            channelSecret: process.env.LINE_CHANNEL_SECRET,
+        } ;
 
-    const bot = new line.Client (config);
+        const bot = new line.Client (config);
 
-    const events = req.body.events ;
+        const events = req.body.events ;
 
-    events.forEach (async (event) => {
+        events.forEach (async (event) => {
 
-        if (event.type === 'message') {
-            
-             //let replyMessage = await getReplyMessage(event.message.text) ;
-            
-            bot.replyMessage (event.replyToken, {
-                type: 'text',
-                text: "こんにちは",
-            }) ;
-        }
-    }) ;
+            if (event.type === 'message') {
+                
+                //let replyMessage = await getReplyMessage(event.message.text) ;
+                
+                bot.replyMessage (event.replyToken, {
+                    type: 'text',
+                    text: "こんにちは",
+                }) ;
+            }
+        }) ;
+    } catch (e) {
 
+    }
+    
     res.status(200).send("OK") ;
 })) ;
 
