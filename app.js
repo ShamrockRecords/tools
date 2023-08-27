@@ -7,12 +7,13 @@ var logger = require('morgan');
 var indexRouter = require('./routes/index');
 var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
 var genReadingIndexRouter = require('./routes/genReading/index');
+var genReadingExIndexRouter = require('./routes/genReading/index4ex');
 var captionEditorIndexRouter = require('./routes/captionEditor/index');
 var captionEditor4FileIndexRouter = require('./routes/captionEditor/index4File');
 var appMapIndexRouter = require('./routes/appMap/index');
 var localeChangeRouter = require('./routes/localeChange');
 var youyakuIndexRouter = require('./routes/youyaku/index');
-
+var lineIndexRouter = require('./routes/line/index');
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
@@ -85,12 +86,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/srt2csv', srtToCsvIndexRouter);
 app.use('/yomifuri', genReadingIndexRouter);
+app.use('/yomifuri_ex', genReadingExIndexRouter);
 app.use('/jimakueditor', captionEditorIndexRouter);
 app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
 app.use('/appmap', appMapIndexRouter);
 app.use('/locale_change', localeChangeRouter);
 app.use('/youyaku', youyakuIndexRouter);
-
+app.use('/line', lineIndexRouter);
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);
 
