@@ -2,14 +2,14 @@ var express = require('express');
 var router = express.Router() ;
 const line = require("@line/bot-sdk");
 
-const config = { 
-    channelAccessloken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-} ;
-
 const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
 router.post('/webhook', wrap(async function(req, res, next) {
+    
+    const config = { 
+        channelAccessloken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+        channelSecret: process.env.LINE_CHANNEL_SECRET,
+    } ;
     
     const bot = new line.Client (config);
 
