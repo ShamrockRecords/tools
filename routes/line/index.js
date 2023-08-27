@@ -24,8 +24,19 @@ router.post('/webhook', wrap(async function(req, res, next) {
 
                 let keywords = await geKeywords(replyMessage) ;
                 let array = keywords.split(",") ;
+                let filteredKeywords = [] ;
 
-                let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(array.join("|"))}` ;
+                for (let key in array) {
+                    let keyword = array(key) ;
+
+                    if (keyword == "UDトーク") {
+                        continue ;
+                    }
+
+                    filteredKeywords.push(keyword) ;
+                }
+
+                let URL = `【キーワードで動画を検索】\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(filteredKeywords.join("|"))}` ;
                 
                 bot.replyMessage (event.replyToken, {
                     type: 'text',
@@ -92,7 +103,7 @@ async function geKeywords(prompt) {
 
     let messages = [
         {"role": "system", "content": "オンラインマニュアルを検索するために使えそうなキーワードを与えられた文章の中から3つくらい作ります。結果はカンマ区切りで返します。"},
-        {"role": "user", "content": "---" + prompt},
+        {"role": "user", "content": prompt},
     ] ;
 
     let body = {
