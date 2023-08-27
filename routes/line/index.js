@@ -30,7 +30,7 @@ router.post('/webhook', wrap(async function(req, res, next) {
                 let keywords = await geKeywords(replyMessage) ;
                 let array = keywords.split(",") ;
 
-                let URL = `動画から検索\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(array.join("|"))}` ;
+                let URL = `動画を検索\nhttps://capsearch.udtalk.jp/search/udtalk?pid=&q=${encodeURI(array.join("|"))}` ;
                 
                 bot.replyMessage (event.replyToken, {
                     type: 'text',
