@@ -77,7 +77,7 @@ async function getReplyMessage(prompt) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let messages = [
-        {"role": "system", "content": process.env.OPEN_AI_SYSTEM_PROMPT},
+        {"role": "system", "content": process.env.OPEN_AI_KYODOSHI_SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ] ;
 
