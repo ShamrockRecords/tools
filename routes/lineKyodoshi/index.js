@@ -82,46 +82,10 @@ async function getReplyMessage(prompt) {
     ] ;
 
     let body = {
-        "model": process.env.OPEN_AI_MODEL,
+        "model": process.env.OPEN_AI_KYODOSHI_MODEL,
         "messages": messages,
         "temperature": 0.0,
         "max_tokens": Number(process.env.OPEN_AI_MAX_TOKENS),
-    } ;
-
-    const param = {
-        method: "POST",
-        headers: {"Authorization": "Bearer " + authorization, "Content-Type": "application/json"},
-        body: JSON.stringify(body)
-    }
-    
-    let data = await fetch("https://api.openai.com/v1/chat/completions", param).then(response => response.json()) ;
-    let content = "" ;
-
-    try {
-        if (data.error != undefined) {
-            content = data.error.message ;
-        } else if (data.choices[0].message != undefined) {
-            content = data.choices[0].message.content ;
-        }
-    } catch (e) {
-        content = e.message ;
-    }
-
-    return content ;
-}
-
-async function geKeywords(prompt) {
-    let authorization = process.env.OPEN_AI_KEY ;
-
-    let messages = [
-        {"role": "system", "content": "オンラインマニュアルを検索するために使えそうな短いキーワードを与えられた文章の中から3つ作ります。結果はカンマ区切りで返します。"},
-        {"role": "user", "content": prompt},
-    ] ;
-
-    let body = {
-        "model": process.env.OPEN_AI_KYODOSHI_MODEL,
-        "messages": messages,
-        "temperature": 0.0
     } ;
 
     const param = {
