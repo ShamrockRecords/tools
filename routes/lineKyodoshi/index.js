@@ -119,7 +119,7 @@ async function geKeywords(prompt) {
     ] ;
 
     let body = {
-        "model": process.env.OPEN_AI_MODEL,
+        "model": process.env.OPEN_AI_KYODOSHI_MODEL,
         "messages": messages,
         "temperature": 0.0
     } ;
