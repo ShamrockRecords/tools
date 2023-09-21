@@ -8,8 +8,8 @@ router.post('/webhook', wrap(async function(req, res, next) {
     
     try {
         const config = { 
-            channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-            channelSecret: process.env.LINE_CHANNEL_SECRET,
+            channelAccessToken: process.env.LINE_KYODOSHI_CHANNEL_ACCESS_TOKEN,
+            channelSecret: process.env.LINE_KYODOSHI_CHANNEL_SECRET,
         } ;
 
         const bot = new line.Client (config);
