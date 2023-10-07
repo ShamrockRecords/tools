@@ -14,6 +14,7 @@ var appMapIndexRouter = require('./routes/appMap/index');
 var localeChangeRouter = require('./routes/localeChange');
 var youyakuIndexRouter = require('./routes/youyaku/index');
 var lineIndexRouter = require('./routes/line/index');
+var lineKyodoshiIndexRouter = require('./routes/lineKyodoshi/index');
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
@@ -93,6 +94,8 @@ app.use('/appmap', appMapIndexRouter);
 app.use('/locale_change', localeChangeRouter);
 app.use('/youyaku', youyakuIndexRouter);
 app.use('/line', lineIndexRouter);
+app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
+
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);
 
