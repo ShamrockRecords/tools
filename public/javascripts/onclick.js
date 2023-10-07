@@ -29,13 +29,24 @@ async function onClickSaveAsCsvButton(e) {
 		content += "\r\n" ;
 	}
 
-	let fileName = $("#appDataFileName").val() ;
+	let fileName = getFileName() ;
 
-	fileName = fileName.replaceAll(".captionEditor", "") ;
-	fileName = fileName.replaceAll(".jimakuEditor", "") ;
 	fileName += ".csv" ;
 
 	saveAsFile(content , fileName) ;
+}
+
+function getFileName() {
+	let fileName = $("#appDataFileName").val() ;
+
+	if (fileName != "") {
+		fileName = fileName.replaceAll(".captionEditor", "") ;
+		fileName = fileName.replaceAll(".jimakuEditor", "") ;
+	} else {
+		fileName = "字幕エディター" ;
+	}
+
+	return fileName ;
 }
 
 async function onClickSaveAsTextButton(e) {
@@ -59,10 +70,8 @@ async function onClickSaveAsTextButton(e) {
 		}
 	}
 
-	let fileName = $("#appDataFileName").val() ;
+	let fileName = getFileName() ;
 
-	fileName = fileName.replaceAll(".captionEditor", "") ;
-	fileName = fileName.replaceAll(".jimakuEditor", "") ;
 	fileName += ".txt" ;
 	
 	saveAsFile(content, fileName) ;
@@ -107,10 +116,7 @@ async function onClickSaveAsSrtButton(e) {
 
 	let content = await generateSrtData(copiedLines, true, appDataProperties["language"]) ;
 
-	let fileName = $("#appDataFileName").val() ;
-
-	fileName = fileName.replaceAll(".captionEditor", "") ;
-	fileName = fileName.replaceAll(".jimakuEditor", "") ;
+	let fileName = getFileName() ;
 
 	if (appDataProperties["language"] == "ja") {
 		fileName += ".ja_JP.srt" ;
@@ -327,10 +333,7 @@ function saveAsSrtData(hasReading) {
 		srtData += element ;
 	}
 
-	let fileName = $("#appDataFileName").val() ;
-
-	fileName = fileName.replaceAll(".captionEditor", "") ;
-	fileName = fileName.replaceAll(".jimakuEditor", "") ;
+	let fileName = getFileName() ;
 
 	if (appDataProperties["language"] == "ja") {
 		if (appDataProperties["apppendReading"] != true) {
@@ -422,10 +425,7 @@ function onClickSaveAsSrvDataButton(e) {
 	srvData += '</body>' ;
 	srvData += '</timedtext>' ;
 
-	let fileName = $("#appDataFileName").val() ;
-
-	fileName = fileName.replaceAll(".captionEditor", "") ;
-	fileName = fileName.replaceAll(".jimakuEditor", "") ;
+	let fileName = getFileName() ;
 
 	if (appDataProperties["language"] == "ja") {
 		fileName += "_読み仮名あり.ja_JP.srv3" ;
