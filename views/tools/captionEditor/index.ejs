@@ -218,6 +218,7 @@
 
 				$("#autoStopWhenEdtingStarted").on('change', eventListener) ;
 				$("#autoPlayWhenEdtingFinished").on('change', eventListener) ;
+				$("#autoPlayWhenChangeFocused").on('change', eventListener) ;
 				$("#seekingSeconds").on('change', eventListener) ;
 				$("#playbackSeconds").on('change', eventListener) ;
 				$("#saveAppKey").on('change', eventListener) ;
@@ -566,6 +567,7 @@
 						if (e.keyCode == 13) {
 							if (e.originalEvent.metaKey == false && e.originalEvent.ctrlKey == false) {
 								let autoPlayWhenEdtingFinished = $("#autoPlayWhenEdtingFinished").prop("checked") ;
+								let autoPlayWhenChangeFocused = $("#autoPlayWhenChangeFocused").prop("checked") ;
 
 								if (!isPlayingVideo() && autoPlayWhenEdtingFinished) {
 									
@@ -577,6 +579,12 @@
 								} else {
 									$(alreadyEditedCheckBoxClassName).prop("checked", true) ;
 									$(nextTextClassName).focus() ;
+									
+									if (autoPlayWhenChangeFocused) {
+										$("#subtitle" + i)[0].scrollIntoView(true) ;
+										pauseVideo() ;
+										startTimeAdjusting(Number(i) + 1, 0)
+									}
 								}
 							} else {
 								insertText(textClassName, "\n") ;
@@ -977,6 +985,12 @@
 					$('#autoPlayWhenEdtingFinished').prop("checked", autoPlayWhenEdtingFinished == "true") ;
 				}
 
+				let autoPlayWhenChangeFocused = localStorage.getItem("autoPlayWhenChangeFocused") ;
+
+				if (autoPlayWhenChangeFocused != undefined) {
+					$('#autoPlayWhenChangeFocused').prop("checked", autoPlayWhenChangeFocused == "true") ;
+				}
+
 				let seekingSeconds = localStorage.getItem("seekingSeconds") ;
 
 				if (seekingSeconds != undefined) {
@@ -1074,6 +1088,7 @@
 				localStorageSetItem("autoStopWhenEdtingStarted", $('#autoStopWhenEdtingStarted').prop("checked")) ;
 				localStorageSetItem("nonStopWhenDotsInput", $('#nonStopWhenDotsInput').prop("checked")) ;
 				localStorageSetItem("autoPlayWhenEdtingFinished", $('#autoPlayWhenEdtingFinished').prop("checked")) ;
+				localStorageSetItem("autoPlayWhenChangeFocused", $('#autoPlayWhenChangeFocused').prop("checked")) ;
 				localStorageSetItem("replacingDots", $('#replacingDots').prop("checked")) ;
 				localStorageSetItem("showPreviewAlways", $('#showPreviewAlways').prop("checked")) ;
 				localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
