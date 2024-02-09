@@ -175,5 +175,6 @@
 	"漢字に読みを振る": "Make Rubies (for Japanese)",
 	"ハコ割り後のデータに読みを振ります。読みは「[漢字|かんじ]」と言う形式で書式化されて作成されます。この操作は元に戻せないので一度保存をしておくことをお勧めします。": "Rubies data is made as [written_form|spoken_form]. You should save current data.",
 	"字幕ファイルを保存します。": "字幕ファイルを保存します。",
-	"エンターキー押下で移動した時に自動的にその場所から再生を開始する": "Automatically start from next focused subtitle when you finish editing by pressing the Enter key."
+	"エンターキー押下で移動した時に自動的にその場所から再生を開始する": "Automatically start from next focused subtitle when you finish editing by pressing the Enter key.",
+	"「動作設定」に「エンターキー押下で移動した時に自動的にその場所から再生を開始する」を追加しました。誤認識がほとんどない場合に内容を確認していく作業がとても効率よく行えます。従来の操作がお好みの場合はチェックを外してお使いください。": "[Automatically start from next focused subtitle when you finish editing by pressing the Enter key.] was added in operation settings. If you want to use in environment of previous version, you don't check it."
 }
