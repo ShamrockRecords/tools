@@ -210,6 +210,8 @@ async function runSpeechRecognition(completion) {
                 let segments = data["segments"]
                 let currentSpeakerName = "" ;
 
+                console.log(segments) ;
+
                 for (let key in segments) {
                     let segment = segments[key] ;
 
@@ -227,7 +229,11 @@ async function runSpeechRecognition(completion) {
                         let token = tokens[key] ;
 
                         let startTime = token["starttime"] ;
-                        currentEndTime = token["endtime"] ;
+
+                        if (token["endtime"] != undefined) {
+                            currentEndTime = token["endtime"] ;
+                        }
+                        
                         let speakerName = token["label"] ;
                         let written = token["written"] ;
                         
