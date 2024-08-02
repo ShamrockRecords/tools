@@ -49,6 +49,7 @@ function generateResult(copiedlines, replacingDots, language, listener) {
  
     let result = "" ;
     let num = 1 ;
+    let lengthPerLine =  (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
 
     for (let i=0; i<copiedlines.length; i++) {
         let elements = copiedlines[i] ;
@@ -71,12 +72,6 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 
 		timeOfChar = (endTime - beginTime) / contentLength ;
 
-        let tokenPerLine =  (language == "ja" || language.startsWith("zh-")) ? 8 : 10 ;
-
-        while (contentArray.length > tokenPerLine && contentArray.length % tokenPerLine < 3) {
-            tokenPerLine++ ;
-        }
-
         let currnetIndex = 0 ;
         
         let tempContentArray = [] ;
@@ -91,7 +86,10 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 
             tempContentArray.push(content) ;
 
-            if (content.endsWith("。") || (language != "ja" && !language.startsWith("zh-") && isEnglishEndOfToken(content) && tempContentArray.length > tokenPerLine / 2) || tempContentArray.length > tokenPerLine || i == contentArray.length) {
+            if (content.endsWith("。") || 
+                isEnglishEndOfToken(content) || 
+                contentLengthFromArray(tempContentArray) >= lengthPerLine ||
+                contentArray.length == i) {
 
                 let contentLength = 0 ;
 
