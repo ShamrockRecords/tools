@@ -22,6 +22,7 @@ router.post('/data', wrap(async function(req, res, next) {
 		return ;
 	}
     
+    var language = req.body.language ;
     var kuromoji = require("kuromoji");
 
     kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(function (err, tokenizer) {
@@ -48,7 +49,7 @@ router.post('/data', wrap(async function(req, res, next) {
                     path[key]["pos"] == '感動詞' ||
                     path[key]["pos"] == '接続詞' ||
                     path[key]["pos"] == '連体詞' ||
-                    path[key]["surface_form"] == " " ||
+                    (language != "ja" && path[key]["surface_form"] == " ") ||
                     path[key]["surface_form"] == "、" ||
                     path[key]["surface_form"] == "，" ||
                     path[key]["surface_form"] == "。") {
