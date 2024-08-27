@@ -33,7 +33,7 @@ async function getSummary(text, command) {
     let authorization = process.env.OPEN_AI_KEY ;
 
     let body = {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4o-mini",
         "messages": [
       {"role": "user", "content": command},
       {"role": "user", "content": text}
