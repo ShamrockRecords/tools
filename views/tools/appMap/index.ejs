@@ -21,6 +21,8 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
 	<script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
 
+	<script type="text/javascript" src="/javascripts/functions.js"></script>
+
    <style>
 		html, body {
 			height:100%;
@@ -240,13 +242,14 @@
 				return res.text() ;
 			}) ;
 	
-		return convertToArray(csvData) ;
+		return convertToArrayWrapper(csvData) ;
 	}
 
-	function convertToArray(csvData) {
+	function convertToArrayWrapper(csvData) {
 		let dataArray = [] ;
 	
-		let lines = csvData.split("\n") ;
+		let lines = convertToArray(csvData) ;
+
 		let latIndex = 0 ;
 		let lngIndex = 0 ;
 		let nameIndex = 0 ;
@@ -256,13 +259,11 @@
 		let typeIndex = 0 ;
 
 		for (let key in lines) {
-			let line = lines[key] ;
-			
-			line = line.trim() ;
-			
-			let elements = line.split(",") ;
+			let elements = lines[key] ;
 
 			if (key == 0) {
+				console.log(elements) ;
+				
 				latIndex = elements.indexOf("緯度") ;
 				lngIndex = elements.indexOf("経度") ;
 				nameIndex = elements.indexOf("正式名称") ;
