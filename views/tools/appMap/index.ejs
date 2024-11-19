@@ -163,7 +163,8 @@
 			let name = data["name"] ;
 			let postalCode = data["postalCode"] ;
 			let address = data["address"] ;
-			let startedDate = data["startedDate"] ;
+			let place = data["place"] ;
+			let usage = data["usage"] ;
 			
 
 			let body = '<div class="h4">' + name + '</div>' ;
@@ -178,7 +179,10 @@
 			body += '</div></div>' ;
 			body += '<hr />' ;
 			body += '<div class="row my-3"><div class="col">' ;
-			body += '利用開始日 : ' + startedDate ;
+			body += '<strong>場所</strong> : ' + place ;
+			body += '</div></div>' ;
+			body += '<div class="row my-3"><div class="col">' ;
+			body += '<strong>用途</strong> : ' + usage ;
 			body += '</div></div>' ;
 
 			marker.bindPopup(body) ;
@@ -257,13 +261,15 @@
 		let addressIndex = 0 ;
 		let startedDateIndex = 0 ;
 		let typeIndex = 0 ;
+		let placeIndex = 0 ;
+		let usageIndex = 0 ;
 
 		for (let key in lines) {
 			let elements = lines[key] ;
 
 			if (key == 0) {
 				console.log(elements) ;
-				
+
 				latIndex = elements.indexOf("緯度") ;
 				lngIndex = elements.indexOf("経度") ;
 				nameIndex = elements.indexOf("正式名称") ;
@@ -271,6 +277,8 @@
 				addressIndex = elements.indexOf("住所") ;
 				startedDateIndex = elements.indexOf("作成日") ;
 				typeIndex = elements.indexOf("種別") ;
+				placeIndex = elements.indexOf("場所") ;
+				usageIndex = elements.indexOf("用途") ;
 			} else {
 				let data = {} ;
 
@@ -287,6 +295,8 @@
 				data["address"] = elements[addressIndex];
 				data["startedDate"] = elements[startedDateIndex];
 				data["type"] = elements[typeIndex];
+				data["place"] = elements[placeIndex];
+				data["usage"] = elements[usageIndex];
 
 				dataArray.push(data) ;
 			}
