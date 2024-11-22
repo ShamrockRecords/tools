@@ -166,6 +166,7 @@
 			let place = data["place"] ;
 			let usage = data["usage"] ;
 			
+			usage = usage.replaceAll('\n', '<br />')
 
 			let body = '<div class="h4">' + name + '</div>' ;
 			
