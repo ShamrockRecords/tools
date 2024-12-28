@@ -125,7 +125,9 @@ function getVideoIdFromYouTubeURL(url) {
 	if (parser.hostname == "youtu.be") {
 		return parser.pathname ;
 	} else {
-		if (parser.searchParams.has("v")) {
+		if (parser.pathname.startsWith("/live")) {
+			return parser.pathname.split("/").pop() ;
+		} else if (parser.searchParams.has("v")) {
 			return parser.searchParams.get("v") ;
 		}
 	}
