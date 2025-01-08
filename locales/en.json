@@ -177,5 +177,7 @@
 	"字幕ファイルを保存します。": "字幕ファイルを保存します。",
 	"エンターキー押下で移動した時に自動的にその場所から再生を開始する": "Automatically start from next focused subtitle when you finish editing by pressing the Enter key.",
 	"「動作設定」に「エンターキー押下で移動した時に自動的にその場所から再生を開始する」を追加しました。誤認識がほとんどない場合に内容を確認していく作業がとても効率よく行えます。従来の操作がお好みの場合はチェックを外してお使いください。": "[Automatically start from next focused subtitle when you finish editing by pressing the Enter key.] was added in operation settings. If you want to use in environment of previous version, you don't check it.",
-	"韓国語_汎用": "General Korean"
+	"韓国語_汎用": "General Korean",
+	"発話の結合時に常に確認する": "Always confirm when appending data",
+	"発話の分割時に常に確認する": "Always confirm when dividing data"
 }

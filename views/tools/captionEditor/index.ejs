@@ -240,6 +240,8 @@
 				$("#acpDiarization").on('change', eventListener) ;
 				$("#replacingDots").on('change', eventListener) ;
 				$("#showPreviewAlways").on('change', eventListener) ;
+				$("#confirmAppendDataAlways").on('change', eventListener) ;
+				$("#confirmDivideDataAlways").on('change', eventListener) ;
 				$("#acpDiarizationCount").on('change', eventListener) ;
 				
 				$("#fromLanguageSelect").on('change', eventListener) ;
@@ -782,8 +784,10 @@
 
 				commitData(index) ;
 
-				if (!window.confirm("一つ前の発話と結合します。この操作は元に戻せません、よろしいですか？")) {
-					return ;
+				if ($('#confirmAppendDataAlways').prop("checked")) {
+					if (!window.confirm("一つ前の発話と結合します。この操作は元に戻せません、よろしいですか？")) {
+						return ;
+					}
 				}
 
 				let line1 = lines[index-1] ;
@@ -829,8 +833,10 @@
 					return ;
 				}
 
-				if (!window.confirm("現在のカーソル位置で発話を分割します。この操作は元に戻せません、よろしいですか？")) {
-					return ;
+				if ($('#confirmDivideDataAlways').prop("checked")) {
+					if (!window.confirm("現在のカーソル位置で発話を分割します。この操作は元に戻せません、よろしいですか？")) {
+						return ;
+					}
 				}
 
 				let duration = line[1] - line[0] ;
@@ -1022,6 +1028,18 @@
 					$('#showPreviewAlways').prop("checked", showPreviewAlways == "true") ;
 				}
 
+				let confirmAppendDataAlways = localStorage.getItem("confirmAppendDataAlways") ;
+
+				if (confirmAppendDataAlways != undefined) {
+					$('#confirmAppendDataAlways').prop("checked", confirmAppendDataAlways == "true") ;
+				}
+				
+				let confirmDivideDataAlways = localStorage.getItem("confirmDivideDataAlways") ;
+
+				if (confirmDivideDataAlways != undefined) {
+					$('#confirmDivideDataAlways').prop("checked", confirmDivideDataAlways == "true") ;
+				}
+
 				let mediaType = "<%= mediaType %>" ;
 
 				// File only
@@ -1098,9 +1116,11 @@
 				localStorageSetItem("autoPlayWhenChangeFocused", $('#autoPlayWhenChangeFocused').prop("checked")) ;
 				localStorageSetItem("replacingDots", $('#replacingDots').prop("checked")) ;
 				localStorageSetItem("showPreviewAlways", $('#showPreviewAlways').prop("checked")) ;
+				localStorageSetItem("confirmAppendDataAlways", $('#confirmAppendDataAlways').prop("checked")) ;
+				localStorageSetItem("confirmDivideDataAlways", $('#confirmDivideDataAlways').prop("checked")) ;
 				localStorageSetItem("seekingSeconds", $('#seekingSeconds').val()) ;
 				localStorageSetItem("playbackSeconds", $('#playbackSeconds').val()) ;
-
+				
 				let mediaType = "<%= mediaType %>" ;
 
 				// File only
