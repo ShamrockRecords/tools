@@ -123,7 +123,7 @@ function getVideoIdFromYouTubeURL(url) {
 	var parser = new URL(url) ;
 
 	if (parser.hostname == "youtu.be") {
-		return parser.pathname ;
+		return parser.pathname.trim().substring(1) ; // Remove leading slash
 	} else {
 		if (parser.pathname.startsWith("/live")) {
 			return parser.pathname.split("/").pop() ;
