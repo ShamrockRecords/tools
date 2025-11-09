@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../parts/head', {title: '管理ログイン'}) %>
+	<style>
+		body {
+			background-color: #f8f9fa;
+			min-height: 100vh;
+		}
+
+		#admin-login {
+			max-width: 480px;
+			margin: 0 auto;
+		}
+	</style>
+</head>
+<body>
+	<div class="container py-5" id="admin-login">
+		<div class="text-center mb-4">
+			<h1 class="h3 fw-bold">管理ログイン</h1>
+			<p class="text-muted mb-0">Firebase Authenticationで登録済みの管理者アカウントを入力してください。</p>
+		</div>
+
+		<% if (error) { %>
+			<div class="alert alert-danger" role="alert"><%= error %></div>
+		<% } %>
+
+		<form class="card shadow-sm p-4" method="post" action="/admin/login" autocomplete="on">
+			<div class="mb-3">
+				<label for="admin-email" class="form-label">メールアドレス</label>
+				<input type="email" class="form-control" id="admin-email" name="email" autocomplete="username" required>
+			</div>
+			<div class="mb-4">
+				<label for="admin-password" class="form-label">パスワード</label>
+				<input type="password" class="form-control" id="admin-password" name="password" autocomplete="current-password" required>
+			</div>
+			<button type="submit" class="btn btn-primary w-100">
+				ログイン
+			</button>
+		</form>
+
+		<p class="text-muted small text-center mt-3">
+			管理者の追加・削除はFirebaseコンソールで行ってください。
+		</p>
+	</div>
+</body>
+</html>

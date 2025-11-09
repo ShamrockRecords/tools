@@ -1,3 +1,16 @@
-<h1><%= message %></h1>
-<h2><%= error.status %></h2>
-<pre><%= error.stack %></pre>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('parts/head', {title: 'エラー'}) %>
+</head>
+<body>
+	<div class="container py-5">
+		<h1 class="h3 fw-bold mb-4">エラーが発生しました</h1>
+		<p class="mb-2"><%= message %></p>
+		<% if (error && error.stack) { %>
+			<pre class="bg-light p-3 border rounded"><%= error.stack %></pre>
+		<% } %>
+		<a href="/" class="btn btn-primary mt-3">トップへ戻る</a>
+	</div>
+</body>
+</html>

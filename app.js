@@ -3,6 +3,67 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var firebase = require('firebase');
+var firebaseAdmin = require('firebase-admin');
+
+require('dotenv').config();
+
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  measurementId: process.env.MEASUREMENT_ID,
+};
+
+if (firebaseConfig.apiKey && !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+function loadAdminCredentialFromEnv() {
+  if (!process.env.FIREBASE_ADMIN_CREDENTIALS) {
+    return null;
+  }
+
+  const rawValue = process.env.FIREBASE_ADMIN_CREDENTIALS.trim();
+  const candidates = [rawValue];
+
+  // Allow base64-encoded payloads to keep .env tidy.
+  try {
+    const decoded = Buffer.from(rawValue, 'base64').toString('utf8');
+    if (decoded.startsWith('{')) {
+      candidates.unshift(decoded);
+    }
+  } catch (error) {
+    // not base64, ignore
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      // try next candidate
+    }
+  }
+
+  console.warn('Failed to parse FIREBASE_ADMIN_CREDENTIALS. Admin features are disabled until the value contains valid JSON or base64-encoded JSON.');
+  return null;
+}
+
+if (!firebaseAdmin.apps.length) {
+  const credentialData = loadAdminCredentialFromEnv();
+
+  if (credentialData) {
+    firebaseAdmin.initializeApp({
+      credential: firebaseAdmin.credential.cert(credentialData),
+      projectId: firebaseConfig.projectId,
+    });
+  } else {
+    console.warn('Firebase Admin SDK credentials are not set. Configure FIREBASE_ADMIN_CREDENTIALS to enable /admin endpoints.');
+  }
+}
 
 var indexRouter = require('./routes/index');
 var srtToCsvIndexRouter = require('./routes/srtToCsv/index');
@@ -15,6 +76,7 @@ var localeChangeRouter = require('./routes/localeChange');
 var youyakuIndexRouter = require('./routes/youyaku/index');
 var lineIndexRouter = require('./routes/line/index');
 var lineKyodoshiIndexRouter = require('./routes/lineKyodoshi/index');
+var adminRouter = require('./routes/admin');
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
@@ -66,8 +128,6 @@ app.use(function (req, res, next) {
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb'}));
 
-require('dotenv').config();
-
 if (process.env.ROOT_URL != "http://localhost:3000") {
   var secure = require('ssl-express-www');
 
@@ -79,8 +139,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -95,6 +155,7 @@ app.use('/locale_change', localeChangeRouter);
 app.use('/youyaku', youyakuIndexRouter);
 app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
+app.use('/admin', adminRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

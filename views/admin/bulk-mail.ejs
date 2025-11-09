@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../parts/head', {title: '一斉メール送信'}) %>
+	<style>
+		body {
+			background-color: #f8f9fa;
+			min-height: 100vh;
+		}
+		textarea {
+			min-height: 160px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container py-5">
+		<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+			<div>
+				<h1 class="h3 fw-bold mb-1">一斉メール送信</h1>
+				<p class="text-muted mb-0">改行区切りで入力された宛先に、SendGrid経由で同じ内容のメールを配信します。</p>
+			</div>
+			<div class="d-flex flex-column flex-md-row gap-2">
+				<a href="/admin" class="btn btn-outline-secondary">管理者トップへ戻る</a>
+				<button class="btn btn-outline-secondary" id="logout-button">ログアウト</button>
+			</div>
+		</div>
+
+		<div class="row g-4">
+			<div class="col-12">
+				<div class="card shadow-sm h-100">
+					<div class="card-body">
+						<div class="alert alert-danger d-none" id="bulk-mail-client-error" role="alert"></div>
+
+						<form class="needs-validation" novalidate>
+							<div class="row g-4">
+								<div class="col-12 col-lg-6">
+									<label for="bulk-mail-recipients" class="form-label">送信先メールアドレス</label>
+									<textarea class="form-control" id="bulk-mail-recipients" name="recipients" rows="20" required placeholder="example1@example.com&#10;example2@example.com"><%- form.recipients %></textarea>
+									<div class="form-text">1行につき1件、最大1500件まで。重複や無効な形式は送信前に検証されます。</div>
+								</div>
+								<div class="col-12 col-lg-6 d-flex flex-column">
+									<div class="mb-3">
+										<label for="bulk-mail-subject" class="form-label">件名</label>
+										<input type="text" class="form-control" id="bulk-mail-subject" value="<%- form.subject %>" required>
+									</div>
+									<div class="mb-4 flex-grow-1">
+										<label for="bulk-mail-body" class="form-label">本文</label>
+										<textarea class="form-control h-100" id="bulk-mail-body" rows="16" required><%- form.body %></textarea>
+										<div class="form-text">本文はプレーンテキスト（text/plain）として送信されます。</div>
+									</div>
+									<div class="mt-3">
+										<button type="submit" class="btn btn-primary w-100">
+										送信する
+										</button>
+									</div>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+			<div class="col-12">
+				<div class="card shadow-sm h-100">
+					<div class="card-body d-flex flex-column">
+						<h2 class="h5 mb-3">送信の流れ</h2>
+						<ol class="text-muted small ps-3 mb-4 flex-grow-1">
+							<li>改行区切りで宛先を入力（重複は自動除外されます）。</li>
+							<li>件名と本文を入力し、「送信する」を押すと確認モーダルが表示されます。</li>
+							<li>モーダルで確定すると画面を遷移せずに送信を開始し、結果がバナーで表示されます（送信中はスピナー表示）。</li>
+						</ol>
+						<div class="alert alert-info small mb-0">
+							送信後の結果はSendGridダッシュボードでも確認できます。大量送信時は完了まで数分かかる場合があります。
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="alert alert-danger d-none mt-4" id="logout-error" role="alert"></div>
+	</div>
+
+	<div class="modal fade" id="bulkMailConfirmModal" tabindex="-1" aria-labelledby="bulkMailConfirmModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="bulkMailConfirmModalLabel">送信確認</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-1" id="bulk-mail-confirm-summary"></p>
+					<p class="text-muted small mb-0" id="bulk-mail-confirm-note"></p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+					<button type="button" class="btn btn-primary" id="bulk-mail-confirm-submit">送信する</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		(function() {
+			const logoutButton = document.getElementById('logout-button');
+			const errorBox = document.getElementById('logout-error');
+
+			if (logoutButton) {
+				function showLogoutError(message) {
+					errorBox.textContent = message;
+					errorBox.classList.remove('d-none');
+				}
+
+				logoutButton.addEventListener('click', async (event) => {
+					event.preventDefault();
+					errorBox.classList.add('d-none');
+					logoutButton.disabled = true;
+					const defaultLabel = 'ログアウト';
+					logoutButton.textContent = 'ログアウト中...';
+
+					try {
+						const response = await fetch('/admin/logout', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+							},
+						});
+
+						if (!response.ok) {
+							throw new Error('ログアウトに失敗しました。');
+						}
+
+						window.location.href = '/admin';
+					} catch (error) {
+						showLogoutError(error.message || 'ログアウト処理に失敗しました。');
+						logoutButton.disabled = false;
+						logoutButton.textContent = defaultLabel;
+					}
+				});
+			}
+
+			const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			const MAX_RECIPIENTS = 1500;
+			const form = document.querySelector('form');
+			const submitButton = form.querySelector('button[type="submit"]');
+			const recipientsInput = document.getElementById('bulk-mail-recipients');
+			const subjectInput = document.getElementById('bulk-mail-subject');
+			const bodyInput = document.getElementById('bulk-mail-body');
+			const clientErrorBox = document.getElementById('bulk-mail-client-error');
+			const confirmModalElement = document.getElementById('bulkMailConfirmModal');
+			const confirmSummary = document.getElementById('bulk-mail-confirm-summary');
+			const confirmNote = document.getElementById('bulk-mail-confirm-note');
+			const confirmSubmitButton = document.getElementById('bulk-mail-confirm-submit');
+			const confirmModal = new bootstrap.Modal(confirmModalElement);
+			const statusBanner = document.createElement('div');
+			statusBanner.className = 'alert alert-info d-none mt-3';
+			form.appendChild(statusBanner);
+
+			let pendingRecipients = [];
+			let isSubmitting = false;
+
+			function showClientError(message) {
+				clientErrorBox.textContent = message;
+				clientErrorBox.classList.remove('d-none');
+			}
+
+			function showStatus(message, variant) {
+				statusBanner.textContent = message;
+				statusBanner.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger');
+				statusBanner.classList.add(`alert-${variant}`);
+			}
+
+			if (!form) {
+				return;
+			}
+
+			form.addEventListener('submit', async (event) => {
+				event.preventDefault();
+				clientErrorBox.classList.add('d-none');
+				statusBanner.classList.add('d-none');
+
+				if (isSubmitting) {
+					return;
+				}
+
+				const subject = subjectInput.value.trim();
+				const body = bodyInput.value.trim();
+
+				if (!subject) {
+					showClientError('件名を入力してください。');
+					return;
+				}
+
+				if (!body) {
+					showClientError('本文を入力してください。');
+					return;
+				}
+
+				const lines = recipientsInput.value
+					.split(/\r?\n/)
+					.map((line) => line.trim())
+					.filter(Boolean);
+
+				if (!lines.length) {
+					showClientError('送信先メールアドレスを入力してください。');
+					return;
+				}
+
+				const invalidEmails = [];
+				const duplicates = [];
+				const seen = new Set();
+				pendingRecipients = [];
+
+				for (const email of lines) {
+					if (!EMAIL_REGEX.test(email)) {
+						invalidEmails.push(email);
+						continue;
+					}
+
+					if (seen.has(email)) {
+						duplicates.push(email);
+						continue;
+					}
+
+					seen.add(email);
+					pendingRecipients.push(email);
+				}
+
+				if (!pendingRecipients.length) {
+					showClientError('有効なメールアドレスがありません。');
+					return;
+				}
+
+				if (pendingRecipients.length > MAX_RECIPIENTS) {
+					showClientError(`送信先は最大${MAX_RECIPIENTS}件までです。（現在: ${pendingRecipients.length}件）`);
+					return;
+				}
+
+				if (invalidEmails.length) {
+					const summary = invalidEmails.length > 3
+						? `${invalidEmails.slice(0, 3).join(', ')} 他${invalidEmails.length - 3}件`
+						: invalidEmails.join(', ');
+					showClientError(`形式が正しくないメールアドレスがあります: ${summary}`);
+					return;
+				}
+
+				confirmSummary.textContent = `有効な送信先: ${pendingRecipients.length}件`;
+				confirmNote.textContent = duplicates.length
+					? `重複として除外されるメールアドレス: ${duplicates.length}件`
+					: '重複したメールアドレスはありません。';
+
+				confirmModal.show();
+			});
+
+			confirmSubmitButton.addEventListener('click', async () => {
+				confirmModal.hide();
+				isSubmitting = true;
+				submitButton.disabled = true;
+				submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>送信中...';
+				const payload = {
+					recipients: pendingRecipients.join('\n'),
+					subject: subjectInput.value.trim(),
+					body: bodyInput.value.trim(),
+				};
+
+				try {
+					const response = await fetch('/admin/bulk-mail', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify(payload),
+					});
+
+					const result = await response.json();
+
+					if (!response.ok || !result.success) {
+						throw new Error(result.message || 'メール送信に失敗しました。');
+					}
+
+					showStatus(result.message || 'メール送信を開始しました。', 'success');
+
+					recipientsInput.value = '';
+					subjectInput.value = '';
+					bodyInput.value = '';
+				} catch (error) {
+					showStatus(error.message, 'danger');
+				} finally {
+					submitButton.disabled = false;
+					submitButton.textContent = '送信する';
+					isSubmitting = false;
+				}
+			});
+		})();
+	</script>
+</body>
+</html>
