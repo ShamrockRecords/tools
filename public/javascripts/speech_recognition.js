@@ -72,7 +72,7 @@ async function runSpeechRecognition(completion) {
         targetFile = new Blob([data.buffer], { type: 'audio/mp3' }) ;
     }
 
-    let serverURL = "https://acp-api-async.amivoice.com/v1/recognitions" ;
+    let serverURL = "https://acp-api-async.amivoice.com/v2/recognitions" ;
 
     var formData = new FormData();
     let domainId = "" ;
