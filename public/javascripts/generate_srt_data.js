@@ -67,7 +67,7 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 		let contentLength = 0 ;
 
 		for (let key in contentArray) {
-			contentLength += contentArray[key].length ;
+			contentLength += getContentText(contentArray[key]).length ;
 		}
 
 		timeOfChar = (endTime - beginTime) / contentLength ;
@@ -81,20 +81,24 @@ function generateResult(copiedlines, replacingDots, language, listener) {
             let content = "" ;
             
             if (i < contentArray.length) {
-                content = contentArray[i] ;
+                content = getContentText(contentArray[i]) ;
             }
 
-            tempContentArray.push(content) ;
+            tempContentArray.push(contentArray[i] || content) ;
 
             if (content.endsWith("。") || 
                 isEnglishEndOfToken(content) || 
                 contentLengthFromArray(tempContentArray) >= lengthPerLine ||
                 contentArray.length == i) {
 
+                if (i < contentArray.length - 1 && isNoLineStartElement(contentArray[i + 1], language)) {
+                    continue ;
+                }
+
                 let contentLength = 0 ;
 
                 for (let key in tempContentArray) {
-                    contentLength += tempContentArray[key].length
+                    contentLength += getContentText(tempContentArray[key]).length
                 }
 
                 if (dividing) {
@@ -105,13 +109,13 @@ function generateResult(copiedlines, replacingDots, language, listener) {
                         countPerLine = contentLength ;
                     }
 
-                    tempContentArray = devideWith(tempContentArray, countPerLine / 2) ;
+                    tempContentArray = devideWith(tempContentArray, countPerLine / 2, language) ;
                 }
 
                 let contentString = "" ;
 
                 for (let key in tempContentArray) {
-                    contentString += tempContentArray[key] ;
+                    contentString += getContentText(tempContentArray[key]) ;
                 }
                                         
                 if (replacingDots) {
@@ -176,27 +180,63 @@ function contentLengthFromArray(array) {
     let length = 0 ;
 
     for (let key in array) {
-        length += array[key].length ;
+        length += getContentText(array[key]).length ;
     }
 
     return length ;
 }
 
-function devideWith(contentArray, index) {
+function getContentText(element) {
+    if (element == null) {
+        return "" ;
+    }
+
+    if (typeof element == "string") {
+        return element ;
+    }
+
+    return element["text"] || "" ;
+}
+
+function isNoLineStartElement(element, language) {
+    let text = getContentText(element).trim() ;
+
+    if (text == "") {
+        return false ;
+    }
+
+    if (typeof element != "string" && element["noLineStart"] == true) {
+        return true ;
+    }
+
+    if (language == "ja" || language.startsWith("zh-")) {
+        if (/^[、。，．！？!?）」』】〕）\]\),.]/.test(text)) {
+            return true ;
+        }
+
+        if (/^[ぁ-ん]$/.test(text)) {
+            return true ;
+        }
+    }
+
+    return false ;
+}
+
+function devideWith(contentArray, index, language) {
     let length = 0 ;
 
     for (let i=0; i<contentArray.length; i++) {
-        length += contentArray[i].length ;
+        length += getContentText(contentArray[i]).length ;
 
         if (length > index) {
-            if (i < contentArray.length - 1) {
-                if (contentArray[i + 1] == "、" || contentArray[i + 1] == "。" || contentArray[i + 1] == ".") {
-                    contentArray.splice(i + 2, 0, "\n") ;
-                } else {
-                    contentArray.splice(i + 1, 0, "\n") ;
-                }
-            } else {
-                contentArray.splice(i + 1, 0, "\n") ;
+            let divideIndex = i + 1 ;
+
+            while (divideIndex < contentArray.length && isNoLineStartElement(contentArray[divideIndex], language)) {
+                divideIndex++ ;
+            }
+
+            if (divideIndex <= contentArray.length) {
+                contentArray.splice(divideIndex, 0, "\n") ;
             }
             
             break ;

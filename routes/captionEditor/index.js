@@ -41,25 +41,30 @@ router.post('/data', wrap(async function(req, res, next) {
 
             let contentArray = [] ;
             let content = "" ;
+            let contentTokens = [] ;
 
             for (let key in path) {
-                content += path[key]["surface_form"] ;
+                let token = path[key] ;
 
-                if ((path[key]["pos"] == '助詞' && path[key]["pos_detail_1"] != '終助詞') ||
-                    path[key]["pos"] == '感動詞' ||
-                    path[key]["pos"] == '接続詞' ||
-                    path[key]["pos"] == '連体詞' ||
-                    (language != "ja" && path[key]["surface_form"] == " ") ||
-                    path[key]["surface_form"] == "、" ||
-                    path[key]["surface_form"] == "，" ||
-                    path[key]["surface_form"] == "。") {
-                    contentArray.push(content) ;
+                content += token["surface_form"] ;
+                contentTokens.push(token) ;
+
+                if ((token["pos"] == '助詞' && token["pos_detail_1"] != '終助詞') ||
+                    token["pos"] == '感動詞' ||
+                    token["pos"] == '接続詞' ||
+                    token["pos"] == '連体詞' ||
+                    (language != "ja" && token["surface_form"] == " ") ||
+                    token["surface_form"] == "、" ||
+                    token["surface_form"] == "，" ||
+                    token["surface_form"] == "。") {
+                    contentArray.push(createSubtitleChunk(content, contentTokens)) ;
                     content = "" ;
+                    contentTokens = [] ;
                 }
             }
 
             if (content != "") {
-                contentArray.push(content) ;
+                contentArray.push(createSubtitleChunk(content, contentTokens)) ;
             }
 
             line["content"] = contentArray ;
@@ -69,6 +74,29 @@ router.post('/data', wrap(async function(req, res, next) {
         res.end(JSON.stringify(lines));
     });    
 })) ;
+
+function createSubtitleChunk(text, tokens) {
+    let firstToken = tokens[0] || {} ;
+
+    return {
+        text: text,
+        noLineStart: isNoLineStartToken(firstToken, text)
+    } ;
+}
+
+function isNoLineStartToken(token, text) {
+    let surface = token["surface_form"] || text ;
+
+    if (/^[、。，．！？!?）」』】〕）\]\),.]+/.test(surface)) {
+        return true ;
+    }
+
+    if (/^[ぁ-ん]$/.test(surface)) {
+        return true ;
+    }
+
+    return token["pos"] == '助詞' || token["pos"] == '助動詞' ;
+}
 
 router.post('/appendReading', wrap(async function(req, res, next) {
     
