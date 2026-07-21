@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router() ;
 var i18n = require("i18n");
+var createSubtitleChunks = require('../../modules/captionEditor/createSubtitleChunks');
 
 const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
@@ -39,64 +40,13 @@ router.post('/data', wrap(async function(req, res, next) {
             let line = lines[key]
             var path = tokenizer.tokenize(line["content"]);
 
-            let contentArray = [] ;
-            let content = "" ;
-            let contentTokens = [] ;
-
-            for (let key in path) {
-                let token = path[key] ;
-
-                content += token["surface_form"] ;
-                contentTokens.push(token) ;
-
-                if ((token["pos"] == '助詞' && token["pos_detail_1"] != '終助詞') ||
-                    token["pos"] == '感動詞' ||
-                    token["pos"] == '接続詞' ||
-                    token["pos"] == '連体詞' ||
-                    (language != "ja" && token["surface_form"] == " ") ||
-                    token["surface_form"] == "、" ||
-                    token["surface_form"] == "，" ||
-                    token["surface_form"] == "。") {
-                    contentArray.push(createSubtitleChunk(content, contentTokens)) ;
-                    content = "" ;
-                    contentTokens = [] ;
-                }
-            }
-
-            if (content != "") {
-                contentArray.push(createSubtitleChunk(content, contentTokens)) ;
-            }
-
-            line["content"] = contentArray ;
+            line["content"] = createSubtitleChunks(path) ;
         }
 
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(lines));
     });    
 })) ;
-
-function createSubtitleChunk(text, tokens) {
-    let firstToken = tokens[0] || {} ;
-
-    return {
-        text: text,
-        noLineStart: isNoLineStartToken(firstToken, text)
-    } ;
-}
-
-function isNoLineStartToken(token, text) {
-    let surface = token["surface_form"] || text ;
-
-    if (/^[、。，．！？!?）」』】〕）\]\),.]+/.test(surface)) {
-        return true ;
-    }
-
-    if (/^[ぁ-ん]$/.test(surface)) {
-        return true ;
-    }
-
-    return token["pos"] == '助詞' || token["pos"] == '助動詞' ;
-}
 
 router.post('/appendReading', wrap(async function(req, res, next) {
     

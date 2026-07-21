@@ -45,11 +45,10 @@ function generateResult(copiedlines, replacingDots, language, listener) {
         language = "ja" ;
     }
 
-    let dividing = true ;
- 
     let result = "" ;
     let num = 1 ;
-    let lengthPerLine =  (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
+    let maxLengthPerLine = 15 ;
+    let maxLengthPerBlock = maxLengthPerLine * 2 ;
 
     for (let i=0; i<copiedlines.length; i++) {
         let elements = copiedlines[i] ;
@@ -63,103 +62,108 @@ function generateResult(copiedlines, replacingDots, language, listener) {
             continue ;
         }
 
-        let timeOfChar = 60000 / 300 ; // average
-		let contentLength = 0 ;
+        let totalContentLength = contentLengthFromArray(contentArray) ;
 
-		for (let key in contentArray) {
-			contentLength += getContentText(contentArray[key]).length ;
-		}
+        if (totalContentLength == 0) {
+            continue ;
+        }
 
-		timeOfChar = (endTime - beginTime) / contentLength ;
+        let timeOfChar = (endTime - beginTime) / totalContentLength ;
+        let currentIndex = 0 ;
+        let subtitleBlocks = divideIntoSubtitleBlocks(contentArray, maxLengthPerBlock, language) ;
 
-        let currnetIndex = 0 ;
-        
-        let tempContentArray = [] ;
+        for (let block of subtitleBlocks) {
+            let contentLength = contentLengthFromArray(block) ;
+            let formattedBlock = devideWith(Array.from(block), maxLengthPerLine, language) ;
+            let contentString = contentTextFromArray(formattedBlock) ;
 
-        for (let i=0; i<=contentArray.length; i++) {
-            
-            let content = "" ;
-            
-            if (i < contentArray.length) {
-                content = getContentText(contentArray[i]) ;
+            if (replacingDots) {
+                contentString = contentString.replaceAll("、", " ") ;
+                contentString = contentString.replaceAll("。", "") ;
             }
 
-            tempContentArray.push(contentArray[i] || content) ;
+            contentString = cleanupContentString(contentString) ;
 
-            if (content.endsWith("。") || 
-                isEnglishEndOfToken(content) || 
-                contentLengthFromArray(tempContentArray) >= lengthPerLine ||
-                contentArray.length == i) {
+            if (contentString.length != 0 && contentString != "、" && contentString != "。") {
+                let tempBeginTime = currentIndex * timeOfChar ;
+                let tempEndTime = tempBeginTime + (timeOfChar * contentLength) ;
+                let tempBeginSec = Number((beginTime).toString()) + tempBeginTime ;
+                let tempEndSec = Number((beginTime).toString()) + tempEndTime ;
 
-                if (i < contentArray.length - 1 && isNoLineStartElement(contentArray[i + 1], language)) {
-                    continue ;
+                if (tempBeginSec >= 0 && tempEndSec >= 0) {
+                    result += listener(num, tempBeginSec, tempEndSec, contentString, translation) ;
+                    num++ ;
                 }
-
-                let contentLength = 0 ;
-
-                for (let key in tempContentArray) {
-                    contentLength += getContentText(tempContentArray[key]).length
-                }
-
-                if (dividing) {
-                    let countPerLine = (language == "ja" || language.startsWith("zh-")) ? 30 : 60 ;
-                    let contentLength = contentLengthFromArray(tempContentArray) ;
-
-                    if (countPerLine < contentLength) {
-                        countPerLine = contentLength ;
-                    }
-
-                    tempContentArray = devideWith(tempContentArray, countPerLine / 2, language) ;
-                }
-
-                let contentString = "" ;
-
-                for (let key in tempContentArray) {
-                    contentString += getContentText(tempContentArray[key]) ;
-                }
-                                        
-                if (replacingDots) {
-                    contentString = contentString.replaceAll("、", " ") ;
-                    contentString = contentString.replaceAll("、", " ") ;
-                    contentString = contentString.replaceAll("。", "") ;
-                }
-
-                contentString = contentString.replaceAll("\r\n", "\n") ;
-				contentString = contentString.replaceAll(/(\n)+/g, "\n") ;
-                contentString = contentString.replaceAll("\n ", "\n") ;
-                contentString = contentString.replaceAll("\n ", "\n") ;
-                contentString = contentString.replaceAll("\n、", "\n") ;
-                contentString = contentString.replaceAll("\n。", "\n") ;
-                contentString = contentString.replaceAll("\n.", ".") ;
-				contentString = contentString.replaceAll(/^(、)+/g, "") ;
-                contentString = contentString.replaceAll(/^(。)+/g, "") ;
-    
-                contentString = contentString.trim();
-
-                if (contentString.length != 0 && contentString != "、" && contentString != "。") {
-                    let tempBeginTime = currnetIndex * timeOfChar ;   
-                    let tempEndTime = tempBeginTime + (timeOfChar * contentLength) ;
-
-                    let tempBeginSec = Number((beginTime).toString()) + tempBeginTime ;
-                    let tempEndSec = Number((beginTime).toString()) + tempEndTime ;
-
-                    if (tempBeginSec >= 0 && tempEndSec >= 0) {
-                        result += listener(num, tempBeginSec, tempEndSec, contentString, translation) ;
-                        num++ ;
-                    }
-                }
-
-                currnetIndex += contentLength ;
-
-                tempContentArray = [] ;
             }
+
+            currentIndex += contentLength ;
         }
     }
 
     return result ;
 }
 
-function isEnglishEndOfToken(content) {
+function divideIntoSubtitleBlocks(contentArray, maxLength, language) {
+    let result = [] ;
+    let currentBlock = [] ;
+
+    for (let element of contentArray) {
+        let content = getContentText(element) ;
+        let prospectiveBlock = currentBlock.concat([element]) ;
+        let prospectiveLength = contentLayoutLengthFromArray(prospectiveBlock) ;
+
+        // 行頭禁止要素を次の字幕へ送るくらいなら、30文字超過を許容して現在の字幕へ含める。
+        if (currentBlock.length != 0 &&
+            prospectiveLength > maxLength &&
+            !isNoLineStartElement(element, language)) {
+            result.push(currentBlock) ;
+            currentBlock = [] ;
+        }
+
+        currentBlock.push(element) ;
+
+        if (isEndOfSentence(content)) {
+            result.push(currentBlock) ;
+            currentBlock = [] ;
+        }
+    }
+
+    if (currentBlock.length != 0) {
+        result.push(currentBlock) ;
+    }
+
+    return result ;
+}
+
+function getLayoutText(text) {
+    return text.replaceAll("、", " ").replaceAll("。", "") ;
+}
+
+function contentTextFromArray(array) {
+    let content = "" ;
+
+    for (let element of array) {
+        content += getContentText(element) ;
+    }
+
+    return content ;
+}
+
+function cleanupContentString(content) {
+    content = content.replaceAll("\r\n", "\n") ;
+    content = content.replaceAll(/(\n)+/g, "\n") ;
+    content = content.replaceAll(/[ \t]+\n/g, "\n") ;
+    content = content.replaceAll(/\n[ \t]+/g, "\n") ;
+    content = content.replaceAll("\n、", "\n") ;
+    content = content.replaceAll("\n。", "\n") ;
+    content = content.replaceAll("\n.", ".") ;
+    content = content.replaceAll(/^(、)+/g, "") ;
+    content = content.replaceAll(/^(。)+/g, "") ;
+
+    return content.trim() ;
+}
+
+function isEndOfSentence(content) {
 
     content = content.trim() ;
 
@@ -173,7 +177,12 @@ function isEnglishEndOfToken(content) {
         return false ;
     }
 
-    return content.endsWith(".") || content.endsWith("!") || content.endsWith("?") ;
+    return content.endsWith("。") ||
+        content.endsWith("！") ||
+        content.endsWith("？") ||
+        content.endsWith(".") ||
+        content.endsWith("!") ||
+        content.endsWith("?") ;
 }
 
 function contentLengthFromArray(array) {
@@ -223,25 +232,42 @@ function isNoLineStartElement(element, language) {
 }
 
 function devideWith(contentArray, index, language) {
-    let length = 0 ;
+    let totalLength = contentLayoutLengthFromArray(contentArray) ;
 
-    for (let i=0; i<contentArray.length; i++) {
-        length += getContentText(contentArray[i]).length ;
+    if (totalLength <= index) {
+        return contentArray ;
+    }
 
-        if (length > index) {
-            let divideIndex = i + 1 ;
+    let divideIndex = -1 ;
+    let smallestOverflow = Infinity ;
+    let smallestDifference = Infinity ;
 
-            while (divideIndex < contentArray.length && isNoLineStartElement(contentArray[divideIndex], language)) {
-                divideIndex++ ;
-            }
-
-            if (divideIndex <= contentArray.length) {
-                contentArray.splice(divideIndex, 0, "\n") ;
-            }
-            
-            break ;
+    for (let i=0; i<contentArray.length - 1; i++) {
+        if (isNoLineStartElement(contentArray[i + 1], language)) {
+            continue ;
         }
+
+        let firstLineLength = contentLayoutLengthFromArray(contentArray.slice(0, i + 1)) ;
+        let secondLineLength = contentLayoutLengthFromArray(contentArray.slice(i + 1)) ;
+        let overflow = Math.max(0, firstLineLength - index) + Math.max(0, secondLineLength - index) ;
+        let difference = Math.abs(firstLineLength - secondLineLength) ;
+
+        // 15文字超過が最小の候補を優先し、同条件なら二行の文字数を近づける。
+        if (overflow < smallestOverflow ||
+            (overflow == smallestOverflow && difference < smallestDifference)) {
+            divideIndex = i + 1 ;
+            smallestOverflow = overflow ;
+            smallestDifference = difference ;
+        }
+    }
+
+    if (divideIndex != -1) {
+        contentArray.splice(divideIndex, 0, "\n") ;
     }
     
     return contentArray ;
+}
+
+function contentLayoutLengthFromArray(array) {
+    return getLayoutText(contentTextFromArray(array)).trim().length ;
 }
