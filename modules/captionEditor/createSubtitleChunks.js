@@ -17,7 +17,13 @@ function createSubtitleChunks(tokens) {
     if (shouldAppendToPreviousChunk(content) && result.length != 0) {
       result[result.length - 1]['text'] += content ;
     } else {
-      result.push(createSubtitleChunk(content, contentTokens)) ;
+      let chunk = createSubtitleChunk(content, contentTokens) ;
+
+      if (shouldPreferPreviousLine(result[result.length - 1], content)) {
+        chunk['preferPreviousLine'] = true ;
+      }
+
+      result.push(chunk) ;
     }
   }
 
@@ -30,6 +36,18 @@ function isSubtitleEndToken(text) {
 
 function shouldAppendToPreviousChunk(text) {
   return text.trim() == '' || text == '、' || text == '，' || isSubtitleEndToken(text.charAt(0)) ;
+}
+
+function shouldPreferPreviousLine(previousChunk, text) {
+  if (previousChunk == null || !/\s$/.test(previousChunk['text'])) {
+    return false ;
+  }
+
+  return isEnglishWord(previousChunk['text'].trim()) && isEnglishWord(text) ;
+}
+
+function isEnglishWord(text) {
+  return /^[A-Za-z0-9]+(?:['’_-][A-Za-z0-9]+)*$/.test(text) ;
 }
 
 function createSubtitleChunk(text, tokens) {

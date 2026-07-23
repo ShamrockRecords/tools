@@ -240,6 +240,7 @@ function devideWith(contentArray, index, language) {
 
     let divideIndex = -1 ;
     let smallestOverflow = Infinity ;
+    let smallestPreferredLinePenalty = Infinity ;
     let smallestDifference = Infinity ;
 
     for (let i=0; i<contentArray.length - 1; i++) {
@@ -250,13 +251,19 @@ function devideWith(contentArray, index, language) {
         let firstLineLength = contentLayoutLengthFromArray(contentArray.slice(0, i + 1)) ;
         let secondLineLength = contentLayoutLengthFromArray(contentArray.slice(i + 1)) ;
         let overflow = Math.max(0, firstLineLength - index) + Math.max(0, secondLineLength - index) ;
+        let preferredLinePenalty = prefersPreviousLine(contentArray[i + 1], language) ? 1 : 0 ;
         let difference = Math.abs(firstLineLength - secondLineLength) ;
 
-        // 15文字超過が最小の候補を優先し、同条件なら二行の文字数を近づける。
+        // 15文字超過が最小の候補を優先する。同条件では連続する英単語を同じ行に保ち、
+        // それでも同条件なら二行の文字数を近づける。
         if (overflow < smallestOverflow ||
-            (overflow == smallestOverflow && difference < smallestDifference)) {
+            (overflow == smallestOverflow && preferredLinePenalty < smallestPreferredLinePenalty) ||
+            (overflow == smallestOverflow &&
+                preferredLinePenalty == smallestPreferredLinePenalty &&
+                difference < smallestDifference)) {
             divideIndex = i + 1 ;
             smallestOverflow = overflow ;
+            smallestPreferredLinePenalty = preferredLinePenalty ;
             smallestDifference = difference ;
         }
     }
@@ -268,6 +275,19 @@ function devideWith(contentArray, index, language) {
     return contentArray ;
 }
 
+function prefersPreviousLine(element, language) {
+    return language == "ja" &&
+        typeof element != "string" &&
+        element["preferPreviousLine"] == true ;
+}
+
 function contentLayoutLengthFromArray(array) {
-    return getLayoutText(contentTextFromArray(array)).trim().length ;
+    let text = getLayoutText(contentTextFromArray(array)).trim() ;
+    let length = 0 ;
+
+    for (let character of Array.from(text)) {
+        length += /^[A-Za-z0-9]$/.test(character) ? 0.5 : 1 ;
+    }
+
+    return length ;
 }

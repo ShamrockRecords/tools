@@ -12,8 +12,8 @@ const context = {};
 vm.createContext(context);
 vm.runInContext(source, context);
 
-function chunk(text, noLineStart = false) {
-  return { text, noLineStart };
+function chunk(text, noLineStart = false, preferPreviousLine = false) {
+  return { text, noLineStart, preferPreviousLine };
 }
 
 function divide(chunks, target, language = 'ja') {
@@ -21,26 +21,26 @@ function divide(chunks, target, language = 'ja') {
 }
 
 assert.deepStrictEqual(
-  divide([chunk('12345678901234'), chunk('1234567890'), chunk('123456')], 15),
-  [chunk('12345678901234'), '\n', chunk('1234567890'), chunk('123456')],
+  divide([chunk('１２３４５６７８９０１２３４'), chunk('１２３４５６７８９０'), chunk('１２３４５６')], 15),
+  [chunk('１２３４５６７８９０１２３４'), '\n', chunk('１２３４５６７８９０'), chunk('１２３４５６')],
   '中央を超えた位置ではなく、二行の長さが最も近くなる位置で分割する',
 );
 
 assert.deepStrictEqual(
-  divide([chunk('12345678901234'), chunk('12', true), chunk('12345678901234')], 15),
-  [chunk('12345678901234'), chunk('12', true), '\n', chunk('12345678901234')],
+  divide([chunk('１２３４５６７８９０１２３４'), chunk('１２', true), chunk('１２３４５６７８９０１２３４')], 15),
+  [chunk('１２３４５６７８９０１２３４'), chunk('１２', true), '\n', chunk('１２３４５６７８９０１２３４')],
   '二行目の先頭に置けない要素の直前では分割しない',
 );
 
 assert.deepStrictEqual(
-  divide([chunk('1234567890')], 5),
-  [chunk('1234567890')],
+  divide([chunk('１２３４５６７８９０')], 5),
+  [chunk('１２３４５６７８９０')],
   '分割可能な境界がない場合は改行を追加しない',
 );
 
 assert.deepStrictEqual(
-  divide([chunk('12345678'), chunk('12345678')], 15),
-  [chunk('12345678'), '\n', chunk('12345678')],
+  divide([chunk('１２３４５６７８'), chunk('１２３４５６７８')], 15),
+  [chunk('１２３４５６７８'), '\n', chunk('１２３４５６７８')],
   '15文字を超える字幕は二行にする',
 );
 
@@ -61,15 +61,43 @@ function generateContent(chunks) {
 }
 
 assert.strictEqual(
-  generateContent([chunk('12345678901234'), chunk('1234567890'), chunk('123456')]),
-  '12345678901234\n1234567890123456',
+  generateContent([chunk('１２３４５６７８９０１２３４'), chunk('１２３４５６７８９０'), chunk('１２３４５６')]),
+  '１２３４５６７８９０１２３４\n１２３４５６７８９０１２３４５６',
   'SRT生成時は字幕全体の中央に最も近い境界で二行にする',
 );
 
 assert.strictEqual(
-  generateContent([chunk('12345'), chunk('12345')]),
-  '1234512345',
+  generateContent([chunk('１２３４５'), chunk('１２３４５')]),
+  '１２３４５１２３４５',
   '短い字幕は二行にしない',
+);
+
+assert.strictEqual(
+  generateContent([
+    chunk('Nerima '),
+    chunk('Base', false, true),
+    chunk('の', true),
+    chunk('青木'),
+    chunk('です', true),
+  ]),
+  'Nerima Baseの青木です',
+  '半角英数字を0.5文字で数え、15文字以内の字幕は一行に保つ',
+);
+
+assert.strictEqual(
+  generateContent([
+    chunk('abcdefghijklmnopqrst '),
+    chunk('uvwxyzABCDEFGHIJKLMN', false, true),
+    chunk('です', true),
+  ]),
+  'abcdefghijklmnopqrst\nuvwxyzABCDEFGHIJKLMNです',
+  '英語部分を同じ行に収められない場合は英単語間での改行を許可する',
+);
+
+assert.strictEqual(
+  context.contentLayoutLengthFromArray([chunk('abc123あ')]),
+  4,
+  '半角英数字は0.5文字、それ以外は1文字として表示長を計算する',
 );
 
 function generateBlocks(chunks, replacingDots = false) {
@@ -162,4 +190,4 @@ assert.deepStrictEqual(
   '字幕を分割した時間は従来どおり元テキストの文字数比率で配分する',
 );
 
-console.log('generate_srt_data.js: 13件のテストに成功しました。');
+console.log('generate_srt_data.js: 16件のテストに成功しました。');
