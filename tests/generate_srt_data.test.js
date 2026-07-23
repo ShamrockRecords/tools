@@ -12,8 +12,8 @@ const context = {};
 vm.createContext(context);
 vm.runInContext(source, context);
 
-function chunk(text, noLineStart = false, preferPreviousLine = false) {
-  return { text, noLineStart, preferPreviousLine };
+function chunk(text, noLineStart = false, preferPreviousLine = false, noLineEnd = false) {
+  return { text, noLineStart, preferPreviousLine, noLineEnd };
 }
 
 function divide(chunks, target, language = 'ja') {
@@ -58,6 +58,28 @@ function generateContent(chunks) {
     end,
     content,
   ) => content);
+}
+
+function generateContents(chunks) {
+  const contents = [];
+  const lines = [{
+    startTime: 0,
+    endTime: 10,
+    content: chunks,
+    translation: '',
+  }];
+
+  context.generateResult(lines, false, 'ja', (
+    num,
+    begin,
+    end,
+    content,
+  ) => {
+    contents.push(content);
+    return '';
+  });
+
+  return contents;
 }
 
 assert.strictEqual(
@@ -127,6 +149,60 @@ assert.deepStrictEqual(
     chunk('後半'),
   ],
   '長音記号で始まるチャンクの直前では改行しない',
+);
+
+assert.deepStrictEqual(
+  divide([
+    chunk('１２３４５６７８９０１２３４'),
+    chunk('やっ', false, false, true),
+    chunk('ぱいっぱい'),
+  ], 15),
+  [
+    chunk('１２３４５６７８９０１２３４'),
+    '\n',
+    chunk('やっ', false, false, true),
+    chunk('ぱいっぱい'),
+  ],
+  '小書き仮名で終わるチャンクの直後では改行しない',
+);
+
+assert.deepStrictEqual(
+  Array.from(context.divideIntoSubtitleBlocks([
+    chunk('１２３４５６７８９０１２３４５６７８９０１２３４５６７'),
+    chunk('やっ', false, false, true),
+    chunk('ぱいっぱい'),
+  ], 30, 'ja'), block => Array.from(block)),
+  [
+    [chunk('１２３４５６７８９０１２３４５６７８９０１２３４５６７')],
+    [chunk('やっ', false, false, true), chunk('ぱいっぱい')],
+  ],
+  '字幕ブロック境界では小書き仮名で終わるチャンクを次へ送る',
+);
+
+assert.deepStrictEqual(
+  generateContents([
+    chunk('あれ'),
+    chunk('の', true),
+    chunk('字幕'),
+    chunk('翻訳'),
+    chunk('を', true),
+    chunk('し', true),
+    chunk('た', true),
+    chunk('方'),
+    chunk('が', true),
+    chunk('練馬'),
+    chunk('の', true),
+    chunk('光が丘'),
+    chunk('に', true),
+    chunk('いらっしゃっ', false, false, true),
+    chunk('て ', true),
+    chunk('前'),
+    chunk('も', true),
+    chunk('一'),
+    chunk('度'),
+  ]),
+  ['あれの字幕翻訳をした方が練馬の\n光が丘にいらっしゃって 前も一度'],
+  '30文字をわずかに超える場合は一文字だけの字幕ブロックを作らない',
 );
 
 function generateBlocks(chunks, replacingDots = false) {
@@ -219,4 +295,4 @@ assert.deepStrictEqual(
   '字幕を分割した時間は従来どおり元テキストの文字数比率で配分する',
 );
 
-console.log('generate_srt_data.js: 18件のテストに成功しました。');
+console.log('generate_srt_data.js: 21件のテストに成功しました。');

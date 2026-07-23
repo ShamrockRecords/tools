@@ -106,18 +106,32 @@ function generateResult(copiedlines, replacingDots, language, listener) {
 function divideIntoSubtitleBlocks(contentArray, maxLength, language) {
     let result = [] ;
     let currentBlock = [] ;
+    let permittedOverflow = 2 ;
 
-    for (let element of contentArray) {
+    for (let elementIndex=0; elementIndex<contentArray.length; elementIndex++) {
+        let element = contentArray[elementIndex] ;
         let content = getContentText(element) ;
         let prospectiveBlock = currentBlock.concat([element]) ;
         let prospectiveLength = contentLayoutLengthFromArray(prospectiveBlock) ;
+        let remainingLength = contentLayoutLengthFromArray(contentArray.slice(elementIndex)) ;
+        let keepsShortRemainder = prospectiveLength <= maxLength + permittedOverflow &&
+            remainingLength <= permittedOverflow ;
 
         // 行頭禁止要素を次の字幕へ送るくらいなら、30文字超過を許容して現在の字幕へ含める。
         if (currentBlock.length != 0 &&
             prospectiveLength > maxLength &&
+            !keepsShortRemainder &&
             !isNoLineStartElement(element, language)) {
-            result.push(currentBlock) ;
-            currentBlock = [] ;
+            let lastElement = currentBlock[currentBlock.length - 1] ;
+
+            if (isNoLineEndElement(lastElement, language) && currentBlock.length > 1) {
+                currentBlock.pop() ;
+                result.push(currentBlock) ;
+                currentBlock = [lastElement] ;
+            } else if (!isNoLineEndElement(lastElement, language)) {
+                result.push(currentBlock) ;
+                currentBlock = [] ;
+            }
         }
 
         currentBlock.push(element) ;
@@ -239,6 +253,21 @@ function isNoLineStartElement(element, language) {
     return false ;
 }
 
+function isNoLineEndElement(element, language) {
+    let text = getContentText(element).trim() ;
+
+    if (text == "") {
+        return false ;
+    }
+
+    if (typeof element != "string" && element["noLineEnd"] == true) {
+        return true ;
+    }
+
+    return (language == "ja" || language.startsWith("zh-")) &&
+        /[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]$/.test(text) ;
+}
+
 function devideWith(contentArray, index, language) {
     let totalLength = contentLayoutLengthFromArray(contentArray) ;
 
@@ -252,7 +281,8 @@ function devideWith(contentArray, index, language) {
     let smallestDifference = Infinity ;
 
     for (let i=0; i<contentArray.length - 1; i++) {
-        if (isNoLineStartElement(contentArray[i + 1], language)) {
+        if (isNoLineStartElement(contentArray[i + 1], language) ||
+            isNoLineEndElement(contentArray[i], language)) {
             continue ;
         }
 

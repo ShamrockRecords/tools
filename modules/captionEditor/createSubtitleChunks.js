@@ -98,10 +98,16 @@ function createSubtitleChunk(text, tokens) {
     lineStartToken = tokens[1] ;
   }
 
-  return {
+  let chunk = {
     text: text,
     noLineStart: isNoLineStartToken(lineStartToken, text),
   } ;
+
+  if (/[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]$/.test(text)) {
+    chunk['noLineEnd'] = true ;
+  }
+
+  return chunk ;
 }
 
 function isNoLineStartToken(token, text) {

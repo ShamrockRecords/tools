@@ -135,4 +135,16 @@ assert.deepStrictEqual(
   '長音・繰り返し・濁点記号で始まるチャンクを行頭禁止にする',
 );
 
-console.log('createSubtitleChunks.js: 7件のテストに成功しました。');
+assert.deepStrictEqual(
+  createSubtitleChunks([
+    token('やっ', '動詞', '自立'),
+    token('ぱいっぱいいるんだっていうのは'),
+  ]),
+  [
+    { text: 'やっ', noLineStart: false, noLineEnd: true },
+    { text: 'ぱいっぱいいるんだっていうのは', noLineStart: false },
+  ],
+  '小書き仮名で終わるチャンクを行末禁止として記録する',
+);
+
+console.log('createSubtitleChunks.js: 8件のテストに成功しました。');
