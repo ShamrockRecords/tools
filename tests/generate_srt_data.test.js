@@ -100,6 +100,35 @@ assert.strictEqual(
   '半角英数字は0.5文字、それ以外は1文字として表示長を計算する',
 );
 
+assert.strictEqual(
+  generateContent([
+    chunk('関連'),
+    chunk('関係'),
+    chunk('あれ'),
+    chunk('が', true),
+    chunk('なん'),
+    chunk('か', true),
+    chunk('ちょっともういつなんだろうみたいな'),
+  ]),
+  '関連関係あれがなんか\nちょっともういつなんだろうみたいな',
+  '小書き仮名を含む音節の途中では改行しない',
+);
+
+assert.deepStrictEqual(
+  divide([
+    chunk('１２３４５６７８９０１２３４'),
+    chunk('ー続く'),
+    chunk('後半'),
+  ], 15),
+  [
+    chunk('１２３４５６７８９０１２３４'),
+    chunk('ー続く'),
+    '\n',
+    chunk('後半'),
+  ],
+  '長音記号で始まるチャンクの直前では改行しない',
+);
+
 function generateBlocks(chunks, replacingDots = false) {
   const lines = [{
     startTime: 0,
@@ -190,4 +219,4 @@ assert.deepStrictEqual(
   '字幕を分割した時間は従来どおり元テキストの文字数比率で配分する',
 );
 
-console.log('generate_srt_data.js: 16件のテストに成功しました。');
+console.log('generate_srt_data.js: 18件のテストに成功しました。');

@@ -223,6 +223,14 @@ function isNoLineStartElement(element, language) {
             return true ;
         }
 
+        if (/^[ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/.test(text)) {
+            return true ;
+        }
+
+        if (/^[ー々ゝゞヽヾ゛゜]/.test(text)) {
+            return true ;
+        }
+
         if (/^[ぁ-ん]$/.test(text)) {
             return true ;
         }
