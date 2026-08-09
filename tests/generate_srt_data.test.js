@@ -295,4 +295,77 @@ assert.deepStrictEqual(
   '字幕を分割した時間は従来どおり元テキストの文字数比率で配分する',
 );
 
-console.log('generate_srt_data.js: 21件のテストに成功しました。');
+function generateContentsWithSettings(chunks, maxLengthPerLine, maxLines) {
+  const contents = [];
+  const lines = [{
+    startTime: 0,
+    endTime: 16,
+    content: chunks,
+    translation: '',
+  }];
+
+  context.generateResult(lines, false, 'ja', (num, begin, end, content) => {
+    contents.push({ content, begin, end });
+    return '';
+  }, maxLengthPerLine, maxLines);
+
+  return contents;
+}
+
+assert.deepStrictEqual(
+  generateContentsWithSettings([
+    chunk('１２３４５'),
+    chunk('６７８９０'),
+    chunk('１２３４５'),
+    chunk('６７８９０'),
+  ], 15, 1),
+  [
+    { content: '１２３４５６７８９０', begin: 0, end: 8 },
+    { content: '１２３４５６７８９０', begin: 8, end: 16 },
+  ],
+  '一行を選択した場合は従来の改行位置で別の字幕データへ分割する',
+);
+
+assert.deepStrictEqual(
+  generateContentsWithSettings([
+    chunk('１２３４５'),
+    chunk('６７８９０'),
+    chunk('１２３４５'),
+    chunk('６７８９０'),
+  ], 15, 2),
+  [{ content: '１２３４５６７８９０\n１２３４５６７８９０', begin: 0, end: 16 }],
+  '二行を選択した場合は指定文字数を基準に一つの字幕データ内で改行する',
+);
+
+const validTimeContents = [];
+context.generateResult([
+  {
+    startTime: 0,
+    endTime: 0,
+    content: [chunk('表示時間がありません')],
+    translation: '',
+  },
+  {
+    startTime: 2,
+    endTime: 1,
+    content: [chunk('終了時刻が開始時刻より前です')],
+    translation: '',
+  },
+  {
+    startTime: 1,
+    endTime: 2,
+    content: [chunk('正常な字幕です')],
+    translation: '',
+  },
+], false, 'ja', (num, begin, end, content) => {
+  validTimeContents.push(content);
+  return '';
+});
+
+assert.deepStrictEqual(
+  validTimeContents,
+  ['正常な字幕です'],
+  '終了時刻が開始時刻以前の字幕はSRTデータから除外する',
+);
+
+console.log('generate_srt_data.js: 24件のテストに成功しました。');

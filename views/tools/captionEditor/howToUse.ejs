@@ -189,7 +189,6 @@
 								</div>
 								<div class="col-auto mb-1">	
 									<input class="btn btn-primary btn-sm wide-btn" id="saveAsSrtButton" type="button" value="<%- __("字幕ファイル（.srt）で保存") %>" name="saveAsSrtButton" />
-									<div id="toExportSrtSpinner"></div>
 								</div>
 							</div>
 
@@ -197,6 +196,38 @@
 								<div class="col mb-1">
 									<div class="small ms-3"><%- __("「字幕ファイル（.srt）で保存」は現在の内容を適度な長さに自動的にハコ割り（分割）して保存します。") %></div>
 									<div class="small ms-3"><%- __("もっと詳細な設定で字幕ファイル（.srt）を作成したいときは<a href='%s' target='_blank' rel='noopener'>字幕データ変換くん</a>でCSVファイルで保存後、作成してください。", "https://jimakudata.udtalk.jp") %></div>
+								</div>
+							</div>
+
+							<div class="modal fade" id="exportSrtDialog" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="exportSrtDialogLabel" aria-hidden="true">
+								<div class="modal-dialog modal-dialog-centered">
+									<div class="modal-content">
+										<div class="modal-header">
+											<h5 class="modal-title" id="exportSrtDialogLabel"><%- __("字幕ファイルの設定") %></h5>
+										</div>
+										<div class="modal-body">
+											<div class="mb-3">
+												<label class="form-label" for="maxLengthPerLine"><%- __("一行の文字数") %></label>
+												<input class="form-control" id="maxLengthPerLine" type="number" value="15" min="1" step="1" required />
+											</div>
+											<fieldset>
+												<legend class="col-form-label"><%- __("字幕の行数") %></legend>
+												<div class="form-check form-check-inline">
+													<input class="form-check-input" id="maxSrtLines1" type="radio" name="maxSrtLines" value="1" />
+													<label class="form-check-label" for="maxSrtLines1"><%- __("一行") %></label>
+												</div>
+												<div class="form-check form-check-inline">
+													<input class="form-check-input" id="maxSrtLines2" type="radio" name="maxSrtLines" value="2" checked />
+													<label class="form-check-label" for="maxSrtLines2"><%- __("二行") %></label>
+												</div>
+											</fieldset>
+											<div id="toExportSrtSpinner"></div>
+										</div>
+										<div class="modal-footer">
+											<button type="button" class="btn btn-secondary" id="exportSrtCancelButton" data-bs-dismiss="modal"><%- __("閉じる") %></button>
+											<button type="button" class="btn btn-primary" id="exportSrtButton"><%- __("SRTファイルを作成") %></button>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>

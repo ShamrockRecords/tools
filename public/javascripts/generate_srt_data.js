@@ -17,7 +17,7 @@ async function convertSrtData(copiedlines, replacingDots, language) {
 	}) ;
 }
 
-async function generateSrtData(copiedlines, replacingDots, language) {
+async function generateSrtData(copiedlines, replacingDots, language, maxLengthPerLine = 15, maxLines = 2) {
 	const headers = {
 		'Accept': 'application/json',
 		  'Content-Type': 'application/json'
@@ -36,27 +36,38 @@ async function generateSrtData(copiedlines, replacingDots, language) {
         let tempEndTimeF = secToTime(tempEndSec, ".") ;
 
 		return num.toString() + '\n' + tempBeginTimeF.replaceAll(".", ",") + ' --> ' + tempEndTimeF.replaceAll(".", ",") + '\n' + tempContent + '\n\n' ;
-	}) ;
+	}, maxLengthPerLine, maxLines) ;
 }
 
-function generateResult(copiedlines, replacingDots, language, listener) {
+function generateResult(copiedlines, replacingDots, language, listener, maxLengthPerLine = 15, maxLines = 2) {
 	
     if (language == null || language == undefined || language == "") {
         language = "ja" ;
     }
 
+    maxLengthPerLine = Number(maxLengthPerLine) ;
+
+    if (!Number.isInteger(maxLengthPerLine) || maxLengthPerLine < 1) {
+        maxLengthPerLine = 15 ;
+    }
+
+    maxLines = Number(maxLines) == 1 ? 1 : 2 ;
+
     let result = "" ;
     let num = 1 ;
-    let maxLengthPerLine = 15 ;
     let maxLengthPerBlock = maxLengthPerLine * 2 ;
 
     for (let i=0; i<copiedlines.length; i++) {
         let elements = copiedlines[i] ;
 
-		let beginTime = elements["startTime"] ;
-		let endTime = elements["endTime"] ;
+		let beginTime = Number(elements["startTime"]) ;
+		let endTime = Number(elements["endTime"]) ;
 		let contentArray = elements["content"] ;
         let translation = elements["translation"] ;
+
+		if (!Number.isFinite(beginTime) || !Number.isFinite(endTime) || endTime <= beginTime) {
+			continue ;
+		}
 
         if (contentArray.length == 0) {
             continue ;
@@ -73,34 +84,54 @@ function generateResult(copiedlines, replacingDots, language, listener) {
         let subtitleBlocks = divideIntoSubtitleBlocks(contentArray, maxLengthPerBlock, language) ;
 
         for (let block of subtitleBlocks) {
-            let contentLength = contentLengthFromArray(block) ;
             let formattedBlock = devideWith(Array.from(block), maxLengthPerLine, language) ;
-            let contentString = contentTextFromArray(formattedBlock) ;
+            let outputBlocks = maxLines == 1 ? splitAtLineBreak(formattedBlock) : [formattedBlock] ;
 
-            if (replacingDots) {
-                contentString = contentString.replaceAll("、", " ") ;
-                contentString = contentString.replaceAll("。", "") ;
-            }
+            for (let outputBlock of outputBlocks) {
+                let contentLength = maxLines == 1 ?
+                    contentLengthFromArray(outputBlock) :
+                    contentLengthFromArray(block) ;
+                let contentString = contentTextFromArray(outputBlock) ;
 
-            contentString = cleanupContentString(contentString) ;
-
-            if (contentString.length != 0 && contentString != "、" && contentString != "。") {
-                let tempBeginTime = currentIndex * timeOfChar ;
-                let tempEndTime = tempBeginTime + (timeOfChar * contentLength) ;
-                let tempBeginSec = Number((beginTime).toString()) + tempBeginTime ;
-                let tempEndSec = Number((beginTime).toString()) + tempEndTime ;
-
-                if (tempBeginSec >= 0 && tempEndSec >= 0) {
-                    result += listener(num, tempBeginSec, tempEndSec, contentString, translation) ;
-                    num++ ;
+                if (replacingDots) {
+                    contentString = contentString.replaceAll("、", " ") ;
+                    contentString = contentString.replaceAll("。", "") ;
                 }
-            }
 
-            currentIndex += contentLength ;
+                contentString = cleanupContentString(contentString) ;
+
+                if (contentString.length != 0 && contentString != "、" && contentString != "。") {
+                    let tempBeginTime = currentIndex * timeOfChar ;
+                    let tempEndTime = tempBeginTime + (timeOfChar * contentLength) ;
+                    let tempBeginSec = beginTime + tempBeginTime ;
+                    let tempEndSec = beginTime + tempEndTime ;
+
+                    if (tempBeginSec >= 0 && tempEndSec >= 0) {
+                        result += listener(num, tempBeginSec, tempEndSec, contentString, translation) ;
+                        num++ ;
+                    }
+                }
+
+                currentIndex += contentLength ;
+            }
         }
     }
 
     return result ;
+}
+
+function splitAtLineBreak(contentArray) {
+    let result = [[]] ;
+
+    for (let element of contentArray) {
+        if (element == "\n") {
+            result.push([]) ;
+        } else {
+            result[result.length - 1].push(element) ;
+        }
+    }
+
+    return result.filter(block => block.length != 0) ;
 }
 
 function divideIntoSubtitleBlocks(contentArray, maxLength, language) {

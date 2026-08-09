@@ -26,6 +26,12 @@
 	"⑤作業中のデータの読み込み": "5. Load the data during the work.",
 	"保存した作業中のデータを読み込んで続きを行うことができます。": "You can load the saved data you are working on and continue.",
 	"⑥編集したデータエクスポート": "6. Export the edited data.",
+	"字幕ファイルの設定": "Subtitle file settings",
+	"一行の文字数": "Characters per line",
+	"字幕の行数": "Number of lines",
+	"一行": "One line",
+	"二行": "Two lines",
+	"SRTファイルを作成": "Create SRT file",
 	"CSVファイル（": {
 		"csv）で保存": "Save as CSV File (.csv)"
 	},

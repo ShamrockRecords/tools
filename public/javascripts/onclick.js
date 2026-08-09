@@ -77,11 +77,29 @@ async function onClickSaveAsTextButton(e) {
 	saveAsFile(content, fileName) ;
 }
 
-async function onClickSaveAsSrtButton(e) {
+let exportSrtDialog ;
+
+function onClickSaveAsSrtButton(e) {
+	exportSrtDialog = new bootstrap.Modal(document.getElementById('exportSrtDialog')) ;
+	exportSrtDialog.show() ;
+}
+
+async function onClickExportSrtButton(e) {
+	let maxLengthPerLineInput = document.getElementById('maxLengthPerLine') ;
+
+	if (!maxLengthPerLineInput.checkValidity()) {
+		maxLengthPerLineInput.reportValidity() ;
+		return ;
+	}
+
+	let maxLengthPerLine = Number(maxLengthPerLineInput.value) ;
+	let maxLines = Number($('input[name="maxSrtLines"]:checked').val()) ;
 	let spinner = '<div class="d-flex justify-content-center"><div class="spinner-border text-secondary my-3" role="status"><span class="visually-hidden">Loading...</span></div></div>' ;
 
 	$("#toExportSrtSpinner").empty() ;
 	$("#toExportSrtSpinner").append(spinner) ;
+	$("#exportSrtCancelButton").prop("disabled", true) ;
+	$("#exportSrtButton").prop("disabled", true) ;
 
 	let offsetTime = Number($("#offsetTimeLength").val()) ;
 	let copiedLines = [] ;
@@ -101,8 +119,12 @@ async function onClickSaveAsSrtButton(e) {
 			continue ;
 		}
 
-		let startTime = line[0] + offsetTime ;
-		let endTime = line[1] + offsetTime ;
+		let startTime = Number(line[0]) + offsetTime ;
+		let endTime = Number(line[1]) + offsetTime ;
+
+		if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+			continue ;
+		}
 
 		let element = {} ;
 
@@ -114,7 +136,13 @@ async function onClickSaveAsSrtButton(e) {
 		copiedLines.push(element) ;
 	}
 
-	let content = await generateSrtData(copiedLines, true, appDataProperties["language"]) ;
+	let content = await generateSrtData(
+		copiedLines,
+		true,
+		appDataProperties["language"],
+		maxLengthPerLine,
+		maxLines,
+	) ;
 
 	let fileName = getFileName() ;
 
@@ -125,6 +153,9 @@ async function onClickSaveAsSrtButton(e) {
 	}
 
 	$("#toExportSrtSpinner").empty() ;
+	$("#exportSrtCancelButton").prop("disabled", false) ;
+	$("#exportSrtButton").prop("disabled", false) ;
+	exportSrtDialog.hide() ;
 
 	saveAsFile(content, fileName) ;
 }
@@ -306,10 +337,10 @@ function saveAsSrtData(hasReading) {
 			continue ;
 		}
 
-		let startTime = line[0] + offsetTime ;
-		let endTime = line[1] + offsetTime ;
+		let startTime = Number(line[0]) + offsetTime ;
+		let endTime = Number(line[1]) + offsetTime ;
 
-		if (startTime == endTime) {
+		if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
 			continue ;
 		}
 		
@@ -656,4 +687,3 @@ function onClickSeparateByDotButton() {
 
 	updateSubtitleData() ;
 }
-
