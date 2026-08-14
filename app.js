@@ -77,6 +77,7 @@ var youyakuIndexRouter = require('./routes/youyaku/index');
 var lineIndexRouter = require('./routes/line/index');
 var lineKyodoshiIndexRouter = require('./routes/lineKyodoshi/index');
 var adminRouter = require('./routes/admin');
+var mojidasApiRouter = require('./routes/api/mojidas');
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
@@ -156,6 +157,7 @@ app.use('/youyaku', youyakuIndexRouter);
 app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/admin', adminRouter);
+app.use('/api/mojidas', mojidasApiRouter);
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

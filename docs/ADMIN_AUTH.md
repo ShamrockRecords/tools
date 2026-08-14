@@ -21,6 +21,10 @@
 
 > `FIREBASE_ADMIN_CREDENTIALS` に JSON を入れる際は改行を維持してください。base64 で格納した場合も自動的にデコードして初期化します。
 
+Firestore をサーバーサイドから利用する場合は `docs/FIRESTORE.md` も参照してください。
+
+Mojidasデスクトップアプリ向けのJSON認証APIは、管理画面Cookieとは別系統です。`docs/MOJIDAS_AUTH_API.md`を参照してください。
+
 ## ログイン処理フロー
 1. 管理画面フォーム (`views/admin/login.ejs`) から `POST /admin/login` にメールアドレスとパスワードを送信。
 2. `routes/admin.js` で Firebase Web SDK (`firebase`) を用いて `signInWithEmailAndPassword` を実行。

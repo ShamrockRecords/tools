@@ -29,4 +29,7 @@ Heroku等で動かす場合はこれらをインスタンスの環境編集に�
 
 
 
+# Mojidas API
+
+macOS / Windows版Mojidas向けのメール登録・ログインAPIを `/api/mojidas` に提供します。エンドポイント、Firebase設定、トークンの扱いは [`docs/MOJIDAS_AUTH_API.md`](docs/MOJIDAS_AUTH_API.md) を参照してください。
 
