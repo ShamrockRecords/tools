@@ -220,7 +220,53 @@ async function main() {
   ]);
   assert.deepStrictEqual(storeCalls[3], ['delete', 'user-1']);
 
-  console.log('Mojidas確認コード: 34件のテストに成功しました。');
+  const verificationSessionClient = new FirebaseAuthRestClient({
+    apiKey: 'firebase-api-key',
+    firebaseAdmin: {
+      apps: [{}],
+      auth() {
+        return {
+          async createCustomToken(uid) {
+            assert.strictEqual(uid, 'user-1');
+            return 'custom-token';
+          },
+          async getUser(uid) {
+            assert.strictEqual(uid, 'user-1');
+            return { uid, email: 'user@example.com', emailVerified: true };
+          },
+        };
+      },
+    },
+    requester: async ({ path, body }) => {
+      assert.match(path, /accounts:signInWithCustomToken/);
+      assert.deepStrictEqual(JSON.parse(body), {
+        token: 'custom-token',
+        returnSecureToken: true,
+      });
+      return {
+        localId: 'user-1',
+        idToken: 'verified-id-token',
+        refreshToken: 'verified-refresh-token',
+        expiresIn: '3600',
+      };
+    },
+    verificationService: {
+      async verify({ email, code }) {
+        assert.strictEqual(email, 'user@example.com');
+        assert.strictEqual(code, '123456');
+        return { uid: 'user-1', email, emailVerified: true };
+      },
+    },
+  });
+  const verifiedSession = await verificationSessionClient.confirmEmailCode(
+    'user@example.com',
+    '123456'
+  );
+  assert.strictEqual(verifiedSession.accessToken, 'verified-id-token');
+  assert.strictEqual(verifiedSession.refreshToken, 'verified-refresh-token');
+  assert.strictEqual(verifiedSession.user.emailVerified, true);
+
+  console.log('Mojidas確認コード: 認証メール、コード検証、セッション発行のテストに成功しました。');
 }
 
 main().catch((error) => {

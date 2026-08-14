@@ -66,6 +66,66 @@ class MojidasCreditStore {
     return grantID;
   }
 
+  async grantCredit({
+    userID,
+    type,
+    label = null,
+    milliseconds,
+    startsAt = null,
+    expiresAt = null,
+    sourceReference = null,
+    idempotencyKey,
+    metadata = {},
+  }) {
+    const amount = Math.floor(Number(milliseconds));
+    const normalizedType = String(type || '').trim();
+    const normalizedKey = String(idempotencyKey || '').trim();
+    const startDate = startsAt ? asDate(startsAt) : new Date(this.now());
+    const expiryDate = expiresAt ? asDate(expiresAt) : null;
+    if (!userID || !normalizedType || !normalizedKey || !startDate || amount <= 0) {
+      throw new CreditStoreError('INVALID_GRANT', '利用時間の付与内容が不正です。');
+    }
+    if (expiresAt && !expiryDate) {
+      throw new CreditStoreError('INVALID_GRANT', '利用時間の有効期限が不正です。');
+    }
+    if (expiryDate && expiryDate.getTime() <= startDate.getTime()) {
+      throw new CreditStoreError('INVALID_GRANT', '利用時間の有効期限は開始日時より後にしてください。');
+    }
+
+    const now = new Date(this.now());
+    const grantID = deterministicID('credit', `${userID}:${normalizedKey}`);
+    const document = this.firestore.collection('creditGrants').doc(grantID);
+    await this.firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(document);
+      if (snapshot.exists) return;
+      transaction.set(document, {
+        userID,
+        type: normalizedType,
+        label: typeof label === 'string' && label.trim() ? label.trim() : null,
+        totalMilliseconds: amount,
+        remainingMilliseconds: amount,
+        startsAt: startDate,
+        expiresAt: expiryDate,
+        sourceReference: sourceReference || normalizedKey,
+        createdAt: now,
+      });
+      transaction.set(
+        this.firestore.collection('usageLedger').doc(deterministicID('grant', grantID)),
+        {
+          userID,
+          grantID,
+          reservationID: null,
+          kind: 'grant',
+          milliseconds: amount,
+          idempotencyKey: normalizedKey,
+          occurredAt: now,
+          metadata: { ...metadata, type: normalizedType, label: label || null },
+        }
+      );
+    });
+    return grantID;
+  }
+
   async createReservation({
     userID,
     accountCreatedAt,
@@ -107,7 +167,11 @@ class MojidasCreditStore {
 
       const grants = activeGrantDocuments(grantSnapshot.docs, now);
       const allocation = allocateFromGrants(grants, requestedMilliseconds);
-      if (allocation.remaining > 0) {
+      const allocatedMilliseconds = requestedMilliseconds - allocation.remaining;
+      if (
+        allocation.remaining > 0
+        && (operation !== 'realtime' || allocatedMilliseconds <= 0)
+      ) {
         throw insufficientCreditError(requestedMilliseconds, allocation.available);
       }
 
@@ -123,7 +187,7 @@ class MojidasCreditStore {
         operation,
         clientSessionID,
         recognitionRunID,
-        requestedMilliseconds,
+        requestedMilliseconds: allocatedMilliseconds,
         trackCount,
         allocations: allocation.allocations.map((item) => ({
           grantID: item.id,
@@ -144,7 +208,7 @@ class MojidasCreditStore {
           grantID: null,
           reservationID,
           kind: 'reserve',
-          milliseconds: -requestedMilliseconds,
+          milliseconds: -allocatedMilliseconds,
           idempotencyKey: `reserve:${reservationID}`,
           occurredAt: now,
           metadata: { operation, trackCount },
@@ -424,6 +488,7 @@ function summarizeGrants(documents, now) {
   const grants = activeGrantDocuments(documents, now).map((grant) => ({
     id: grant.id,
     type: grant.data.type,
+    label: grant.data.label || null,
     remainingMilliseconds: grant.remainingMilliseconds,
     expiresAt: asDate(grant.data.expiresAt),
   }));

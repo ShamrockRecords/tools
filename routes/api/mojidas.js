@@ -156,8 +156,13 @@ function createMojidasRouter({
     }
 
     try {
-      await client.confirmEmailCode(email, code);
-      return res.json({ verified: true });
+      const session = await client.confirmEmailCode(email, code);
+      await userStore.recordLogin({
+        uid: session.user.id,
+        email: session.user.email,
+        emailVerified: session.user.emailVerified,
+      });
+      return res.json({ verified: true, ...session });
     } catch (error) {
       return sendAuthError(res, error);
     }
@@ -479,6 +484,7 @@ function sendAuthError(res, error) {
     INVALID_PASSWORD: [401, 'メールアドレスまたはパスワードが正しくありません。'],
     INVALID_LOGIN_CREDENTIALS: [401, 'メールアドレスまたはパスワードが正しくありません。'],
     EMAIL_NOT_VERIFIED: [403, '6桁の認証コードを送信しました。コードを入力してください。'],
+    EMAIL_ALREADY_VERIFIED: [409, 'メールアドレスはすでに確認済みです。ログインしてください。'],
     INVALID_VERIFICATION_CODE: [400, '認証コードが正しくありません。'],
     EXPIRED_VERIFICATION_CODE: [410, '認証コードの有効期限が切れています。新しいコードを送信してください。'],
     VERIFICATION_ATTEMPTS_EXCEEDED: [429, '認証コードの入力回数が上限に達しました。新しいコードを送信してください。'],

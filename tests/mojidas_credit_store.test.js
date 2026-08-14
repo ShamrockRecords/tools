@@ -117,6 +117,89 @@ async function main() {
   assert.strictEqual(period.startsAt.toISOString(), '2026-02-28T10:15:00.000Z');
   assert.strictEqual(period.expiresAt.toISOString(), '2026-03-31T10:15:00.000Z');
 
+  const multipleGrantFirestore = new FakeFirestore();
+  const multipleGrantStore = new MojidasCreditStore({
+    firestoreProvider: () => multipleGrantFirestore,
+    now: () => Date.parse('2026-01-31T10:15:00.000Z'),
+  });
+  const multipleGrantAccount = {
+    userID: 'multiple-grant-user',
+    accountCreatedAt: januaryAnchor,
+  };
+  const earlyCampaignID = await multipleGrantStore.grantCredit({
+    userID: multipleGrantAccount.userID,
+    type: 'campaign',
+    label: 'スタートキャンペーン',
+    milliseconds: 120000,
+    expiresAt: new Date('2026-02-05T00:00:00.000Z'),
+    idempotencyKey: 'campaign:start:2026',
+  });
+  const laterCampaignID = await multipleGrantStore.grantCredit({
+    userID: multipleGrantAccount.userID,
+    type: 'campaign',
+    label: '冬のキャンペーン',
+    milliseconds: 180000,
+    expiresAt: new Date('2026-02-20T00:00:00.000Z'),
+    idempotencyKey: 'campaign:winter:2026',
+  });
+  const purchasedID = await multipleGrantStore.grantCredit({
+    userID: multipleGrantAccount.userID,
+    type: 'purchased',
+    label: '購入分',
+    milliseconds: 300000,
+    idempotencyKey: 'stripe:checkout:test-1',
+  });
+  assert.strictEqual(
+    await multipleGrantStore.grantCredit({
+      userID: multipleGrantAccount.userID,
+      type: 'campaign',
+      label: 'スタートキャンペーン',
+      milliseconds: 120000,
+      expiresAt: new Date('2026-02-05T00:00:00.000Z'),
+      idempotencyKey: 'campaign:start:2026',
+    }),
+    earlyCampaignID
+  );
+  assert.strictEqual(multipleGrantFirestore.records('creditGrants').length, 3);
+
+  let multipleBalance = await multipleGrantStore.getBalance(multipleGrantAccount);
+  assert.strictEqual(multipleBalance.grants.length, 4);
+  assert.strictEqual(multipleBalance.grants[0].id, earlyCampaignID);
+  assert.strictEqual(multipleBalance.grants[0].label, 'スタートキャンペーン');
+  assert.strictEqual(multipleBalance.grants[1].id, laterCampaignID);
+  assert.strictEqual(multipleBalance.grants[3].id, purchasedID);
+  assert.strictEqual(multipleBalance.grants[3].expiresAt, null);
+
+  const multipleGrantReservation = await multipleGrantStore.createReservation({
+    ...multipleGrantAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440001',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd430c9',
+    requestedMilliseconds: 250000,
+    trackCount: 1,
+  });
+  const reservationRecord = multipleGrantFirestore.records('creditReservations')
+    .find((record) => record.id === multipleGrantReservation.id);
+  assert.deepStrictEqual(reservationRecord.data.allocations, [
+    { grantID: earlyCampaignID, milliseconds: 120000 },
+    { grantID: laterCampaignID, milliseconds: 130000 },
+  ]);
+  await multipleGrantStore.completeReservation({
+    reservationID: multipleGrantReservation.id,
+    userID: multipleGrantAccount.userID,
+    consumedMilliseconds: 250000,
+  });
+  multipleBalance = await multipleGrantStore.getBalance(multipleGrantAccount);
+  assert.strictEqual(multipleBalance.grants.find((grant) => grant.id === earlyCampaignID), undefined);
+  assert.strictEqual(
+    multipleBalance.grants.find((grant) => grant.id === laterCampaignID).remainingMilliseconds,
+    50000
+  );
+  assert.strictEqual(
+    multipleBalance.grants.find((grant) => grant.id === purchasedID).remainingMilliseconds,
+    300000
+  );
+
   const firestore = new FakeFirestore();
   let now = Date.parse('2026-01-31T10:15:00.000Z');
   const store = new MojidasCreditStore({
@@ -209,13 +292,31 @@ async function main() {
       && error.details.availableMilliseconds === 3320000
   );
 
+  const partialReservation = await store.createReservation({
+    ...account,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440000',
+    recognitionRunID: '6ba7b813-9dad-41d1-80b4-00c04fd430c8',
+    requestedMilliseconds: 4000000,
+    trackCount: 1,
+  });
+  assert.strictEqual(partialReservation.requestedMilliseconds, 3320000);
+  await store.completeReservation({
+    reservationID: partialReservation.id,
+    userID: account.userID,
+    consumedMilliseconds: 0,
+    cancelled: true,
+  });
+  balance = await store.getBalance(account);
+  assert.strictEqual(balance.availableMilliseconds, 3320000);
+
   now = Date.parse('2026-02-28T10:15:00.000Z');
   balance = await store.getBalance(account);
   assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
   assert.strictEqual(balance.grants.length, 1);
   assert.strictEqual(firestore.records('creditGrants').length, 2);
 
-  console.log('Mojidasクレジットストア: 23件のテストに成功しました。');
+  console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }
 
 main().catch((error) => {

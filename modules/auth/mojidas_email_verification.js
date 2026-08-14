@@ -31,7 +31,9 @@ class MojidasEmailVerificationService {
 
     if (user.emailVerified) {
       await this.store.deleteChallenge(user.uid).catch(() => {});
-      return user;
+      const error = new Error('メールアドレスはすでに確認済みです。ログインしてください。');
+      error.code = 'EMAIL_ALREADY_VERIFIED';
+      throw error;
     }
 
     await this.store.verifyChallenge({ uid: user.uid, code });

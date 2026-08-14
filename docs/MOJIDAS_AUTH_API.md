@@ -141,6 +141,7 @@ Authorization: Bearer {accessToken}
   "grants": [{
     "id": "monthly_xxx",
     "type": "monthlyFree",
+    "label": null,
     "remainingMilliseconds": 3600000,
     "expiresAt": "2026-09-14T01:00:00.000Z"
   }],
@@ -151,11 +152,11 @@ Authorization: Bearer {accessToken}
 ### 利用時間予約API
 
 - `POST /api/mojidas/usage/reservations`: 認識開始前に時間を予約
-- `POST /api/mojidas/usage/{id}/heartbeat`: 15秒ごとに累積利用時間を報告し、ライブ認識の予約を延長
+- `POST /api/mojidas/usage/{id}/heartbeat`: 15秒ごとにACP確定結果のチャンネル別累積発話時間を報告し、ライブ認識の予約を延長
 - `POST /api/mojidas/usage/{id}/complete`: 利用時間を確定して未使用予約を返却
 - `POST /api/mojidas/usage/{id}/cancel`: 中断分を確定して未使用予約を返却
 
-同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。期限付き無料枠を先に使用し、残高・予約・台帳はFirestore transactionで同時更新します。
+同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムの無音区間は消費せず、2チャンネルは各チャンネルの発話区間を個別に合算します。期限付き時間は複数件を保持でき、有効期限が早い付与から使用し、その後に期限なし購入分を使用します。残高・予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
 
 ### `POST /api/mojidas/acp/trial-appkey`
 

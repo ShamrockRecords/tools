@@ -71,7 +71,12 @@ async function main() {
     },
     async confirmEmailCode(email, code) {
       calls.push(['confirm-email-code', email, code]);
-      return { uid: 'user-1', email, emailVerified: true };
+      return {
+        accessToken: 'verified-access-token',
+        refreshToken: 'verified-refresh-token',
+        expiresIn: 3600,
+        user: { id: 'user-1', email, emailVerified: true },
+      };
     },
     async resendVerificationCode(email) {
       calls.push(['resend-verification', email]);
@@ -210,6 +215,8 @@ async function main() {
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.verified, true);
+    assert.strictEqual(response.body.accessToken, 'verified-access-token');
+    assert.strictEqual(response.body.refreshToken, 'verified-refresh-token');
     assert.deepStrictEqual(calls.find((call) => call[0] === 'confirm-email-code'), [
       'confirm-email-code',
       'user@example.com',

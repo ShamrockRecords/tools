@@ -154,7 +154,14 @@ class FirebaseAuthRestClient {
 
   async confirmEmailCode(email, code) {
     this.ensureConfigured();
-    return this.verificationService.verify({ email, code });
+    const user = await this.verificationService.verify({ email, code });
+    const customToken = await this.firebaseAdmin.auth().createCustomToken(user.uid);
+    const response = await this.identityRequest('accounts:signInWithCustomToken', {
+      token: customToken,
+      returnSecureToken: true,
+    });
+    const verifiedUser = await this.firebaseAdmin.auth().getUser(user.uid);
+    return this.tokenResponse(response, verifiedUser);
   }
 
   async resendVerificationCode(email, password) {
