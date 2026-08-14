@@ -88,7 +88,12 @@ async function main() {
       if (token !== 'access-token') {
         throw new FirebaseAuthError('ID_TOKEN_REVOKED', 'revoked', 401);
       }
-      return { uid: 'user-1', email: 'user@example.com', emailVerified: true };
+      return {
+        uid: 'user-1',
+        email: 'user@example.com',
+        emailVerified: true,
+        metadata: { creationTime: '2026-08-14T01:00:00.000Z' },
+      };
     },
     publicUser(user) {
       return { id: user.uid, email: user.email, emailVerified: user.emailVerified };
@@ -97,6 +102,7 @@ async function main() {
   const recordedUsers = [];
   const appKeyCalls = [];
   const reservationChecks = [];
+  const creditCalls = [];
   const userStore = {
     async recordLogin(user) {
       recordedUsers.push(user);
@@ -112,6 +118,35 @@ async function main() {
     },
   };
   const creditStore = {
+    async getBalance(value) {
+      creditCalls.push(['balance', value]);
+      return {
+        availableMilliseconds: 3600000,
+        expiringMilliseconds: 3600000,
+        purchasedMilliseconds: 0,
+        grants: [{
+          id: 'monthly-grant',
+          type: 'monthlyFree',
+          remainingMilliseconds: 3600000,
+          expiresAt: '2026-09-14T01:00:00.000Z',
+        }],
+        serverTime: '2026-08-14T01:00:00.000Z',
+      };
+    },
+    async createReservation(value) {
+      creditCalls.push(['reserve', value]);
+      return {
+        id: 'reservation-1',
+        requestedMilliseconds: value.requestedMilliseconds,
+        leaseExpiresAt: '2026-08-14T01:10:00.000Z',
+      };
+    },
+    async heartbeat(value) {
+      creditCalls.push(['heartbeat', value]);
+    },
+    async completeReservation(value) {
+      creditCalls.push(['complete', value]);
+    },
     async assertActiveReservation(value) {
       reservationChecks.push(value);
     },
@@ -204,6 +239,55 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.user.id, 'user-1');
 
+    response = await request(server, 'GET', '/api/mojidas/credits/balance', undefined, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.availableMilliseconds, 3600000);
+    assert.deepStrictEqual(creditCalls[0], ['balance', {
+      userID: 'user-1',
+      accountCreatedAt: '2026-08-14T01:00:00.000Z',
+    }]);
+
+    response = await request(server, 'POST', '/api/mojidas/usage/reservations', {
+      mode: 'realtime',
+      clientSessionID: '550e8400-e29b-41d4-a716-446655440000',
+      recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd430c8',
+      requestedMilliseconds: 300000,
+      trackCount: 1,
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 201);
+    assert.strictEqual(response.body.id, 'reservation-1');
+
+    response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/heartbeat', {
+      sequence: 1,
+      consumedMilliseconds: 15000,
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+
+    response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/complete', {
+      consumedMilliseconds: 30000,
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+
+    response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/cancel', {
+      consumedMilliseconds: 15000,
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(creditCalls.slice(2).map((call) => call[0]), [
+      'heartbeat',
+      'complete',
+      'complete',
+    ]);
+
     response = await request(server, 'POST', '/api/mojidas/auth/password-reset', {
       email: 'missing@example.com',
     });
@@ -246,7 +330,7 @@ async function main() {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  console.log('Mojidas auth/APIキーAPI: 16件のテストに成功しました。');
+  console.log('Mojidas auth/APIキーAPI: 22件のテストに成功しました。');
 }
 
 main().catch((error) => {

@@ -209,6 +209,78 @@ function createMojidasRouter({
     });
   });
 
+  router.get('/credits/balance', authenticate(client), async function (req, res) {
+    try {
+      return res.json(await creditStore.getBalance({
+        userID: req.mojidasUser.uid,
+        accountCreatedAt: accountCreationTime(req.mojidasUser),
+      }));
+    } catch (error) {
+      return sendCreditError(res, error);
+    }
+  });
+
+  router.post('/usage/reservations', authenticate(client), async function (req, res) {
+    const operation = ['realtime', 'mediaFile'].includes(req.body.mode) ? req.body.mode : '';
+    const clientSessionID = normalizeUUID(req.body.clientSessionID);
+    const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
+    const requestedMilliseconds = normalizeMilliseconds(req.body.requestedMilliseconds, false);
+    const trackCount = normalizeTrackCount(req.body.trackCount);
+    if (!operation || !clientSessionID || !recognitionRunID || !requestedMilliseconds || !trackCount) {
+      return sendError(
+        res,
+        400,
+        'INVALID_RESERVATION_REQUEST',
+        '音声認識時間の予約内容が正しくありません。'
+      );
+    }
+
+    try {
+      const reservation = await creditStore.createReservation({
+        userID: req.mojidasUser.uid,
+        accountCreatedAt: accountCreationTime(req.mojidasUser),
+        operation,
+        clientSessionID,
+        recognitionRunID,
+        requestedMilliseconds,
+        trackCount,
+      });
+      return res.status(201).json(reservation);
+    } catch (error) {
+      return sendCreditError(res, error);
+    }
+  });
+
+  router.post('/usage/:reservationID/heartbeat', authenticate(client), async function (req, res) {
+    const reservationID = normalizeIdentifier(req.params.reservationID);
+    const sequence = normalizeSequence(req.body.sequence);
+    const consumedMilliseconds = normalizeMilliseconds(req.body.consumedMilliseconds, true);
+    if (!reservationID || !sequence || consumedMilliseconds === null) {
+      return sendError(res, 400, 'INVALID_HEARTBEAT', '利用時間の更新内容が正しくありません。');
+    }
+
+    try {
+      await creditStore.heartbeat({
+        reservationID,
+        userID: req.mojidasUser.uid,
+        accountCreatedAt: accountCreationTime(req.mojidasUser),
+        sequence,
+        consumedMilliseconds,
+      });
+      return res.json({});
+    } catch (error) {
+      return sendCreditError(res, error);
+    }
+  });
+
+  router.post('/usage/:reservationID/complete', authenticate(client), async function (req, res) {
+    return finalizeCreditReservation(req, res, creditStore, false);
+  });
+
+  router.post('/usage/:reservationID/cancel', authenticate(client), async function (req, res) {
+    return finalizeCreditReservation(req, res, creditStore, true);
+  });
+
   router.post('/acp/trial-appkey', trialAppKeyRateLimit, async function (req, res) {
     const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
     if (!recognitionRunID) {
@@ -324,6 +396,61 @@ function normalizeUUID(value) {
     : '';
 }
 
+function normalizeMilliseconds(value, allowZero) {
+  if (!Number.isSafeInteger(value)) return null;
+  if (allowZero ? value < 0 : value <= 0) return null;
+  if (value > 7 * 24 * 60 * 60 * 1000) return null;
+  return value;
+}
+
+function normalizeSequence(value) {
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function normalizeTrackCount(value) {
+  return Number.isSafeInteger(value) && value >= 1 && value <= 2 ? value : null;
+}
+
+function accountCreationTime(user) {
+  return user && user.metadata && user.metadata.creationTime
+    ? user.metadata.creationTime
+    : new Date(0);
+}
+
+async function finalizeCreditReservation(req, res, creditStore, cancelled) {
+  const reservationID = normalizeIdentifier(req.params.reservationID);
+  const consumedMilliseconds = normalizeMilliseconds(req.body.consumedMilliseconds, true);
+  if (!reservationID || consumedMilliseconds === null) {
+    return sendError(res, 400, 'INVALID_COMPLETION', '利用時間の確定内容が正しくありません。');
+  }
+  try {
+    await creditStore.completeReservation({
+      reservationID,
+      userID: req.mojidasUser.uid,
+      consumedMilliseconds,
+      cancelled,
+    });
+    return res.json({});
+  } catch (error) {
+    return sendCreditError(res, error);
+  }
+}
+
+function sendCreditError(res, error) {
+  const code = error && error.code ? error.code : 'CREDIT_SERVICE_ERROR';
+  const mapping = {
+    INSUFFICIENT_CREDIT: [409, '音声認識時間が不足しています。'],
+    RESERVATION_NOT_FOUND: [404, '利用時間の予約が見つかりません。'],
+    RESERVATION_EXPIRED: [409, '利用時間の予約期限が切れています。'],
+    INVALID_SEQUENCE: [409, '利用時間の更新順序が正しくありません。'],
+    INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
+  };
+  const [status, message] = mapping[code] || [500, '音声認識時間を取得できませんでした。'];
+  const body = { error: { code, message } };
+  if (error && error.details) Object.assign(body.error, error.details);
+  return res.status(status).json(body);
+}
+
 function sendAppKeyError(res, error) {
   const code = error && error.code ? error.code : 'APPKEY_UNAVAILABLE';
   const mapping = {
@@ -389,3 +516,8 @@ module.exports.sendAuthError = sendAuthError;
 module.exports.normalizeIdentifier = normalizeIdentifier;
 module.exports.normalizeUUID = normalizeUUID;
 module.exports.sendAppKeyError = sendAppKeyError;
+module.exports.accountCreationTime = accountCreationTime;
+module.exports.normalizeMilliseconds = normalizeMilliseconds;
+module.exports.normalizeSequence = normalizeSequence;
+module.exports.normalizeTrackCount = normalizeTrackCount;
+module.exports.sendCreditError = sendCreditError;

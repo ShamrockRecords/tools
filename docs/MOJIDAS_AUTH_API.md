@@ -125,6 +125,38 @@ Authorization: Bearer {accessToken}
 
 確認済みユーザーのIDとメールアドレスを返します。IDトークンはFirebase Admin SDKで失効確認を含めて検証します。
 
+### `GET /api/mojidas/credits/balance`
+
+確認済みユーザーの利用可能時間と付与内訳を返します。初回取得時と毎月の更新時は、Firebaseのアカウント作成日時を起点とする1時間の無料枠をFirestoreへ冪等に作成します。
+
+```http
+Authorization: Bearer {accessToken}
+```
+
+```json
+{
+  "availableMilliseconds": 3600000,
+  "expiringMilliseconds": 3600000,
+  "purchasedMilliseconds": 0,
+  "grants": [{
+    "id": "monthly_xxx",
+    "type": "monthlyFree",
+    "remainingMilliseconds": 3600000,
+    "expiresAt": "2026-09-14T01:00:00.000Z"
+  }],
+  "serverTime": "2026-08-14T01:00:00.000Z"
+}
+```
+
+### 利用時間予約API
+
+- `POST /api/mojidas/usage/reservations`: 認識開始前に時間を予約
+- `POST /api/mojidas/usage/{id}/heartbeat`: 15秒ごとに累積利用時間を報告し、ライブ認識の予約を延長
+- `POST /api/mojidas/usage/{id}/complete`: 利用時間を確定して未使用予約を返却
+- `POST /api/mojidas/usage/{id}/cancel`: 中断分を確定して未使用予約を返却
+
+同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。期限付き無料枠を先に使用し、残高・予約・台帳はFirestore transactionで同時更新します。
+
 ### `POST /api/mojidas/acp/trial-appkey`
 
 未ログインの60秒体験用に、ACPの短期APIキーを発行します。Firebase認証は不要ですが、接続元IPごとに1分8回までに制限します。
