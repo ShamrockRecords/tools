@@ -7,6 +7,8 @@ const {
 } = require('../../modules/auth/firebase_auth_rest');
 const mojidasUserStore = require('../../modules/auth/mojidas_user_store');
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
+const { ACPApiKeyIssuer } = require('../../modules/acp/api_key_issuer');
+const mojidasCreditStore = require('../../modules/credit/mojidas_credit_store');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -17,6 +19,8 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 function createMojidasRouter({
   authClient,
   userStore = mojidasUserStore,
+  apiKeyIssuer,
+  creditStore = mojidasCreditStore,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -25,6 +29,7 @@ function createMojidasRouter({
     apiKey: process.env.FIREBASE_API_KEY,
     firebaseAdmin,
   });
+  const issuer = apiKeyIssuer || new ACPApiKeyIssuer();
   const registerRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 60 * 1000,
     max: 5,
@@ -44,6 +49,16 @@ function createMojidasRouter({
     windowMs: 60 * 60 * 1000,
     max: 5,
     keyPrefix: 'mojidas-password-reset',
+  });
+  const trialAppKeyRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 8,
+    keyPrefix: 'mojidas-trial-appkey',
+  });
+  const authenticatedAppKeyRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 20,
+    keyPrefix: 'mojidas-authenticated-appkey',
   });
 
   router.use(createHostGuard({ allowedHosts, allowLocalhost }));
@@ -145,6 +160,41 @@ function createMojidasRouter({
     });
   });
 
+  router.post('/acp/trial-appkey', trialAppKeyRateLimit, async function (req, res) {
+    const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
+    if (!recognitionRunID) {
+      return sendError(res, 400, 'INVALID_RECOGNITION_RUN_ID', 'recognitionRunIDは必須です。');
+    }
+
+    try {
+      return res.json(await issuer.issue());
+    } catch (error) {
+      return sendAppKeyError(res, error);
+    }
+  });
+
+  router.post(
+    '/acp/instant-appkey',
+    authenticatedAppKeyRateLimit,
+    authenticate(client),
+    async function (req, res) {
+      const reservationID = normalizeIdentifier(req.body.reservationID);
+      if (!reservationID) {
+        return sendError(res, 400, 'INVALID_RESERVATION_ID', 'reservationIDは必須です。');
+      }
+
+      try {
+        await creditStore.assertActiveReservation({
+          reservationID,
+          userID: req.mojidasUser.uid,
+        });
+        return res.json(await issuer.issue());
+      } catch (error) {
+        return sendAppKeyError(res, error);
+      }
+    }
+  );
+
   return router;
 }
 
@@ -205,6 +255,34 @@ function isValidEmail(email) {
   return email.length <= 254 && EMAIL_REGEX.test(email);
 }
 
+function normalizeIdentifier(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  return /^[A-Za-z0-9_-]{1,128}$/.test(normalized) ? normalized : '';
+}
+
+function normalizeUUID(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function sendAppKeyError(res, error) {
+  const code = error && error.code ? error.code : 'APPKEY_UNAVAILABLE';
+  const mapping = {
+    RESERVATION_NOT_FOUND: [404, '利用時間の予約が見つかりません。'],
+    RESERVATION_EXPIRED: [409, '利用時間の予約期限が切れています。'],
+    ACP_NOT_CONFIGURED: [503, '音声認識サーバーの設定が完了していません。'],
+    ACP_TIMEOUT: [504, '音声認識サーバーへの接続がタイムアウトしました。'],
+    ACP_REQUEST_FAILED: [502, '音声認識サーバーへ接続できませんでした。'],
+    ACP_INVALID_RESPONSE: [502, '音声認識サーバーから有効なキーを取得できませんでした。'],
+  };
+  const [status, message] = mapping[code] || [503, '音声認識を開始するキーを取得できませんでした。'];
+  return sendError(res, status, code, message);
+}
+
 function sendAuthError(res, error) {
   const rawCode = error && error.code ? error.code : 'AUTH_SERVICE_ERROR';
   const code = String(rawCode)
@@ -249,3 +327,6 @@ module.exports.isValidEmail = isValidEmail;
 module.exports.normalizeEmail = normalizeEmail;
 module.exports.normalizeHostname = normalizeHostname;
 module.exports.sendAuthError = sendAuthError;
+module.exports.normalizeIdentifier = normalizeIdentifier;
+module.exports.normalizeUUID = normalizeUUID;
+module.exports.sendAppKeyError = sendAppKeyError;

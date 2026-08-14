@@ -87,14 +87,35 @@ async function main() {
     },
   };
   const recordedUsers = [];
+  const appKeyCalls = [];
+  const reservationChecks = [];
   const userStore = {
     async recordLogin(user) {
       recordedUsers.push(user);
     },
   };
+  const apiKeyIssuer = {
+    async issue() {
+      appKeyCalls.push('issue');
+      return {
+        appKey: 'test-instant-appkey-0123456789abcdef',
+        expiresAt: '2026-08-14T01:02:00.000Z',
+      };
+    },
+  };
+  const creditStore = {
+    async assertActiveReservation(value) {
+      reservationChecks.push(value);
+    },
+  };
   const app = express();
   app.use(express.json());
-  app.use('/api/mojidas', createMojidasRouter({ authClient, userStore }));
+  app.use('/api/mojidas', createMojidasRouter({
+    authClient,
+    userStore,
+    apiKeyIssuer,
+    creditStore,
+  }));
   const server = await new Promise((resolve) => {
     const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
   });
@@ -155,12 +176,43 @@ async function main() {
     assert.strictEqual(response.status, 202);
     assert.match(response.body.message, /アカウントが存在する場合/);
 
+    response = await request(server, 'POST', '/api/mojidas/acp/trial-appkey', {
+      recognitionRunID: '550e8400-e29b-41d4-a716-446655440000',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.appKey, 'test-instant-appkey-0123456789abcdef');
+    assert.strictEqual(response.body.expiresAt, '2026-08-14T01:02:00.000Z');
+
+    response = await request(server, 'POST', '/api/mojidas/acp/trial-appkey', {
+      recognitionRunID: 'invalid',
+    });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.body.error.code, 'INVALID_RECOGNITION_RUN_ID');
+
+    response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+      reservationID: 'reservation-1',
+    });
+    assert.strictEqual(response.status, 401);
+
+    response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+      reservationID: 'reservation-1',
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.appKey, 'test-instant-appkey-0123456789abcdef');
+    assert.deepStrictEqual(reservationChecks, [{
+      reservationID: 'reservation-1',
+      userID: 'user-1',
+    }]);
+    assert.strictEqual(appKeyCalls.length, 2);
+
     assert.deepStrictEqual(calls[0], ['register', 'user@example.com']);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  console.log('Mojidas auth API: 9件のテストに成功しました。');
+  console.log('Mojidas auth/APIキーAPI: 13件のテストに成功しました。');
 }
 
 main().catch((error) => {

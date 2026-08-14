@@ -92,6 +92,35 @@ Authorization: Bearer {accessToken}
 
 確認済みユーザーのIDとメールアドレスを返します。IDトークンはFirebase Admin SDKで失効確認を含めて検証します。
 
+### `POST /api/mojidas/acp/trial-appkey`
+
+未ログインの60秒体験用に、ACPの短期APIキーを発行します。Firebase認証は不要ですが、接続元IPごとに1分8回までに制限します。
+
+```json
+{"recognitionRunID":"550e8400-e29b-41d4-a716-446655440000"}
+```
+
+### `POST /api/mojidas/acp/instant-appkey`
+
+Firebase IDトークンとFirestore上の有効な`creditReservations`を確認してから、ACPの短期APIキーを発行します。
+
+```http
+Authorization: Bearer {accessToken}
+```
+
+```json
+{"reservationID":"reservation-id"}
+```
+
+両endpointの成功応答は同じです。
+
+```json
+{
+  "appKey": "short-lived-api-key",
+  "expiresAt": "2026-08-14T01:02:00.000Z"
+}
+```
+
 ## エラー形式
 
 ```json
@@ -135,6 +164,11 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 - `FIREBASE_ADMIN_CREDENTIALS`
 - `FIREBASE_PROJECT_ID`（推奨）
 - `MOJIDAS_ALLOWED_HOSTS`（任意。既定値は`app.mojidas.jp`、複数指定はカンマ区切り）
+- `ACP_SERVICE_ID`
+- `ACP_SERVICE_PASSWORD`
+- `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
+
+`ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
 Firebase ConsoleでEmail/Passwordプロバイダーを有効にし、Authentication Templatesの確認メール・パスワード再設定メールをMojidas向けに設定してください。
 
