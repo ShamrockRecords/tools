@@ -1,4 +1,5 @@
 const https = require('https');
+const { MojidasVerificationEmailSender } = require('./mojidas_verification_email');
 
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 
@@ -73,10 +74,12 @@ function request({ hostname, path, contentType, body }) {
 }
 
 class FirebaseAuthRestClient {
-  constructor({ apiKey, firebaseAdmin, requester = request }) {
+  constructor({ apiKey, firebaseAdmin, requester = request, verificationEmailSender }) {
     this.apiKey = apiKey;
     this.firebaseAdmin = firebaseAdmin;
     this.requester = requester;
+    this.verificationEmailSender = verificationEmailSender
+      || new MojidasVerificationEmailSender({ firebaseAdmin });
   }
 
   ensureConfigured() {
@@ -98,10 +101,7 @@ class FirebaseAuthRestClient {
     });
 
     try {
-      await this.identityRequest('accounts:sendOobCode', {
-        requestType: 'VERIFY_EMAIL',
-        idToken: response.idToken,
-      });
+      await this.verificationEmailSender.send(response.email || email);
     } catch (error) {
       throw new FirebaseAuthError(
         'VERIFICATION_EMAIL_FAILED',
@@ -128,10 +128,7 @@ class FirebaseAuthRestClient {
 
     if (!user.emailVerified) {
       try {
-        await this.identityRequest('accounts:sendOobCode', {
-          requestType: 'VERIFY_EMAIL',
-          idToken: response.idToken,
-        });
+        await this.verificationEmailSender.send(response.email || email);
       } catch (error) {
         // ログイン拒否を優先し、確認メール再送の失敗は外へ漏らさない。
       }

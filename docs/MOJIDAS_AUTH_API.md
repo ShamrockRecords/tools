@@ -25,7 +25,9 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 ```
 
 - パスワードは8〜128文字。
-- 成功時はFirebaseの確認メールを送信します。
+- 成功時はFirebase Admin SDKで検証リンクを生成し、SendGridから確認メールを送信します。
+- 送信元は既定で `Mojidas <no-reply@mojidas.jp>` です。
+- すでに作成済みで未確認のアカウントは、ログインを試すと同じ確認メールを再送します。
 
 ```json
 {
@@ -167,8 +169,12 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 - `ACP_SERVICE_ID`
 - `ACP_SERVICE_PASSWORD`
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
+- `SENDGRID_API_KEY`（Mail Send権限が必要）
+- `MOJIDAS_AUTH_FROM_EMAIL`（任意。既定値`no-reply@mojidas.jp`）
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
+
+確認メールはFirebase Admin SDKの`generateEmailVerificationLink`で作ったリンクをSendGrid v3 Mail Send APIから送ります。検証リンクの書き換えを避けるため、確認メールではSendGridのクリック・開封トラッキングを無効にします。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
 
 Firebase ConsoleでEmail/Passwordプロバイダーを有効にし、Authentication Templatesの確認メール・パスワード再設定メールをMojidas向けに設定してください。
 
