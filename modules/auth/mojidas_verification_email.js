@@ -4,33 +4,34 @@ const DEFAULT_FROM_EMAIL = 'no-reply@mojidas.jp';
 const DEFAULT_FROM_NAME = 'Mojidas';
 
 class MojidasVerificationEmailSender {
-  constructor({ firebaseAdmin, mailer } = {}) {
-    this.firebaseAdmin = firebaseAdmin;
+  constructor({ mailer } = {}) {
     this.mailer = mailer || new SendGridMailer({
       fromEmail: process.env.MOJIDAS_AUTH_FROM_EMAIL || DEFAULT_FROM_EMAIL,
       fromName: DEFAULT_FROM_NAME,
     });
   }
 
-  async send(email) {
-    const link = await this.firebaseAdmin.auth().generateEmailVerificationLink(email);
-    const escapedLink = escapeHTML(link);
+  async send(email, code) {
+    const safeCode = escapeHTML(code);
     await this.mailer.send({
       to: email,
       subject: 'Mojidas メールアドレスの確認',
       text: [
         'Mojidasアカウントをご登録いただきありがとうございます。',
         '',
-        '次のリンクを開いてメールアドレスを確認してください。',
-        link,
+        'Mojidasアプリに次の6桁の認証コードを入力してください。',
+        '',
+        code,
+        '',
+        '認証コードの有効時間は10分です。',
         '',
         'このメールに心当たりがない場合は、そのまま破棄してください。',
       ].join('\n'),
       html: [
         '<p>Mojidasアカウントをご登録いただきありがとうございます。</p>',
-        '<p>次のボタンを押してメールアドレスを確認してください。</p>',
-        `<p><a href="${escapedLink}" style="display:inline-block;padding:12px 20px;background:#3925a8;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">メールアドレスを確認</a></p>`,
-        `<p style="font-size:12px;color:#666;word-break:break-all">ボタンを開けない場合：<br>${escapedLink}</p>`,
+        '<p>Mojidasアプリに次の6桁の認証コードを入力してください。</p>',
+        `<p style="margin:24px 0;padding:16px;background:#f3f1ff;border-radius:10px;color:#2d218c;font-size:30px;font-weight:700;letter-spacing:8px;text-align:center">${safeCode}</p>`,
+        '<p style="font-size:12px;color:#666">認証コードの有効時間は10分です。</p>',
         '<p style="font-size:12px;color:#666">このメールに心当たりがない場合は、そのまま破棄してください。</p>',
       ].join(''),
       categories: ['mojidas-auth'],

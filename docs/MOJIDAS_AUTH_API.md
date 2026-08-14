@@ -8,7 +8,7 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 - 本番URL: `https://app.mojidas.jp/api/mojidas`
 - Content-Type: `application/json`
 - 本番環境ではHTTPS必須
-- メール確認が完了するまでログイン不可
+- メールで届く6桁の認証コードの確認が完了するまでログイン不可
 - IDトークンの有効期間はFirebase応答の `expiresIn` を参照
 - 更新トークンはOSの資格情報ストア（macOS Keychain / Windows DPAPI）へ保存
 - `app.mojidas.jp`以外の公開ホストでは404を返す（ローカル開発用の`localhost`、`127.0.0.1`、`::1`を除く）
@@ -25,9 +25,10 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 ```
 
 - パスワードは8〜128文字。
-- 成功時はFirebase Admin SDKで検証リンクを生成し、SendGridから確認メールを送信します。
+- 成功時は6桁の認証コードを生成し、SendGridから確認メールを送信します。
 - 送信元は既定で `Mojidas <no-reply@mojidas.jp>` です。
-- すでに作成済みで未確認のアカウントは、ログインを試すと同じ確認メールを再送します。
+- 認証コードの有効期限は10分、入力は1回の発行につき5回までです。再送すると以前のコードは無効になります。
+- すでに作成済みで未確認のアカウントは、ログインを試すと新しい認証コードを再送します。
 
 ```json
 {
@@ -40,6 +41,36 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 }
 ```
 
+### `POST /api/mojidas/auth/verify-email`
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+認証コードが正しければFirebase Authenticationのメール確認状態を更新します。成功後、クライアントは通常のログインAPIを呼び出してトークンを取得します。
+
+```json
+{"verified": true}
+```
+
+### `POST /api/mojidas/auth/verification/resend`
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+資格情報を確認して新しい認証コードを発行します。アカウント探索に悪用されないよう、メールアドレスだけでは再送できません。
+
+```json
+{"verificationRequired": true}
+```
+
 ### `POST /api/mojidas/auth/login`
 
 ```json
@@ -49,7 +80,7 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 }
 ```
 
-確認済みメールだけ成功します。未確認の場合は確認メールを再送し、`EMAIL_NOT_VERIFIED`を返します。
+確認済みメールだけ成功します。未確認の場合は新しい認証コードを再送し、`EMAIL_NOT_VERIFIED`を返します。
 
 ```json
 {
@@ -152,6 +183,8 @@ Authorization: Bearer {accessToken}
 | API | 上限 |
 | --- | --- |
 | register | 1時間に5回 |
+| verify-email | 15分に10回 |
+| verification/resend | 1時間に5回 |
 | login | 15分に20回 |
 | refresh | 15分に120回 |
 | password-reset | 1時間に5回 |
@@ -174,9 +207,9 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
-確認メールはFirebase Admin SDKの`generateEmailVerificationLink`で作ったリンクをSendGrid v3 Mail Send APIから送ります。検証リンクの書き換えを避けるため、確認メールではSendGridのクリック・開封トラッキングを無効にします。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
+確認メールはSendGrid v3 Mail Send APIから送り、アプリへ入力する6桁の認証コードを記載します。コードの平文は保存せず、ランダムsaltを付けてscryptでハッシュ化し、Firestoreの`emailVerificationChallenges/{uid}`へ有効期限・失敗回数とともに保存します。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
 
-Firebase ConsoleでEmail/Passwordプロバイダーを有効にし、Authentication Templatesの確認メール・パスワード再設定メールをMojidas向けに設定してください。
+Firebase ConsoleでEmail/Passwordプロバイダーを有効にしてください。メール確認はMojidas独自コード方式で行い、パスワード再設定メールだけはFirebase Authentication Templatesを使います。
 
 ## 確認方法
 

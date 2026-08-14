@@ -50,6 +50,16 @@ function createMojidasRouter({
     max: 5,
     keyPrefix: 'mojidas-password-reset',
   });
+  const verifyEmailRateLimit = createMemoryRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    keyPrefix: 'mojidas-verify-email',
+  });
+  const resendVerificationRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    keyPrefix: 'mojidas-resend-verification',
+  });
   const trialAppKeyRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 1000,
     max: 8,
@@ -128,6 +138,45 @@ function createMojidasRouter({
     try {
       const session = await client.refresh(refreshToken);
       return res.json(session);
+    } catch (error) {
+      return sendAuthError(res, error);
+    }
+  });
+
+  router.post('/auth/verify-email', verifyEmailRateLimit, async function (req, res) {
+    const email = normalizeEmail(req.body.email);
+    const code = normalizeVerificationCode(req.body.code);
+    if (!isValidEmail(email) || !code) {
+      return sendError(
+        res,
+        400,
+        'INVALID_VERIFICATION_CODE',
+        'メールアドレスと6桁の認証コードを確認してください。'
+      );
+    }
+
+    try {
+      await client.confirmEmailCode(email, code);
+      return res.json({ verified: true });
+    } catch (error) {
+      return sendAuthError(res, error);
+    }
+  });
+
+  router.post('/auth/verification/resend', resendVerificationRateLimit, async function (req, res) {
+    const email = normalizeEmail(req.body.email);
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    if (!isValidEmail(email) || !password) {
+      return sendError(
+        res,
+        400,
+        'INVALID_CREDENTIALS',
+        'メールアドレスとパスワードを入力してください。'
+      );
+    }
+
+    try {
+      return res.json(await client.resendVerificationCode(email, password));
     } catch (error) {
       return sendAuthError(res, error);
     }
@@ -255,6 +304,12 @@ function isValidEmail(email) {
   return email.length <= 254 && EMAIL_REGEX.test(email);
 }
 
+function normalizeVerificationCode(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.replace(/[\s-]/g, '');
+  return /^\d{6}$/.test(normalized) ? normalized : '';
+}
+
 function normalizeIdentifier(value) {
   if (typeof value !== 'string') return '';
   const normalized = value.trim();
@@ -296,7 +351,10 @@ function sendAuthError(res, error) {
     EMAIL_NOT_FOUND: [401, 'メールアドレスまたはパスワードが正しくありません。'],
     INVALID_PASSWORD: [401, 'メールアドレスまたはパスワードが正しくありません。'],
     INVALID_LOGIN_CREDENTIALS: [401, 'メールアドレスまたはパスワードが正しくありません。'],
-    EMAIL_NOT_VERIFIED: [403, '確認メール内のリンクを開いてからログインしてください。'],
+    EMAIL_NOT_VERIFIED: [403, '6桁の認証コードを送信しました。コードを入力してください。'],
+    INVALID_VERIFICATION_CODE: [400, '認証コードが正しくありません。'],
+    EXPIRED_VERIFICATION_CODE: [410, '認証コードの有効期限が切れています。新しいコードを送信してください。'],
+    VERIFICATION_ATTEMPTS_EXCEEDED: [429, '認証コードの入力回数が上限に達しました。新しいコードを送信してください。'],
     USER_DISABLED: [403, 'このアカウントは利用できません。'],
     TOO_MANY_ATTEMPTS_TRY_LATER: [429, '試行回数が多すぎます。しばらく待ってからお試しください。'],
     INVALID_REFRESH_TOKEN: [401, 'ログインの有効期限が切れました。もう一度ログインしてください。'],
@@ -326,6 +384,7 @@ module.exports.createHostGuard = createHostGuard;
 module.exports.isValidEmail = isValidEmail;
 module.exports.normalizeEmail = normalizeEmail;
 module.exports.normalizeHostname = normalizeHostname;
+module.exports.normalizeVerificationCode = normalizeVerificationCode;
 module.exports.sendAuthError = sendAuthError;
 module.exports.normalizeIdentifier = normalizeIdentifier;
 module.exports.normalizeUUID = normalizeUUID;

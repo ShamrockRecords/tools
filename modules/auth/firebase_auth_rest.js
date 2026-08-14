@@ -1,5 +1,5 @@
 const https = require('https');
-const { MojidasVerificationEmailSender } = require('./mojidas_verification_email');
+const { MojidasEmailVerificationService } = require('./mojidas_email_verification');
 
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 
@@ -74,12 +74,12 @@ function request({ hostname, path, contentType, body }) {
 }
 
 class FirebaseAuthRestClient {
-  constructor({ apiKey, firebaseAdmin, requester = request, verificationEmailSender }) {
+  constructor({ apiKey, firebaseAdmin, requester = request, verificationService }) {
     this.apiKey = apiKey;
     this.firebaseAdmin = firebaseAdmin;
     this.requester = requester;
-    this.verificationEmailSender = verificationEmailSender
-      || new MojidasVerificationEmailSender({ firebaseAdmin });
+    this.verificationService = verificationService
+      || new MojidasEmailVerificationService({ firebaseAdmin });
   }
 
   ensureConfigured() {
@@ -101,7 +101,10 @@ class FirebaseAuthRestClient {
     });
 
     try {
-      await this.verificationEmailSender.send(response.email || email);
+      await this.verificationService.issue({
+        uid: response.localId,
+        email: response.email || email,
+      });
     } catch (error) {
       throw new FirebaseAuthError(
         'VERIFICATION_EMAIL_FAILED',
@@ -128,9 +131,16 @@ class FirebaseAuthRestClient {
 
     if (!user.emailVerified) {
       try {
-        await this.verificationEmailSender.send(response.email || email);
+        await this.verificationService.issue({
+          uid: response.localId,
+          email: response.email || email,
+        });
       } catch (error) {
-        // ログイン拒否を優先し、確認メール再送の失敗は外へ漏らさない。
+        throw new FirebaseAuthError(
+          'VERIFICATION_EMAIL_FAILED',
+          '認証コードを送信できませんでした。',
+          502
+        );
       }
       throw new FirebaseAuthError(
         'EMAIL_NOT_VERIFIED',
@@ -140,6 +150,28 @@ class FirebaseAuthRestClient {
     }
 
     return this.tokenResponse(response, user);
+  }
+
+  async confirmEmailCode(email, code) {
+    this.ensureConfigured();
+    return this.verificationService.verify({ email, code });
+  }
+
+  async resendVerificationCode(email, password) {
+    this.ensureConfigured();
+    const response = await this.identityRequest('accounts:signInWithPassword', {
+      email,
+      password,
+      returnSecureToken: true,
+    });
+    const user = await this.firebaseAdmin.auth().getUser(response.localId);
+    if (user.emailVerified) return { verificationRequired: false };
+
+    await this.verificationService.issue({
+      uid: response.localId,
+      email: response.email || email,
+    });
+    return { verificationRequired: true };
   }
 
   async refresh(refreshToken) {

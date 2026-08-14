@@ -69,6 +69,14 @@ async function main() {
         user: { id: 'user-1', email: 'user@example.com', emailVerified: true },
       };
     },
+    async confirmEmailCode(email, code) {
+      calls.push(['confirm-email-code', email, code]);
+      return { uid: 'user-1', email, emailVerified: true };
+    },
+    async resendVerificationCode(email) {
+      calls.push(['resend-verification', email]);
+      return { verificationRequired: true };
+    },
     async sendPasswordReset(email) {
       calls.push(['password-reset', email]);
       if (email === 'missing@example.com') {
@@ -161,6 +169,32 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.accessToken, 'new-access-token');
 
+    response = await request(server, 'POST', '/api/mojidas/auth/verify-email', {
+      email: 'User@Example.com',
+      code: '123 456',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.verified, true);
+    assert.deepStrictEqual(calls.find((call) => call[0] === 'confirm-email-code'), [
+      'confirm-email-code',
+      'user@example.com',
+      '123456',
+    ]);
+
+    response = await request(server, 'POST', '/api/mojidas/auth/verify-email', {
+      email: 'user@example.com',
+      code: '12345',
+    });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.body.error.code, 'INVALID_VERIFICATION_CODE');
+
+    response = await request(server, 'POST', '/api/mojidas/auth/verification/resend', {
+      email: 'user@example.com',
+      password: 'password123',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.verificationRequired, true);
+
     response = await request(server, 'GET', '/api/mojidas/me');
     assert.strictEqual(response.status, 401);
 
@@ -212,7 +246,7 @@ async function main() {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  console.log('Mojidas auth/APIキーAPI: 13件のテストに成功しました。');
+  console.log('Mojidas auth/APIキーAPI: 16件のテストに成功しました。');
 }
 
 main().catch((error) => {
