@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "test": "node tests/caption_editor_tokens.test.js && node tests/generate_srt_data.test.js && node tests/acp_api_key_issuer.test.js && node tests/mojidas_verification_email.test.js && node tests/mojidas_credit_store.test.js && node tests/mojidas_auth_api.test.js"
+    "test": "node tests/caption_editor_tokens.test.js && node tests/generate_srt_data.test.js && node tests/acp_api_key_issuer.test.js && node tests/admin_credentials.test.js && node tests/admin_auth_api.test.js && node tests/mojidas_verification_email.test.js && node tests/mojidas_credit_store.test.js && node tests/mojidas_auth_api.test.js",
+    "admin:hash-password": "node scripts/hash_admin_password.js",
+    "mojidas:reset-test-data": "node scripts/reset_mojidas_test_data.js"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.10.0",
@@ -13,15 +15,14 @@
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
     "dotenv": "^10.0.0",
-    "ejs": "~2.6.1",
-    "express": "~4.16.1",
+    "ejs": "^3.1.10",
+    "express": "^4.22.2",
     "express-session": "^1.17.2",
-    "firebase": "^8.6.5",
-    "firebase-admin": "^9.9.0",
+    "firebase-admin": "^13.6.0",
     "http-errors": "~1.6.3",
     "i18n": "^0.14.1",
     "kuromoji": "^0.1.2",
-    "morgan": "~1.9.1",
+    "morgan": "^1.11.0",
     "ssl-express-www": "^3.0.8"
   }
 }

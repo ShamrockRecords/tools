@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { getFirestore } = require('../firestore');
+const { mojidasCollection } = require('../mojidas_firestore');
 
 const CODE_EXPIRY_MILLISECONDS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -81,7 +82,7 @@ class EmailVerificationStore {
   }
 
   get collection() {
-    return this.firestoreProvider().collection('emailVerificationChallenges');
+    return mojidasCollection(this.firestoreProvider(), 'emailVerificationChallenges');
   }
 }
 

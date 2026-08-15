@@ -1,8 +1,9 @@
 const { getFirestore, serverTimestamp } = require('../firestore');
+const { mojidasCollection } = require('../mojidas_firestore');
 
 class MojidasUserStore {
   async recordLogin(user) {
-    const document = getFirestore().collection('mojidasUsers').doc(user.uid);
+    const document = mojidasCollection(getFirestore(), 'users').doc(user.uid);
     const snapshot = await document.get();
     const data = {
       email: user.email || null,

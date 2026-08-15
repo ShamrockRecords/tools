@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { getFirestore } = require('../firestore');
+const { mojidasCollection } = require('../mojidas_firestore');
 
 const MONTHLY_FREE_MILLISECONDS = 60 * 60 * 1000;
 const REALTIME_CHUNK_MILLISECONDS = 5 * 60 * 1000;
@@ -23,8 +24,7 @@ class MojidasCreditStore {
   async getBalance({ userID, accountCreatedAt }) {
     await this.ensureMonthlyGrant({ userID, accountCreatedAt });
     await this.releaseExpiredReservations(userID);
-    const snapshot = await this.firestore
-      .collection('creditGrants')
+    const snapshot = await this.collection('creditGrants')
       .where('userID', '==', userID)
       .get();
     return summarizeGrants(snapshot.docs, new Date(this.now()));
@@ -34,7 +34,7 @@ class MojidasCreditStore {
     const now = new Date(this.now());
     const period = monthlyPeriod(accountCreatedAt || new Date(0), now);
     const grantID = deterministicID('monthly', `${userID}:${period.startsAt.toISOString()}`);
-    const document = this.firestore.collection('creditGrants').doc(grantID);
+    const document = this.collection('creditGrants').doc(grantID);
 
     await this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
@@ -50,7 +50,7 @@ class MojidasCreditStore {
         createdAt: now,
       });
       transaction.set(
-        this.firestore.collection('usageLedger').doc(deterministicID('grant', grantID)),
+        this.collection('usageLedger').doc(deterministicID('grant', grantID)),
         {
           userID,
           grantID,
@@ -94,7 +94,7 @@ class MojidasCreditStore {
 
     const now = new Date(this.now());
     const grantID = deterministicID('credit', `${userID}:${normalizedKey}`);
-    const document = this.firestore.collection('creditGrants').doc(grantID);
+    const document = this.collection('creditGrants').doc(grantID);
     await this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
       if (snapshot.exists) return;
@@ -110,7 +110,7 @@ class MojidasCreditStore {
         createdAt: now,
       });
       transaction.set(
-        this.firestore.collection('usageLedger').doc(deterministicID('grant', grantID)),
+        this.collection('usageLedger').doc(deterministicID('grant', grantID)),
         {
           userID,
           grantID,
@@ -140,11 +140,9 @@ class MojidasCreditStore {
 
     const now = new Date(this.now());
     const reservationID = deterministicID('reservation', `${userID}:${recognitionRunID}`);
-    const reservationDocument = this.firestore
-      .collection('creditReservations')
+    const reservationDocument = this.collection('creditReservations')
       .doc(reservationID);
-    const grantQuery = this.firestore
-      .collection('creditGrants')
+    const grantQuery = this.collection('creditGrants')
       .where('userID', '==', userID);
 
     return this.firestore.runTransaction(async (transaction) => {
@@ -202,7 +200,7 @@ class MojidasCreditStore {
       };
       transaction.set(reservationDocument, reservation);
       transaction.set(
-        this.firestore.collection('usageLedger').doc(deterministicID('reserve', reservationID)),
+        this.collection('usageLedger').doc(deterministicID('reserve', reservationID)),
         {
           userID,
           grantID: null,
@@ -227,7 +225,7 @@ class MojidasCreditStore {
   }) {
     await this.ensureMonthlyGrant({ userID, accountCreatedAt });
     const now = new Date(this.now());
-    const document = this.firestore.collection('creditReservations').doc(reservationID);
+    const document = this.collection('creditReservations').doc(reservationID);
 
     return this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
@@ -249,8 +247,7 @@ class MojidasCreditStore {
         const extensionLead = 60 * 1000 * trackCount;
         if (requestedMilliseconds - consumedMilliseconds <= extensionLead) {
           const desiredExtension = REALTIME_CHUNK_MILLISECONDS * trackCount;
-          const grantQuery = this.firestore
-            .collection('creditGrants')
+          const grantQuery = this.collection('creditGrants')
             .where('userID', '==', userID);
           const grantSnapshot = await transaction.get(grantQuery);
           const extension = allocateFromGrants(
@@ -284,7 +281,7 @@ class MojidasCreditStore {
               }))
             );
             transaction.set(
-              this.firestore.collection('usageLedger').doc(
+              this.collection('usageLedger').doc(
                 deterministicID('extend', `${reservationID}:${sequence}`)
               ),
               {
@@ -338,8 +335,7 @@ class MojidasCreditStore {
   }
 
   async assertActiveReservation({ reservationID, userID }) {
-    const snapshot = await this.firestore
-      .collection('creditReservations')
+    const snapshot = await this.collection('creditReservations')
       .doc(reservationID)
       .get();
     return requireActiveReservation(snapshot, userID, new Date(this.now()));
@@ -347,8 +343,7 @@ class MojidasCreditStore {
 
   async releaseExpiredReservations(userID) {
     const now = new Date(this.now());
-    const snapshot = await this.firestore
-      .collection('creditReservations')
+    const snapshot = await this.collection('creditReservations')
       .where('userID', '==', userID)
       .get();
     const expired = snapshot.docs.filter((document) => {
@@ -367,8 +362,7 @@ class MojidasCreditStore {
 
   async finalizeReservation({ reservationID, userID, consumedMilliseconds, status }) {
     const now = new Date(this.now());
-    const reservationDocument = this.firestore
-      .collection('creditReservations')
+    const reservationDocument = this.collection('creditReservations')
       .doc(reservationID);
 
     return this.firestore.runTransaction(async (transaction) => {
@@ -399,7 +393,7 @@ class MojidasCreditStore {
 
       const grantSnapshots = [];
       for (const release of releases) {
-        const grantDocument = this.firestore.collection('creditGrants').doc(release.grantID);
+        const grantDocument = this.collection('creditGrants').doc(release.grantID);
         const grantSnapshot = await transaction.get(grantDocument);
         grantSnapshots.push({ ...release, document: grantDocument, snapshot: grantSnapshot });
       }
@@ -429,7 +423,7 @@ class MojidasCreditStore {
       });
       if (releasedMilliseconds > 0) {
         transaction.set(
-          this.firestore.collection('usageLedger').doc(deterministicID('release', reservationID)),
+          this.collection('usageLedger').doc(deterministicID('release', reservationID)),
           {
             userID,
             grantID: null,
@@ -448,6 +442,10 @@ class MojidasCreditStore {
 
   get firestore() {
     return this.firestoreProvider();
+  }
+
+  collection(name) {
+    return mojidasCollection(this.firestore, name);
   }
 }
 

@@ -1,58 +1,45 @@
 var express = require('express');
 var https = require('https');
-var firebase = require('firebase');
-var firebaseAdmin = require('firebase-admin');
+const {
+  AdminAuthConfigurationError,
+  createAdminCredentialVerifier,
+} = require('../modules/auth/admin_credentials');
+const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 
 var router = express.Router();
 
-const SESSION_COOKIE_NAME = 'sessionCookie';
-const SESSION_DURATION_MS = 60 * 60 * 24 * 5 * 1000; // 5 days
+const LEGACY_FIREBASE_COOKIE_NAME = 'sessionCookie';
+const SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RECIPIENTS = 1500;
 const SENDGRID_BATCH_SIZE = 500;
+let adminCredentialVerifier = null;
+const adminLoginRateLimit = createMemoryRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyPrefix: 'server-admin-login',
+  onLimit(req, res, retryAfterSeconds) {
+    req.session.adminError = `ログイン試行回数が多すぎます。約${Math.ceil(retryAfterSeconds / 60)}分後にお試しください。`;
+    return res.redirect('/admin');
+  },
+});
 
-function getFirebaseConfig() {
-  return {
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.FIREBASE_APP_ID,
-    measurementId: process.env.MEASUREMENT_ID,
-  };
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => (error ? reject(error) : resolve()));
+  });
 }
 
-function ensureFirebaseInitialized() {
-  if (firebase.apps.length) {
-    return true;
-  }
-
-  const config = getFirebaseConfig();
-
-  if (!config.apiKey) {
-    return false;
-  }
-
-  firebase.initializeApp(config);
-  return true;
+function destroySession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.destroy((error) => (error ? reject(error) : resolve()));
+  });
 }
 
 async function getSessionUser(req) {
-  const sessionCookie = req.cookies[SESSION_COOKIE_NAME];
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = await firebaseAdmin.auth().verifySessionCookie(sessionCookie, true);
-    req.session.user = decoded;
-    return decoded;
-  } catch (error) {
-    req.session.user = null;
-    return null;
-  }
+  return req.session && req.session.adminUser
+    ? req.session.adminUser
+    : null;
 }
 
 async function resolveUserRecord(sessionUser) {
@@ -60,27 +47,30 @@ async function resolveUserRecord(sessionUser) {
     return null;
   }
 
-  try {
-    return await firebaseAdmin.auth().getUser(sessionUser.uid);
-  } catch (error) {
-    return sessionUser;
-  }
+  return {
+    email: sessionUser.email,
+    uid: 'server-admin',
+    metadata: {
+      lastSignInTime: sessionUser.signedInAt,
+    },
+  };
 }
 
-async function createSessionFromIdToken(idToken, req, res) {
-  const sessionCookie = await firebaseAdmin.auth().createSessionCookie(idToken, {
-    expiresIn: SESSION_DURATION_MS,
-  });
+async function createAdminSession(adminUser, req, res) {
+  await regenerateSession(req);
+  req.session.adminUser = {
+    email: adminUser.email,
+    signedInAt: new Date().toISOString(),
+  };
+  req.session.cookie.maxAge = SESSION_DURATION_MS;
+  res.clearCookie(LEGACY_FIREBASE_COOKIE_NAME);
+}
 
-  const decoded = await firebaseAdmin.auth().verifySessionCookie(sessionCookie, true);
-  req.session.user = decoded;
-
-  res.cookie(SESSION_COOKIE_NAME, sessionCookie, {
-    maxAge: SESSION_DURATION_MS,
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+async function verifyAdminCredentials(email, password) {
+  if (!adminCredentialVerifier) {
+    adminCredentialVerifier = createAdminCredentialVerifier(process.env);
+  }
+  return adminCredentialVerifier(email, password);
 }
 
 async function ensureAdmin(req, res, next) {
@@ -205,7 +195,7 @@ router.get('/bulk-mail', ensureAdmin, async function (req, res, next) {
   }
 });
 
-router.post('/login', async function (req, res) {
+router.post('/login', adminLoginRateLimit, async function (req, res) {
   const email = (req.body.email || '').trim();
   const password = req.body.password || '';
 
@@ -214,31 +204,19 @@ router.post('/login', async function (req, res) {
     return res.redirect('/admin');
   }
 
-  if (!firebaseAdmin.apps.length) {
-    req.session.adminError = 'Firebase Admin SDKの設定が完了していません。';
-    return res.redirect('/admin');
-  }
-
   try {
-    if (!ensureFirebaseInitialized()) {
-      req.session.adminError = 'Firebaseの設定が不足しているためログインできません。';
+    const adminUser = await verifyAdminCredentials(email, password);
+    if (!adminUser) {
+      req.session.adminError = 'メールアドレスまたはパスワードが正しくありません。';
       return res.redirect('/admin');
     }
 
-    const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
-    const idToken = await credential.user.getIdToken();
-
-    await createSessionFromIdToken(idToken, req, res);
-    await firebase.auth().signOut();
-
+    await createAdminSession(adminUser, req, res);
     return res.redirect('/admin');
   } catch (error) {
-    req.session.adminError = error.message || 'ログインに失敗しました。';
-    try {
-      await firebase.auth().signOut();
-    } catch (_) {
-      // ignore
-    }
+    req.session.adminError = error instanceof AdminAuthConfigurationError
+      ? '管理者ログインのサーバー設定が完了していません。'
+      : 'ログインに失敗しました。';
     return res.redirect('/admin');
   }
 });
@@ -340,19 +318,14 @@ router.post('/bulk-mail', ensureAdmin, async function (req, res) {
 });
 
 router.post('/logout', async function (req, res) {
-  const sessionUser = req.session.user;
-  const uid = sessionUser && (sessionUser.sub || sessionUser.uid);
-
-  if (uid) {
-    try {
-      await firebaseAdmin.auth().revokeRefreshTokens(uid);
-    } catch (error) {
-      // Ignore revocation errors so logout can complete.
-    }
+  try {
+    await destroySession(req);
+  } catch (error) {
+    return res.status(500).json({ result: false });
   }
 
-  req.session.user = null;
-  res.clearCookie(SESSION_COOKIE_NAME);
+  res.clearCookie('connect.sid');
+  res.clearCookie(LEGACY_FIREBASE_COOKIE_NAME);
   return res.json({ result: true });
 });
 

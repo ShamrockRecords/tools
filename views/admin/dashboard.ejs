@@ -27,8 +27,8 @@
 						<dl class="mb-0">
 							<dt class="text-muted small">メールアドレス</dt>
 							<dd class="fs-5 mb-3"><%= user.email || '未設定' %></dd>
-							<dt class="text-muted small">UID</dt>
-							<dd class="text-break mb-3"><code><%= user.uid %></code></dd>
+							<dt class="text-muted small">認証方式</dt>
+							<dd class="text-break mb-3">サーバー管理者アカウント</dd>
 							<dt class="text-muted small">最終ログイン</dt>
 							<dd class="mb-0"><%= (user.metadata && user.metadata.lastSignInTime) ? user.metadata.lastSignInTime : '情報なし' %></dd>
 						</dl>

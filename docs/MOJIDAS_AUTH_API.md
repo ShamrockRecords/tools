@@ -95,7 +95,7 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 }
 ```
 
-ログイン成功時、Firestoreの `mojidasUsers/{uid}` にメール確認状態、最終ログイン日時、状態を記録します。
+ログイン成功時、Firestoreの `Mojidas/production/users/{uid}` にメール確認状態、最終ログイン日時、状態を記録します。
 
 ### `POST /api/mojidas/auth/refresh`
 
@@ -226,7 +226,7 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 
 ## 必須設定
 
-既存の管理ログインと同じ環境変数を利用します。
+Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管理者ログインはFirebase Authenticationを使用しません。
 
 - `FIREBASE_API_KEY`
 - `FIREBASE_ADMIN_CREDENTIALS`
@@ -240,7 +240,9 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
-確認メールはSendGrid v3 Mail Send APIから送り、アプリへ入力する6桁の認証コードを記載します。コードの平文は保存せず、ランダムsaltを付けてscryptでハッシュ化し、Firestoreの`emailVerificationChallenges/{uid}`へ有効期限・失敗回数とともに保存します。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
+確認メールはSendGrid v3 Mail Send APIから送り、アプリへ入力する6桁の認証コードを記載します。コードの平文は保存せず、ランダムsaltを付けてscryptでハッシュ化し、Firestoreの`Mojidas/production/emailVerificationChallenges/{uid}`へ有効期限・失敗回数とともに保存します。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
+
+MojidasのFirestoreデータはルートコレクション`Mojidas`、環境ドキュメント`production`の配下へ保存します。`MOJIDAS_FIRESTORE_ENV`を設定した検証環境では、`production`の代わりにその値を使用します。
 
 Firebase ConsoleでEmail/Passwordプロバイダーを有効にしてください。メール確認はMojidas独自コード方式で行い、パスワード再設定メールだけはFirebase Authentication Templatesを使います。
 

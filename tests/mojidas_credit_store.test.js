@@ -160,7 +160,10 @@ async function main() {
     }),
     earlyCampaignID
   );
-  assert.strictEqual(multipleGrantFirestore.records('creditGrants').length, 3);
+  assert.strictEqual(
+    multipleGrantFirestore.records('Mojidas/production/creditGrants').length,
+    3
+  );
 
   let multipleBalance = await multipleGrantStore.getBalance(multipleGrantAccount);
   assert.strictEqual(multipleBalance.grants.length, 4);
@@ -178,7 +181,8 @@ async function main() {
     requestedMilliseconds: 250000,
     trackCount: 1,
   });
-  const reservationRecord = multipleGrantFirestore.records('creditReservations')
+  const reservationRecord = multipleGrantFirestore
+    .records('Mojidas/production/creditReservations')
     .find((record) => record.id === multipleGrantReservation.id);
   assert.deepStrictEqual(reservationRecord.data.allocations, [
     { grantID: earlyCampaignID, milliseconds: 120000 },
@@ -217,8 +221,8 @@ async function main() {
   assert.strictEqual(balance.purchasedMilliseconds, 0);
   assert.strictEqual(balance.grants.length, 1);
   await store.getBalance(account);
-  assert.strictEqual(firestore.records('creditGrants').length, 1);
-  assert.strictEqual(firestore.records('usageLedger').length, 1);
+  assert.strictEqual(firestore.records('Mojidas/production/creditGrants').length, 1);
+  assert.strictEqual(firestore.records('Mojidas/production/usageLedger').length, 1);
 
   const reservation = await store.createReservation({
     ...account,
@@ -314,7 +318,7 @@ async function main() {
   balance = await store.getBalance(account);
   assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
   assert.strictEqual(balance.grants.length, 1);
-  assert.strictEqual(firestore.records('creditGrants').length, 2);
+  assert.strictEqual(firestore.records('Mojidas/production/creditGrants').length, 2);
 
   console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }

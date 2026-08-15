@@ -1,6 +1,6 @@
 const MAX_TRACKED_KEYS = 10000;
 
-function createMemoryRateLimiter({ windowMs, max, keyPrefix }) {
+function createMemoryRateLimiter({ windowMs, max, keyPrefix, onLimit }) {
   const attempts = new Map();
 
   return function (req, res, next) {
@@ -22,6 +22,9 @@ function createMemoryRateLimiter({ windowMs, max, keyPrefix }) {
     if (current.count > max) {
       const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
       res.set('Retry-After', String(retryAfterSeconds));
+      if (typeof onLimit === 'function') {
+        return onLimit(req, res, retryAfterSeconds);
+      }
       return res.status(429).json({
         error: {
           code: 'RATE_LIMITED',

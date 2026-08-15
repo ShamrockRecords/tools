@@ -118,7 +118,7 @@ async function main() {
   };
   const fakeFirestore = {
     collection(name) {
-      assert.strictEqual(name, 'emailVerificationChallenges');
+      assert.strictEqual(name, 'Mojidas/production/emailVerificationChallenges');
       return {
         doc(uid) {
           assert.strictEqual(uid, 'user-store');
