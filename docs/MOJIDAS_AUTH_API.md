@@ -152,7 +152,7 @@ Authorization: Bearer {accessToken}
 ### 利用時間予約API
 
 - `POST /api/mojidas/usage/reservations`: 認識開始前に時間を予約
-- `POST /api/mojidas/usage/{id}/heartbeat`: 15秒ごとにACP確定結果のチャンネル別累積発話時間を報告し、ライブ認識の予約を延長
+- `POST /api/mojidas/usage/{id}/heartbeat`: 60秒ごとにACP確定結果のチャンネル別累積発話時間を報告し、ライブ認識の予約を延長
 - `POST /api/mojidas/usage/{id}/complete`: 利用時間を確定して未使用予約を返却
 - `POST /api/mojidas/usage/{id}/cancel`: 中断分を確定して未使用予約を返却
 
@@ -186,6 +186,24 @@ Authorization: Bearer {accessToken}
   "expiresAt": "2026-08-14T01:02:00.000Z"
 }
 ```
+
+### 音声認識時間の購入
+
+`POST /api/mojidas/billing/checkout-session`へログイン済みユーザーが商品IDだけを送ると、Stripe Hosted Checkout URLを返します。金額、付与時間、Stripe Price IDはサーバーの商品表から決定し、アプリから受け取りません。
+
+```json
+{"productID":"credit_60m_jpy"}
+```
+
+商品は`credit_60m_jpy`（60分・税込330円）と`credit_10h_jpy`（10時間・税込2,970円）です。カード情報はStripe画面だけで入力します。
+
+Stripe DashboardではWebhook送信先を次へ設定します。
+
+```text
+https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
+```
+
+購読イベントは`checkout.session.completed`と`checkout.session.async_payment_succeeded`です。署名検証後にStripeからSession明細を再取得し、支払済み・Price ID一致を確認してから有効期限なしの購入時間を付与します。Checkout Session IDを冪等キーとするため、Webhookが再送されても二重付与されません。
 
 ## エラー形式
 
@@ -221,6 +239,7 @@ Authorization: Bearer {accessToken}
 | login | 15分に20回 |
 | refresh | 15分に120回 |
 | password-reset | 1時間に5回 |
+| checkout-session | 1時間に20回 |
 
 Herokuを複数dynoで運用すると制限がプロセスごとになるため、その段階でRedis等の共有ストアへ移行してください。
 
@@ -237,8 +256,18 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
 - `SENDGRID_API_KEY`（Mail Send権限が必要）
 - `MOJIDAS_AUTH_FROM_EMAIL`（任意。既定値`no-reply@mojidas.jp`）
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_CREDIT_60M_JPY`
+- `STRIPE_PRICE_CREDIT_10H_JPY`
+- `MOJIDAS_CHECKOUT_SUCCESS_URL`（任意）
+- `MOJIDAS_CHECKOUT_CANCEL_URL`（任意）
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
+
+StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,970円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
+
+通常のリアルタイム認識キーは`ACP_API_KEY_EXPIRY_MS`を使います。credit reservationの`mode`が`mediaFile`の場合は、ACP非同期HTTP v2の待機・再認証を考慮して600000 ms（10分）のキーを発行します。クライアントが送る`purpose`だけでは期限を変更せず、必ず保存済みreservationのmodeを根拠にします。
 
 確認メールはSendGrid v3 Mail Send APIから送り、アプリへ入力する6桁の認証コードを記載します。コードの平文は保存せず、ランダムsaltを付けてscryptでハッシュ化し、Firestoreの`Mojidas/production/emailVerificationChallenges/{uid}`へ有効期限・失敗回数とともに保存します。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
 

@@ -66,10 +66,19 @@ var lineIndexRouter = require('./routes/line/index');
 var lineKyodoshiIndexRouter = require('./routes/lineKyodoshi/index');
 var adminRouter = require('./routes/admin');
 var mojidasApiRouter = require('./routes/api/mojidas');
+var createMojidasStripeWebhookHandler = require('./modules/billing/mojidas_stripe_billing')
+  .createStripeWebhookHandler;
 //var authDoneRouter = require('./routes/authDone');
 //var signinRouter = require('./routes/signin');
 
 var app = express();
+
+// Stripeは署名検証にJSON parse前のraw bodyを必要とするため、共通body parserより先に置く。
+app.post(
+  '/api/mojidas/billing/stripe/webhook',
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  createMojidasStripeWebhookHandler()
+);
 
 app.use(function(req, res, next) {
   if (req.url == "/jimakueditor4file" || req.url == "/jimakueditor4file/") {

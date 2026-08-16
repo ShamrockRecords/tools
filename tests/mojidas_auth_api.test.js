@@ -108,14 +108,16 @@ async function main() {
   const appKeyCalls = [];
   const reservationChecks = [];
   const creditCalls = [];
+  const checkoutCalls = [];
+  let reservationMode = 'realtime';
   const userStore = {
     async recordLogin(user) {
       recordedUsers.push(user);
     },
   };
   const apiKeyIssuer = {
-    async issue() {
-      appKeyCalls.push('issue');
+    async issue(options) {
+      appKeyCalls.push(options);
       return {
         appKey: 'test-instant-appkey-0123456789abcdef',
         expiresAt: '2026-08-14T01:02:00.000Z',
@@ -154,6 +156,17 @@ async function main() {
     },
     async assertActiveReservation(value) {
       reservationChecks.push(value);
+      return { mode: reservationMode };
+    },
+  };
+  const billingService = {
+    async createCheckoutSession(value) {
+      checkoutCalls.push(value);
+      return {
+        checkoutSessionID: 'cs_test_mojidas',
+        url: 'https://checkout.stripe.com/c/pay/cs_test_mojidas',
+        expiresAt: '2026-08-14T02:00:00.000Z',
+      };
     },
   };
   const app = express();
@@ -163,6 +176,7 @@ async function main() {
     userStore,
     apiKeyIssuer,
     creditStore,
+    billingService,
   }));
   const server = await new Promise((resolve) => {
     const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
@@ -256,6 +270,24 @@ async function main() {
       accountCreatedAt: '2026-08-14T01:00:00.000Z',
     }]);
 
+    response = await request(server, 'POST', '/api/mojidas/billing/checkout-session', {
+      productID: 'credit_60m_jpy',
+    });
+    assert.strictEqual(response.status, 401);
+
+    response = await request(server, 'POST', '/api/mojidas/billing/checkout-session', {
+      productID: 'credit_60m_jpy',
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 201);
+    assert.strictEqual(response.body.checkoutSessionID, 'cs_test_mojidas');
+    assert.deepStrictEqual(checkoutCalls, [{
+      userID: 'user-1',
+      email: 'user@example.com',
+      productID: 'credit_60m_jpy',
+    }]);
+
     response = await request(server, 'POST', '/api/mojidas/usage/reservations', {
       mode: 'realtime',
       clientSessionID: '550e8400-e29b-41d4-a716-446655440000',
@@ -331,13 +363,24 @@ async function main() {
       userID: 'user-1',
     }]);
     assert.strictEqual(appKeyCalls.length, 2);
+    assert.strictEqual(appKeyCalls[1], undefined);
+
+    reservationMode = 'mediaFile';
+    response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+      reservationID: 'reservation-1',
+      purpose: 'mediaFile',
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(appKeyCalls[2], { expiryMilliseconds: 600000 });
 
     assert.deepStrictEqual(calls[0], ['register', 'user@example.com']);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  console.log('Mojidas auth/APIキーAPI: 22件のテストに成功しました。');
+  console.log('Mojidas auth/APIキーAPI: media用キー期限を含むテストに成功しました。');
 }
 
 main().catch((error) => {

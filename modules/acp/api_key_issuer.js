@@ -2,6 +2,7 @@ const https = require('https');
 
 const DEFAULT_ENDPOINT = 'https://acp-api.amivoice.com/issue_service_authorization';
 const DEFAULT_EXPIRY_MILLISECONDS = 120000;
+const MEDIA_ASYNC_EXPIRY_MILLISECONDS = 10 * 60 * 1000;
 const MIN_EXPIRY_MILLISECONDS = 30000;
 const MAX_EXPIRY_MILLISECONDS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MILLISECONDS = 10000;
@@ -32,7 +33,7 @@ class ACPApiKeyIssuer {
     this.now = now;
   }
 
-  async issue() {
+  async issue({ expiryMilliseconds = this.expiryMilliseconds } = {}) {
     if (!this.serviceID || !this.servicePassword) {
       throw new ACPApiKeyIssuerError(
         'ACP_NOT_CONFIGURED',
@@ -40,10 +41,11 @@ class ACPApiKeyIssuer {
       );
     }
 
+    const normalizedExpiryMilliseconds = normalizeExpiry(expiryMilliseconds);
     const body = new URLSearchParams({
       sid: this.serviceID,
       spw: this.servicePassword,
-      epi: String(this.expiryMilliseconds),
+      epi: String(normalizedExpiryMilliseconds),
     }).toString();
     const rawKey = await this.request(this.endpoint, body);
     const appKey = String(rawKey || '').trim();
@@ -58,7 +60,7 @@ class ACPApiKeyIssuer {
 
     return {
       appKey,
-      expiresAt: new Date(this.now() + this.expiryMilliseconds).toISOString(),
+      expiresAt: new Date(this.now() + normalizedExpiryMilliseconds).toISOString(),
     };
   }
 }
@@ -145,5 +147,6 @@ module.exports = {
   ACPApiKeyIssuer,
   ACPApiKeyIssuerError,
   DEFAULT_EXPIRY_MILLISECONDS,
+  MEDIA_ASYNC_EXPIRY_MILLISECONDS,
   normalizeExpiry,
 };

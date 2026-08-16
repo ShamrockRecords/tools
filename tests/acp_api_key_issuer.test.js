@@ -31,6 +31,11 @@ async function main() {
   assert.strictEqual(issued.appKey, '0123456789abcdef0123456789abcdef0123456789abcdef');
   assert.strictEqual(issued.expiresAt, '2026-08-14T01:02:00.000Z');
 
+  const mediaIssued = await issuer.issue({ expiryMilliseconds: 600000 });
+  const mediaForm = new URLSearchParams(captured.body);
+  assert.strictEqual(mediaForm.get('epi'), '600000');
+  assert.strictEqual(mediaIssued.expiresAt, '2026-08-14T01:10:00.000Z');
+
   const missingConfiguration = new ACPApiKeyIssuer({
     serviceID: '',
     servicePassword: '',
@@ -54,7 +59,7 @@ async function main() {
   assert.strictEqual(normalizeExpiry(99999999), 600000);
   assert.strictEqual(normalizeExpiry('invalid'), 120000);
 
-  console.log('ACP APIキー発行: 8件のテストに成功しました。');
+  console.log('ACP APIキー発行: 10件のテストに成功しました。');
 }
 
 main().catch((error) => {

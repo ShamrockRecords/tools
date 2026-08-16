@@ -7,8 +7,14 @@ const {
 } = require('../../modules/auth/firebase_auth_rest');
 const mojidasUserStore = require('../../modules/auth/mojidas_user_store');
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
-const { ACPApiKeyIssuer } = require('../../modules/acp/api_key_issuer');
+const {
+  ACPApiKeyIssuer,
+  MEDIA_ASYNC_EXPIRY_MILLISECONDS,
+} = require('../../modules/acp/api_key_issuer');
 const mojidasCreditStore = require('../../modules/credit/mojidas_credit_store');
+const {
+  mojidasStripeBillingService,
+} = require('../../modules/billing/mojidas_stripe_billing');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -21,6 +27,7 @@ function createMojidasRouter({
   userStore = mojidasUserStore,
   apiKeyIssuer,
   creditStore = mojidasCreditStore,
+  billingService = mojidasStripeBillingService,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -69,6 +76,11 @@ function createMojidasRouter({
     windowMs: 60 * 1000,
     max: 20,
     keyPrefix: 'mojidas-authenticated-appkey',
+  });
+  const checkoutRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyPrefix: 'mojidas-checkout',
   });
 
   router.use(createHostGuard({ allowedHosts, allowLocalhost }));
@@ -225,6 +237,38 @@ function createMojidasRouter({
     }
   });
 
+  router.post(
+    '/billing/checkout-session',
+    checkoutRateLimit,
+    authenticate(client),
+    async function (req, res) {
+      try {
+        const checkout = await billingService.createCheckoutSession({
+          userID: req.mojidasUser.uid,
+          email: req.mojidasUser.email,
+          productID: req.body.productID,
+        });
+        return res.status(201).json(checkout);
+      } catch (error) {
+        return sendBillingError(res, error);
+      }
+    }
+  );
+
+  router.get('/billing/success', function (req, res) {
+    return res.type('html').send(checkoutResultPage({
+      title: '購入を受け付けました',
+      message: '決済の確認後、Mojidasの認識可能時間へ反映します。アプリに戻って残時間を更新してください。',
+    }));
+  });
+
+  router.get('/billing/cancel', function (req, res) {
+    return res.type('html').send(checkoutResultPage({
+      title: '購入をキャンセルしました',
+      message: '音声認識時間は購入されていません。このページを閉じてMojidasへ戻れます。',
+    }));
+  });
+
   router.post('/usage/reservations', authenticate(client), async function (req, res) {
     const operation = ['realtime', 'mediaFile'].includes(req.body.mode) ? req.body.mode : '';
     const clientSessionID = normalizeUUID(req.body.clientSessionID);
@@ -310,11 +354,14 @@ function createMojidasRouter({
       }
 
       try {
-        await creditStore.assertActiveReservation({
+        const reservation = await creditStore.assertActiveReservation({
           reservationID,
           userID: req.mojidasUser.uid,
         });
-        return res.json(await issuer.issue());
+        const issueOptions = reservation?.mode === 'mediaFile'
+          ? { expiryMilliseconds: MEDIA_ASYNC_EXPIRY_MILLISECONDS }
+          : undefined;
+        return res.json(await issuer.issue(issueOptions));
       } catch (error) {
         return sendAppKeyError(res, error);
       }
@@ -456,6 +503,42 @@ function sendCreditError(res, error) {
   return res.status(status).json(body);
 }
 
+function sendBillingError(res, error) {
+  const code = error && error.code ? error.code : 'BILLING_SERVICE_ERROR';
+  const mapping = {
+    INVALID_PRODUCT: [400, '購入する商品を確認してください。'],
+    INVALID_CUSTOMER: [400, 'アカウント情報を確認してください。'],
+    STRIPE_NOT_CONFIGURED: [503, '購入機能の設定が完了していません。'],
+    CHECKOUT_CREATE_FAILED: [502, '購入ページを作成できませんでした。'],
+  };
+  const [status, message] = mapping[code] || [502, '購入サービスへ接続できませんでした。'];
+  return sendError(res, status, code, message);
+}
+
+function checkoutResultPage({ title, message }) {
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} | Mojidas</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f3ff; color: #241978; }
+    main { width: min(520px, calc(100% - 48px)); padding: 40px; border-radius: 24px; background: white; box-shadow: 0 20px 60px rgba(36,25,120,.14); }
+    h1 { margin: 0 0 16px; font-size: 28px; }
+    p { margin: 0; line-height: 1.8; color: #555; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #161329; color: #dcd7ff; }
+      main { background: #25213d; }
+      p { color: #c8c5d5; }
+    }
+  </style>
+</head>
+<body><main><h1>${title}</h1><p>${message}</p></main></body>
+</html>`;
+}
+
 function sendAppKeyError(res, error) {
   const code = error && error.code ? error.code : 'APPKEY_UNAVAILABLE';
   const mapping = {
@@ -527,3 +610,4 @@ module.exports.normalizeMilliseconds = normalizeMilliseconds;
 module.exports.normalizeSequence = normalizeSequence;
 module.exports.normalizeTrackCount = normalizeTrackCount;
 module.exports.sendCreditError = sendCreditError;
+module.exports.sendBillingError = sendBillingError;
