@@ -5,6 +5,7 @@ const { mojidasCollection } = require('../mojidas_firestore');
 const MONTHLY_FREE_MILLISECONDS = 60 * 60 * 1000;
 const REALTIME_CHUNK_MILLISECONDS = 5 * 60 * 1000;
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
+const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
 
 class CreditStoreError extends Error {
   constructor(code, message, details) {
@@ -193,7 +194,10 @@ class MojidasCreditStore {
         })),
         consumedMilliseconds: 0,
         status: 'held',
-        leaseExpiresAt: new Date(now.getTime() + RESERVATION_LEASE_MILLISECONDS),
+        leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
+          operation,
+          allocatedMilliseconds
+        )),
         lastHeartbeatSequence: 0,
         createdAt: now,
         updatedAt: now,
@@ -233,7 +237,9 @@ class MojidasCreditStore {
       const previousSequence = Number(reservation.lastHeartbeatSequence) || 0;
       const previousConsumed = Number(reservation.consumedMilliseconds) || 0;
       if (sequence <= previousSequence) return publicReservation(reservationID, reservation);
-      if (consumedMilliseconds < previousConsumed) {
+      const isMediaFile = reservation.operation === 'mediaFile';
+      const reportedConsumed = isMediaFile ? 0 : consumedMilliseconds;
+      if (reportedConsumed < previousConsumed) {
         throw new CreditStoreError(
           'INVALID_SEQUENCE',
           '音声認識時間が前回の報告より小さくなっています。'
@@ -245,7 +251,7 @@ class MojidasCreditStore {
       if (reservation.operation === 'realtime') {
         const trackCount = Math.max(1, Number(reservation.trackCount) || 1);
         const extensionLead = 60 * 1000 * trackCount;
-        if (requestedMilliseconds - consumedMilliseconds <= extensionLead) {
+        if (requestedMilliseconds - reportedConsumed <= extensionLead) {
           const desiredExtension = REALTIME_CHUNK_MILLISECONDS * trackCount;
           const grantQuery = this.collection('creditGrants')
             .where('userID', '==', userID);
@@ -255,13 +261,13 @@ class MojidasCreditStore {
             desiredExtension
           );
           const allocated = desiredExtension - extension.remaining;
-          const requiredToCoverConsumption = Math.max(0, consumedMilliseconds - requestedMilliseconds);
+          const requiredToCoverConsumption = Math.max(0, reportedConsumed - requestedMilliseconds);
           if (
             allocated < requiredToCoverConsumption
-            || (allocated <= 0 && consumedMilliseconds >= requestedMilliseconds)
+            || (allocated <= 0 && reportedConsumed >= requestedMilliseconds)
           ) {
             throw insufficientCreditError(
-              consumedMilliseconds + extensionLead,
+              reportedConsumed + extensionLead,
               requestedMilliseconds + extension.available
             );
           }
@@ -298,18 +304,21 @@ class MojidasCreditStore {
           }
         }
       }
-      if (consumedMilliseconds > requestedMilliseconds) {
-        throw insufficientCreditError(consumedMilliseconds, requestedMilliseconds);
+      if (reportedConsumed > requestedMilliseconds) {
+        throw insufficientCreditError(reportedConsumed, requestedMilliseconds);
       }
 
       const updated = {
         ...reservation,
         requestedMilliseconds,
         allocations,
-        consumedMilliseconds,
+        consumedMilliseconds: reportedConsumed,
         lastHeartbeatSequence: sequence,
         status: 'consuming',
-        leaseExpiresAt: new Date(now.getTime() + RESERVATION_LEASE_MILLISECONDS),
+        leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
+          reservation.operation,
+          requestedMilliseconds
+        )),
         updatedAt: now,
       };
       transaction.update(document, {
@@ -376,11 +385,23 @@ class MojidasCreditStore {
       }
 
       const requested = Math.max(0, Number(reservation.requestedMilliseconds) || 0);
-      const reported = Math.max(
-        Number(reservation.consumedMilliseconds) || 0,
-        Number(consumedMilliseconds) || 0
-      );
-      const consumed = Math.min(requested, reported);
+      const isMediaFile = reservation.operation === 'mediaFile';
+      let consumed;
+      if (isMediaFile && status === 'completed') {
+        // ファイル認識は正常完了した場合だけ、予約した全時間を消費する。
+        consumed = requested;
+      } else if (isMediaFile && status === 'expired') {
+        // 完了通知がないまま期限切れになった予約は、サービス側の失敗として全返却する。
+        consumed = 0;
+      } else {
+        const reported = isMediaFile
+          ? Math.max(0, Number(consumedMilliseconds) || 0)
+          : Math.max(
+            Number(reservation.consumedMilliseconds) || 0,
+            Number(consumedMilliseconds) || 0
+          );
+        consumed = Math.min(requested, reported);
+      }
       let remainingConsumption = consumed;
       const releases = [];
       (reservation.allocations || []).forEach((allocation) => {
@@ -579,6 +600,14 @@ function requireActiveReservation(snapshot, userID, now) {
   return reservation;
 }
 
+function reservationLeaseMilliseconds(operation, requestedMilliseconds) {
+  if (operation !== 'mediaFile') return RESERVATION_LEASE_MILLISECONDS;
+  return Math.max(
+    RESERVATION_LEASE_MILLISECONDS,
+    Math.max(0, Number(requestedMilliseconds) || 0) + MEDIA_RESERVATION_GRACE_MILLISECONDS
+  );
+}
+
 function publicReservation(id, reservation) {
   return {
     id,
@@ -618,8 +647,10 @@ module.exports = new MojidasCreditStore();
 module.exports.CreditStoreError = CreditStoreError;
 module.exports.MONTHLY_FREE_MILLISECONDS = MONTHLY_FREE_MILLISECONDS;
 module.exports.MojidasCreditStore = MojidasCreditStore;
+module.exports.MEDIA_RESERVATION_GRACE_MILLISECONDS = MEDIA_RESERVATION_GRACE_MILLISECONDS;
 module.exports.REALTIME_CHUNK_MILLISECONDS = REALTIME_CHUNK_MILLISECONDS;
 module.exports.RESERVATION_LEASE_MILLISECONDS = RESERVATION_LEASE_MILLISECONDS;
+module.exports.reservationLeaseMilliseconds = reservationLeaseMilliseconds;
 module.exports.addUTCMonths = addUTCMonths;
 module.exports.allocateFromGrants = allocateFromGrants;
 module.exports.asDate = asDate;

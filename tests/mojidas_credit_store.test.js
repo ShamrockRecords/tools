@@ -1,6 +1,7 @@
 const assert = require('assert');
 
 const {
+  MEDIA_RESERVATION_GRACE_MILLISECONDS,
   MONTHLY_FREE_MILLISECONDS,
   MojidasCreditStore,
   monthlyPeriod,
@@ -295,6 +296,108 @@ async function main() {
     (error) => error.code === 'INSUFFICIENT_CREDIT'
       && error.details.availableMilliseconds === 3320000
   );
+
+  const mediaFirestore = new FakeFirestore();
+  let mediaNow = Date.parse('2026-01-31T10:15:00.000Z');
+  const mediaStore = new MojidasCreditStore({
+    firestoreProvider: () => mediaFirestore,
+    now: () => mediaNow,
+  });
+  const mediaAccount = {
+    userID: 'media-user',
+    accountCreatedAt: januaryAnchor,
+  };
+  await mediaStore.getBalance(mediaAccount);
+  const failedMediaReservation = await mediaStore.createReservation({
+    ...mediaAccount,
+    operation: 'mediaFile',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440010',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd04310',
+    requestedMilliseconds: 600000,
+    trackCount: 1,
+  });
+  let mediaBalance = await mediaStore.getBalance(mediaAccount);
+  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+  await mediaStore.heartbeat({
+    reservationID: failedMediaReservation.id,
+    userID: mediaAccount.userID,
+    accountCreatedAt: mediaAccount.accountCreatedAt,
+    sequence: 1,
+    consumedMilliseconds: 400000,
+  });
+  let mediaReservationRecord = mediaFirestore
+    .records('Mojidas/production/creditReservations')
+    .find((record) => record.id === failedMediaReservation.id);
+  assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 0);
+  await mediaStore.completeReservation({
+    reservationID: failedMediaReservation.id,
+    userID: mediaAccount.userID,
+    consumedMilliseconds: 0,
+    cancelled: true,
+  });
+  mediaBalance = await mediaStore.getBalance(mediaAccount);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
+
+  const cancelledMediaReservation = await mediaStore.createReservation({
+    ...mediaAccount,
+    operation: 'mediaFile',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440013',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd04313',
+    requestedMilliseconds: 600000,
+    trackCount: 1,
+  });
+  await mediaStore.completeReservation({
+    reservationID: cancelledMediaReservation.id,
+    userID: mediaAccount.userID,
+    consumedMilliseconds: 600000,
+    cancelled: true,
+  });
+  mediaBalance = await mediaStore.getBalance(mediaAccount);
+  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+
+  const completedMediaReservation = await mediaStore.createReservation({
+    ...mediaAccount,
+    operation: 'mediaFile',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440011',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd04311',
+    requestedMilliseconds: 600000,
+    trackCount: 1,
+  });
+  await mediaStore.completeReservation({
+    reservationID: completedMediaReservation.id,
+    userID: mediaAccount.userID,
+    consumedMilliseconds: 0,
+  });
+  mediaReservationRecord = mediaFirestore
+    .records('Mojidas/production/creditReservations')
+    .find((record) => record.id === completedMediaReservation.id);
+  assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 600000);
+  mediaBalance = await mediaStore.getBalance(mediaAccount);
+  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+
+  const expiredMediaReservation = await mediaStore.createReservation({
+    ...mediaAccount,
+    operation: 'mediaFile',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440012',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd04312',
+    requestedMilliseconds: 600000,
+    trackCount: 1,
+  });
+  await mediaStore.heartbeat({
+    reservationID: expiredMediaReservation.id,
+    userID: mediaAccount.userID,
+    accountCreatedAt: mediaAccount.accountCreatedAt,
+    sequence: 1,
+    consumedMilliseconds: 500000,
+  });
+  mediaNow += 600000 + MEDIA_RESERVATION_GRACE_MILLISECONDS + 1;
+  mediaBalance = await mediaStore.getBalance(mediaAccount);
+  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+  mediaReservationRecord = mediaFirestore
+    .records('Mojidas/production/creditReservations')
+    .find((record) => record.id === expiredMediaReservation.id);
+  assert.strictEqual(mediaReservationRecord.data.status, 'expired');
+  assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 0);
 
   const partialReservation = await store.createReservation({
     ...account,

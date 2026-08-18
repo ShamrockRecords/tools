@@ -152,11 +152,11 @@ Authorization: Bearer {accessToken}
 ### 利用時間予約API
 
 - `POST /api/mojidas/usage/reservations`: 認識開始前に時間を予約
-- `POST /api/mojidas/usage/{id}/heartbeat`: 60秒ごとにACP確定結果のチャンネル別累積発話時間を報告し、ライブ認識の予約を延長
+- `POST /api/mojidas/usage/{id}/heartbeat`: 60秒ごとに予約を延長。ライブ認識は確定発話時間も報告し、ファイル認識は消費を確定しない
 - `POST /api/mojidas/usage/{id}/complete`: 利用時間を確定して未使用予約を返却
 - `POST /api/mojidas/usage/{id}/cancel`: 中断分を確定して未使用予約を返却
 
-同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムの無音区間は消費せず、2チャンネルは各チャンネルの発話区間を個別に合算します。期限付き時間は複数件を保持でき、有効期限が早い付与から使用し、その後に期限なし購入分を使用します。残高・予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
+同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムの無音区間は消費せず、2チャンネルは各チャンネルの発話区間を個別に合算します。ファイル認識は開始時に全時間を退避し、正常完了時だけ全時間を消費します。処理エラーまたはlease期限切れでは全量を返却し、利用者が明示的に途中停止した場合はファイル全時間を消費します。期限付き時間は複数件を保持でき、有効期限が早い付与から使用し、その後に期限なし購入分を使用します。残高・予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
 
 ### `POST /api/mojidas/acp/trial-appkey`
 
