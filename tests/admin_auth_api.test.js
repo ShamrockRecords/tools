@@ -50,6 +50,27 @@ function sessionCookie(response) {
 }
 
 async function main() {
+  const adminUserCalls = [];
+  app.locals.mojidasAdminUserStore = {
+    async listUsers(value) {
+      adminUserCalls.push(['list', value]);
+      return {
+        users: [{
+          uid: 'user-1',
+          email: 'user@example.com',
+          emailVerified: true,
+          disabled: false,
+          createdAt: '2026-08-01T00:00:00.000Z',
+          lastSignInAt: '2026-08-22T00:00:00.000Z',
+          invitedUnlimited: false,
+        }],
+        nextPageToken: 'page-2-token',
+      };
+    },
+    async setInvitedUnlimited(value) {
+      adminUserCalls.push(['set', value]);
+    },
+  };
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
 
@@ -83,6 +104,24 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /admin@example\.com/);
     assert.match(response.body, /サーバー管理者アカウント/);
+    assert.match(response.body, /Mojidasユーザー管理/);
+
+    response = await request(server, 'GET', '/admin/mojidas-users', { cookie });
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /user@example\.com/);
+    assert.match(response.body, /招待に設定/);
+    const csrfMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
+    assert.ok(csrfMatch);
+
+    response = await request(server, 'POST', '/admin/mojidas-users/user-1/invited-unlimited', {
+      cookie,
+      body: { csrfToken: csrfMatch[1], page: '1', enabled: 'true' },
+    });
+    assert.strictEqual(response.status, 303);
+    assert.deepStrictEqual(adminUserCalls.find((call) => call[0] === 'set'), [
+      'set',
+      { uid: 'user-1', enabled: true },
+    ]);
 
     response = await request(server, 'GET', '/admin/bulk-mail', { cookie });
     assert.strictEqual(response.status, 200);
@@ -95,6 +134,7 @@ async function main() {
 
     console.log('admin auth API tests passed');
   } finally {
+    delete app.locals.mojidasAdminUserStore;
     await new Promise((resolve) => server.close(resolve));
   }
 }

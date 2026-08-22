@@ -46,6 +46,7 @@ async function request(server, method, path, body, headers = {}) {
 
 async function main() {
   const calls = [];
+  let invitedUnlimited = false;
   const authClient = {
     async register(email) {
       calls.push(['register', email]);
@@ -97,6 +98,7 @@ async function main() {
         uid: 'user-1',
         email: 'user@example.com',
         emailVerified: true,
+        customClaims: invitedUnlimited ? { mojidasInvitedUnlimited: true } : {},
         metadata: { creationTime: '2026-08-14T01:00:00.000Z' },
       };
     },
@@ -128,6 +130,7 @@ async function main() {
     async getBalance(value) {
       creditCalls.push(['balance', value]);
       return {
+        isUnlimited: value.isUnlimited,
         availableMilliseconds: 3600000,
         expiringMilliseconds: 3600000,
         purchasedMilliseconds: 0,
@@ -268,6 +271,7 @@ async function main() {
     assert.deepStrictEqual(creditCalls[0], ['balance', {
       userID: 'user-1',
       accountCreatedAt: '2026-08-14T01:00:00.000Z',
+      isUnlimited: false,
     }]);
 
     response = await request(server, 'POST', '/api/mojidas/billing/checkout-session', {
@@ -299,6 +303,7 @@ async function main() {
     });
     assert.strictEqual(response.status, 201);
     assert.strictEqual(response.body.id, 'reservation-1');
+    assert.strictEqual(creditCalls[1][1].isUnlimited, false);
 
     response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/heartbeat', {
       sequence: 1,
@@ -326,6 +331,14 @@ async function main() {
       'complete',
       'complete',
     ]);
+
+    invitedUnlimited = true;
+    response = await request(server, 'GET', '/api/mojidas/credits/balance', undefined, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.isUnlimited, true);
+    assert.strictEqual(creditCalls.at(-1)[1].isUnlimited, true);
 
     response = await request(server, 'POST', '/api/mojidas/auth/password-reset', {
       email: 'missing@example.com',

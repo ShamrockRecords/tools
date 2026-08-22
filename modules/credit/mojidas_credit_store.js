@@ -6,6 +6,7 @@ const MONTHLY_FREE_MILLISECONDS = 60 * 60 * 1000;
 const REALTIME_CHUNK_MILLISECONDS = 5 * 60 * 1000;
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
 const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
+const UNLIMITED_AVAILABLE_MILLISECONDS = Number.MAX_SAFE_INTEGER;
 
 class CreditStoreError extends Error {
   constructor(code, message, details) {
@@ -22,7 +23,18 @@ class MojidasCreditStore {
     this.now = now;
   }
 
-  async getBalance({ userID, accountCreatedAt }) {
+  async getBalance({ userID, accountCreatedAt, isUnlimited = false }) {
+    if (isUnlimited) {
+      await this.releaseExpiredReservations(userID);
+      return {
+        isUnlimited: true,
+        availableMilliseconds: UNLIMITED_AVAILABLE_MILLISECONDS,
+        expiringMilliseconds: 0,
+        purchasedMilliseconds: 0,
+        grants: [],
+        serverTime: new Date(this.now()),
+      };
+    }
     await this.ensureMonthlyGrant({ userID, accountCreatedAt });
     await this.releaseExpiredReservations(userID);
     const snapshot = await this.collection('creditGrants')
@@ -135,20 +147,20 @@ class MojidasCreditStore {
     recognitionRunID,
     requestedMilliseconds,
     trackCount,
+    isUnlimited = false,
   }) {
-    await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    if (!isUnlimited) {
+      await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    }
     await this.releaseExpiredReservations(userID);
 
     const now = new Date(this.now());
     const reservationID = deterministicID('reservation', `${userID}:${recognitionRunID}`);
     const reservationDocument = this.collection('creditReservations')
       .doc(reservationID);
-    const grantQuery = this.collection('creditGrants')
-      .where('userID', '==', userID);
 
     return this.firestore.runTransaction(async (transaction) => {
       const existing = await transaction.get(reservationDocument);
-      const grantSnapshot = await transaction.get(grantQuery);
       if (existing.exists) {
         const reservation = existing.data();
         if (
@@ -163,6 +175,52 @@ class MojidasCreditStore {
           '同じ認識処理の利用時間予約は既に終了しています。'
         );
       }
+
+      if (isUnlimited) {
+        const reservation = {
+          userID,
+          operation,
+          clientSessionID,
+          recognitionRunID,
+          requestedMilliseconds,
+          trackCount,
+          unlimited: true,
+          allocations: [],
+          consumedMilliseconds: 0,
+          status: 'held',
+          leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
+            operation,
+            requestedMilliseconds
+          )),
+          lastHeartbeatSequence: 0,
+          createdAt: now,
+          updatedAt: now,
+        };
+        transaction.set(reservationDocument, reservation);
+        transaction.set(
+          this.collection('usageLedger').doc(deterministicID('reserve', reservationID)),
+          {
+            userID,
+            grantID: null,
+            reservationID,
+            kind: 'reserve',
+            milliseconds: 0,
+            idempotencyKey: `reserve:${reservationID}`,
+            occurredAt: now,
+            metadata: {
+              operation,
+              trackCount,
+              unlimited: true,
+              requestedMilliseconds,
+            },
+          }
+        );
+        return publicReservation(reservationID, reservation);
+      }
+
+      const grantQuery = this.collection('creditGrants')
+        .where('userID', '==', userID);
+      const grantSnapshot = await transaction.get(grantQuery);
 
       const grants = activeGrantDocuments(grantSnapshot.docs, now);
       const allocation = allocateFromGrants(grants, requestedMilliseconds);
@@ -248,7 +306,13 @@ class MojidasCreditStore {
 
       let requestedMilliseconds = Number(reservation.requestedMilliseconds) || 0;
       let allocations = reservation.allocations || [];
-      if (reservation.operation === 'realtime') {
+      if (reservation.operation === 'realtime' && reservation.unlimited) {
+        const trackCount = Math.max(1, Number(reservation.trackCount) || 1);
+        requestedMilliseconds = Math.max(
+          requestedMilliseconds,
+          reportedConsumed + (REALTIME_CHUNK_MILLISECONDS * trackCount)
+        );
+      } else if (reservation.operation === 'realtime') {
         const trackCount = Math.max(1, Number(reservation.trackCount) || 1);
         const extensionLead = 60 * 1000 * trackCount;
         if (requestedMilliseconds - reportedConsumed <= extensionLead) {
@@ -428,7 +492,9 @@ class MojidasCreditStore {
         });
       });
 
-      const releasedMilliseconds = Math.max(0, requested - consumed);
+      const releasedMilliseconds = reservation.unlimited
+        ? 0
+        : Math.max(0, requested - consumed);
       const updated = {
         ...reservation,
         consumedMilliseconds: consumed,
@@ -518,6 +584,7 @@ function summarizeGrants(documents, now) {
     .filter((grant) => grant.type === 'purchased' && !grant.expiresAt)
     .reduce((total, grant) => total + grant.remainingMilliseconds, 0);
   return {
+    isUnlimited: false,
     availableMilliseconds: grants.reduce(
       (total, grant) => total + grant.remainingMilliseconds,
       0
@@ -611,6 +678,7 @@ function reservationLeaseMilliseconds(operation, requestedMilliseconds) {
 function publicReservation(id, reservation) {
   return {
     id,
+    isUnlimited: Boolean(reservation.unlimited),
     requestedMilliseconds: Number(reservation.requestedMilliseconds) || 0,
     leaseExpiresAt: asDate(reservation.leaseExpiresAt),
   };
@@ -650,6 +718,7 @@ module.exports.MojidasCreditStore = MojidasCreditStore;
 module.exports.MEDIA_RESERVATION_GRACE_MILLISECONDS = MEDIA_RESERVATION_GRACE_MILLISECONDS;
 module.exports.REALTIME_CHUNK_MILLISECONDS = REALTIME_CHUNK_MILLISECONDS;
 module.exports.RESERVATION_LEASE_MILLISECONDS = RESERVATION_LEASE_MILLISECONDS;
+module.exports.UNLIMITED_AVAILABLE_MILLISECONDS = UNLIMITED_AVAILABLE_MILLISECONDS;
 module.exports.reservationLeaseMilliseconds = reservationLeaseMilliseconds;
 module.exports.addUTCMonths = addUTCMonths;
 module.exports.allocateFromGrants = allocateFromGrants;

@@ -4,6 +4,7 @@ const {
   MEDIA_RESERVATION_GRACE_MILLISECONDS,
   MONTHLY_FREE_MILLISECONDS,
   MojidasCreditStore,
+  UNLIMITED_AVAILABLE_MILLISECONDS,
   monthlyPeriod,
 } = require('../modules/credit/mojidas_credit_store');
 
@@ -422,6 +423,69 @@ async function main() {
   assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
   assert.strictEqual(balance.grants.length, 1);
   assert.strictEqual(firestore.records('Mojidas/production/creditGrants').length, 2);
+
+  const unlimitedFirestore = new FakeFirestore();
+  const unlimitedStore = new MojidasCreditStore({
+    firestoreProvider: () => unlimitedFirestore,
+    now: () => Date.parse('2026-08-22T00:00:00.000Z'),
+  });
+  const unlimitedAccount = {
+    userID: 'invited-user',
+    accountCreatedAt: new Date('2026-08-01T00:00:00.000Z'),
+    isUnlimited: true,
+  };
+  const unlimitedBalance = await unlimitedStore.getBalance(unlimitedAccount);
+  assert.strictEqual(unlimitedBalance.isUnlimited, true);
+  assert.strictEqual(
+    unlimitedBalance.availableMilliseconds,
+    UNLIMITED_AVAILABLE_MILLISECONDS
+  );
+  assert.strictEqual(unlimitedBalance.grants.length, 0);
+  assert.strictEqual(
+    unlimitedFirestore.records('Mojidas/production/creditGrants').length,
+    0
+  );
+
+  const unlimitedReservation = await unlimitedStore.createReservation({
+    ...unlimitedAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440099',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd43099',
+    requestedMilliseconds: 300000,
+    trackCount: 1,
+  });
+  assert.strictEqual(unlimitedReservation.isUnlimited, true);
+  let unlimitedRecord = unlimitedFirestore
+    .records('Mojidas/production/creditReservations')[0];
+  assert.deepStrictEqual(unlimitedRecord.data.allocations, []);
+  assert.strictEqual(unlimitedRecord.data.unlimited, true);
+  const unlimitedReserveLedger = unlimitedFirestore
+    .records('Mojidas/production/usageLedger')
+    .find((record) => record.data.kind === 'reserve');
+  assert.strictEqual(unlimitedReserveLedger.data.milliseconds, 0);
+
+  const extendedUnlimitedReservation = await unlimitedStore.heartbeat({
+    reservationID: unlimitedReservation.id,
+    userID: unlimitedAccount.userID,
+    accountCreatedAt: unlimitedAccount.accountCreatedAt,
+    sequence: 1,
+    consumedMilliseconds: 290000,
+  });
+  assert.strictEqual(extendedUnlimitedReservation.requestedMilliseconds, 590000);
+  await unlimitedStore.completeReservation({
+    reservationID: unlimitedReservation.id,
+    userID: unlimitedAccount.userID,
+    consumedMilliseconds: 320000,
+  });
+  unlimitedRecord = unlimitedFirestore
+    .records('Mojidas/production/creditReservations')[0];
+  assert.strictEqual(unlimitedRecord.data.status, 'completed');
+  assert.strictEqual(unlimitedRecord.data.consumedMilliseconds, 320000);
+  assert.strictEqual(
+    unlimitedFirestore.records('Mojidas/production/usageLedger')
+      .filter((record) => record.data.kind === 'release').length,
+    0
+  );
 
   console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }

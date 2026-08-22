@@ -1,10 +1,12 @@
 var express = require('express');
 var https = require('https');
+const crypto = require('crypto');
 const {
   AdminAuthConfigurationError,
   createAdminCredentialVerifier,
 } = require('../modules/auth/admin_credentials');
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
+const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
 
 var router = express.Router();
 
@@ -13,6 +15,7 @@ const SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RECIPIENTS = 1500;
 const SENDGRID_BATCH_SIZE = 500;
+const MOJIDAS_USER_PAGE_SIZE = 20;
 let adminCredentialVerifier = null;
 const adminLoginRateLimit = createMemoryRateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -87,6 +90,47 @@ async function ensureAdmin(req, res, next) {
   } catch (error) {
     return next(error);
   }
+}
+
+function getMojidasAdminUserStore(req) {
+  return req.app.locals.mojidasAdminUserStore || mojidasAdminUserStore;
+}
+
+function consumeAdminFlash(req) {
+  const flash = req.session.adminFlash || null;
+  delete req.session.adminFlash;
+  return flash;
+}
+
+function ensureAdminCSRFToken(req) {
+  if (!req.session.adminCSRFToken) {
+    req.session.adminCSRFToken = crypto.randomBytes(32).toString('hex');
+  }
+  return req.session.adminCSRFToken;
+}
+
+function hasValidAdminCSRFToken(req) {
+  const expected = req.session.adminCSRFToken;
+  const actual = typeof req.body.csrfToken === 'string' ? req.body.csrfToken : '';
+  if (!expected || expected.length !== actual.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+}
+
+function normalizeAdminPage(value) {
+  const page = Number.parseInt(value, 10);
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+function formatAdminDate(value) {
+  if (!value) return '情報なし';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? '情報なし'
+    : new Intl.DateTimeFormat('ja-JP', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Tokyo',
+    }).format(date);
 }
 
 function getSendGridConfig() {
@@ -190,6 +234,77 @@ router.get('/bulk-mail', ensureAdmin, async function (req, res, next) {
       flash: null,
       form: { recipients: '', subject: '', body: '' },
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
+  try {
+    const page = normalizeAdminPage(req.query.page);
+    if (page === 1 || !req.session.mojidasUserPageTokens) {
+      req.session.mojidasUserPageTokens = { 1: null };
+    }
+    const pageToken = req.session.mojidasUserPageTokens[page];
+    if (page > 1 && !pageToken) {
+      req.session.adminFlash = {
+        type: 'warning',
+        message: 'ページ情報が期限切れになったため、最初のページへ戻りました。',
+      };
+      return res.redirect('/admin/mojidas-users?page=1');
+    }
+
+    const result = await getMojidasAdminUserStore(req).listUsers({
+      pageToken,
+      pageSize: MOJIDAS_USER_PAGE_SIZE,
+    });
+    if (result.nextPageToken) {
+      req.session.mojidasUserPageTokens[page + 1] = result.nextPageToken;
+    } else {
+      delete req.session.mojidasUserPageTokens[page + 1];
+    }
+
+    return res.render('admin/mojidas-users', {
+      user: await resolveUserRecord(req.adminUser),
+      users: result.users,
+      page,
+      hasNext: Boolean(result.nextPageToken),
+      csrfToken: ensureAdminCSRFToken(req),
+      flash: consumeAdminFlash(req),
+      formatDate: formatAdminDate,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/mojidas-users/:uid/invited-unlimited', ensureAdmin, async function (req, res, next) {
+  const page = normalizeAdminPage(req.body.page);
+  const redirectPath = `/admin/mojidas-users?page=${page}`;
+  if (!hasValidAdminCSRFToken(req)) {
+    req.session.adminFlash = {
+      type: 'danger',
+      message: '画面の有効期限が切れました。もう一度操作してください。',
+    };
+    return res.redirect(303, redirectPath);
+  }
+
+  const uid = typeof req.params.uid === 'string' ? req.params.uid.trim() : '';
+  if (!uid || uid.length > 128) {
+    req.session.adminFlash = { type: 'danger', message: 'ユーザーIDが正しくありません。' };
+    return res.redirect(303, redirectPath);
+  }
+
+  const enabled = req.body.enabled === 'true';
+  try {
+    await getMojidasAdminUserStore(req).setInvitedUnlimited({ uid, enabled });
+    req.session.adminFlash = {
+      type: 'success',
+      message: enabled
+        ? '招待ユーザーとして時間無制限に設定しました。'
+        : '招待ユーザー設定を解除しました。',
+    };
+    return res.redirect(303, redirectPath);
   } catch (error) {
     return next(error);
   }

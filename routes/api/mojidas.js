@@ -6,6 +6,7 @@ const {
   FirebaseAuthRestClient,
 } = require('../../modules/auth/firebase_auth_rest');
 const mojidasUserStore = require('../../modules/auth/mojidas_user_store');
+const { isInvitedUnlimited } = require('../../modules/auth/mojidas_access_policy');
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
 const {
   ACPApiKeyIssuer,
@@ -231,6 +232,7 @@ function createMojidasRouter({
       return res.json(await creditStore.getBalance({
         userID: req.mojidasUser.uid,
         accountCreatedAt: accountCreationTime(req.mojidasUser),
+        isUnlimited: isInvitedUnlimited(req.mojidasUser),
       }));
     } catch (error) {
       return sendCreditError(res, error);
@@ -293,6 +295,7 @@ function createMojidasRouter({
         recognitionRunID,
         requestedMilliseconds,
         trackCount,
+        isUnlimited: isInvitedUnlimited(req.mojidasUser),
       });
       return res.status(201).json(reservation);
     } catch (error) {
