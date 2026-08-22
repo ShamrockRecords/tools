@@ -13,6 +13,7 @@ const {
   MEDIA_ASYNC_EXPIRY_MILLISECONDS,
 } = require('../../modules/acp/api_key_issuer');
 const mojidasCreditStore = require('../../modules/credit/mojidas_credit_store');
+const mojidasDictionaryStore = require('../../modules/dictionary/mojidas_dictionary_store');
 const {
   mojidasStripeBillingService,
 } = require('../../modules/billing/mojidas_stripe_billing');
@@ -28,6 +29,7 @@ function createMojidasRouter({
   userStore = mojidasUserStore,
   apiKeyIssuer,
   creditStore = mojidasCreditStore,
+  dictionaryStore = mojidasDictionaryStore,
   billingService = mojidasStripeBillingService,
   allowedHosts,
   allowLocalhost = true,
@@ -236,6 +238,30 @@ function createMojidasRouter({
       }));
     } catch (error) {
       return sendCreditError(res, error);
+    }
+  });
+
+  router.get('/dictionary/changes', authenticate(client), async function (req, res) {
+    const afterRevision = Number(req.query.afterRevision || 0);
+    try {
+      return res.json(await dictionaryStore.getChanges({
+        userID: req.mojidasUser.uid,
+        afterRevision,
+      }));
+    } catch (error) {
+      return sendDictionaryError(res, error);
+    }
+  });
+
+  router.post('/dictionary/sync', authenticate(client), async function (req, res) {
+    try {
+      return res.json(await dictionaryStore.synchronize({
+        userID: req.mojidasUser.uid,
+        deviceID: req.body.deviceID,
+        mutations: req.body.mutations,
+      }));
+    } catch (error) {
+      return sendDictionaryError(res, error);
     }
   });
 
@@ -506,6 +532,23 @@ function sendCreditError(res, error) {
   return res.status(status).json(body);
 }
 
+function sendDictionaryError(res, error) {
+  const code = error && error.code ? error.code : 'DICTIONARY_SERVICE_ERROR';
+  const mapping = {
+    INVALID_DEVICE_ID: [400, '端末情報を確認してください。'],
+    INVALID_WORD_ID: [400, '単語情報を確認してください。'],
+    INVALID_WORD: [400, '単語の書き表記と読み表記を確認してください。'],
+    INVALID_MUTATIONS: [400, '単語辞書の更新内容を確認してください。'],
+    INVALID_REVISION: [400, '単語辞書の同期位置を確認してください。'],
+    INVALID_SEQUENCE: [409, '単語辞書の更新順序が競合しました。もう一度同期してください。'],
+    WORD_LIMIT_REACHED: [409, 'Mojidasに登録できる単語は最大1,000語です。'],
+  };
+  const [status, message] = mapping[code] || [500, '単語辞書を同期できませんでした。'];
+  const body = { error: { code, message } };
+  if (error && error.details) Object.assign(body.error, error.details);
+  return res.status(status).json(body);
+}
+
 function sendBillingError(res, error) {
   const code = error && error.code ? error.code : 'BILLING_SERVICE_ERROR';
   const mapping = {
@@ -613,4 +656,5 @@ module.exports.normalizeMilliseconds = normalizeMilliseconds;
 module.exports.normalizeSequence = normalizeSequence;
 module.exports.normalizeTrackCount = normalizeTrackCount;
 module.exports.sendCreditError = sendCreditError;
+module.exports.sendDictionaryError = sendDictionaryError;
 module.exports.sendBillingError = sendBillingError;

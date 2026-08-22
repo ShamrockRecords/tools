@@ -111,6 +111,7 @@ async function main() {
   const reservationChecks = [];
   const creditCalls = [];
   const checkoutCalls = [];
+  const dictionaryCalls = [];
   let reservationMode = 'realtime';
   const userStore = {
     async recordLogin(user) {
@@ -172,6 +173,16 @@ async function main() {
       };
     },
   };
+  const dictionaryStore = {
+    async getChanges(value) {
+      dictionaryCalls.push(['changes', value]);
+      return { revision: 3, updatedAt: null, changes: [] };
+    },
+    async synchronize(value) {
+      dictionaryCalls.push(['sync', value]);
+      return { revision: 4, acceptedThroughSequence: 1 };
+    },
+  };
   const app = express();
   app.use(express.json());
   app.use('/api/mojidas', createMojidasRouter({
@@ -179,6 +190,7 @@ async function main() {
     userStore,
     apiKeyIssuer,
     creditStore,
+    dictionaryStore,
     billingService,
   }));
   const server = await new Promise((resolve) => {
@@ -273,6 +285,41 @@ async function main() {
       accountCreatedAt: '2026-08-14T01:00:00.000Z',
       isUnlimited: false,
     }]);
+
+    response = await request(
+      server,
+      'GET',
+      '/api/mojidas/dictionary/changes?afterRevision=2',
+      undefined,
+      { Authorization: 'Bearer access-token' }
+    );
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.revision, 3);
+
+    response = await request(server, 'POST', '/api/mojidas/dictionary/sync', {
+      deviceID: '11111111-1111-4111-8111-111111111111',
+      mutations: [{
+        sequence: 1,
+        wordID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        operation: 'delete',
+      }],
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.acceptedThroughSequence, 1);
+    assert.deepStrictEqual(dictionaryCalls, [
+      ['changes', { userID: 'user-1', afterRevision: 2 }],
+      ['sync', {
+        userID: 'user-1',
+        deviceID: '11111111-1111-4111-8111-111111111111',
+        mutations: [{
+          sequence: 1,
+          wordID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          operation: 'delete',
+        }],
+      }],
+    ]);
 
     response = await request(server, 'POST', '/api/mojidas/billing/checkout-session', {
       productID: 'credit_60m_jpy',
