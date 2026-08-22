@@ -52,12 +52,12 @@
 								</td>
 								<td>
 									<% if (account.disabled) { %>
-										<span class="badge text-bg-secondary">無効</span>
+										<span class="badge bg-secondary text-white">無効</span>
 									<% } else { %>
-										<span class="badge text-bg-success">有効</span>
+										<span class="badge bg-success text-white">有効</span>
 									<% } %>
 									<% if (account.emailVerified) { %>
-										<span class="badge text-bg-light border">メール確認済み</span>
+										<span class="badge bg-light text-dark border">メール確認済み</span>
 									<% } %>
 								</td>
 								<td class="account-date"><%= formatDate(account.createdAt) %></td>
