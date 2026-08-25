@@ -132,13 +132,13 @@ async function main() {
       creditCalls.push(['balance', value]);
       return {
         isUnlimited: value.isUnlimited,
-        availableMilliseconds: 3600000,
-        expiringMilliseconds: 3600000,
+        availableMilliseconds: 2400000,
+        expiringMilliseconds: 2400000,
         purchasedMilliseconds: 0,
         grants: [{
           id: 'monthly-grant',
           type: 'monthlyFree',
-          remainingMilliseconds: 3600000,
+          remainingMilliseconds: 2400000,
           expiresAt: '2026-09-14T01:00:00.000Z',
         }],
         serverTime: '2026-08-14T01:00:00.000Z',
@@ -279,7 +279,7 @@ async function main() {
       Authorization: 'Bearer access-token',
     });
     assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.availableMilliseconds, 3600000);
+    assert.strictEqual(response.body.availableMilliseconds, 2400000);
     assert.deepStrictEqual(creditCalls[0], ['balance', {
       userID: 'user-1',
       accountCreatedAt: '2026-08-14T01:00:00.000Z',

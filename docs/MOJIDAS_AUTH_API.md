@@ -127,7 +127,7 @@ Authorization: Bearer {accessToken}
 
 ### `GET /api/mojidas/credits/balance`
 
-確認済みユーザーの利用可能時間と付与内訳を返します。初回取得時と毎月の更新時は、Firebaseのアカウント作成日時を起点とする1時間の無料枠をFirestoreへ冪等に作成します。
+確認済みユーザーの利用可能時間と付与内訳を返します。初回取得時と毎月の更新時は、Firebaseのアカウント作成日時を起点とする40分の無料枠をFirestoreへ冪等に作成します。
 
 ```http
 Authorization: Bearer {accessToken}
@@ -136,14 +136,14 @@ Authorization: Bearer {accessToken}
 ```json
 {
   "isUnlimited": false,
-  "availableMilliseconds": 3600000,
-  "expiringMilliseconds": 3600000,
+  "availableMilliseconds": 2400000,
+  "expiringMilliseconds": 2400000,
   "purchasedMilliseconds": 0,
   "grants": [{
     "id": "monthly_xxx",
     "type": "monthlyFree",
     "label": null,
-    "remainingMilliseconds": 3600000,
+    "remainingMilliseconds": 2400000,
     "expiresAt": "2026-09-14T01:00:00.000Z"
   }],
   "serverTime": "2026-08-14T01:00:00.000Z"

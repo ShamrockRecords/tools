@@ -236,7 +236,7 @@ async function main() {
   });
   assert.strictEqual(reservation.requestedMilliseconds, 300000);
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3300000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 300000);
 
   await store.heartbeat({
     reservationID: reservation.id,
@@ -251,7 +251,7 @@ async function main() {
     consumedMilliseconds: 30000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3570000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 30000);
 
   await store.completeReservation({
     reservationID: reservation.id,
@@ -259,7 +259,7 @@ async function main() {
     consumedMilliseconds: 30000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3570000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 30000);
 
   const extendedReservation = await store.createReservation({
     ...account,
@@ -283,7 +283,7 @@ async function main() {
     consumedMilliseconds: 250000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3320000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 280000);
 
   await assert.rejects(
     () => store.createReservation({
@@ -295,7 +295,7 @@ async function main() {
       trackCount: 1,
     }),
     (error) => error.code === 'INSUFFICIENT_CREDIT'
-      && error.details.availableMilliseconds === 3320000
+      && error.details.availableMilliseconds === MONTHLY_FREE_MILLISECONDS - 280000
   );
 
   const mediaFirestore = new FakeFirestore();
@@ -318,7 +318,7 @@ async function main() {
     trackCount: 1,
   });
   let mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 600000);
   await mediaStore.heartbeat({
     reservationID: failedMediaReservation.id,
     userID: mediaAccount.userID,
@@ -354,7 +354,7 @@ async function main() {
     cancelled: true,
   });
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 600000);
 
   const completedMediaReservation = await mediaStore.createReservation({
     ...mediaAccount,
@@ -374,7 +374,7 @@ async function main() {
     .find((record) => record.id === completedMediaReservation.id);
   assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 600000);
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
 
   const expiredMediaReservation = await mediaStore.createReservation({
     ...mediaAccount,
@@ -393,7 +393,7 @@ async function main() {
   });
   mediaNow += 600000 + MEDIA_RESERVATION_GRACE_MILLISECONDS + 1;
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
   mediaReservationRecord = mediaFirestore
     .records('Mojidas/production/creditReservations')
     .find((record) => record.id === expiredMediaReservation.id);
@@ -408,7 +408,10 @@ async function main() {
     requestedMilliseconds: 4000000,
     trackCount: 1,
   });
-  assert.strictEqual(partialReservation.requestedMilliseconds, 3320000);
+  assert.strictEqual(
+    partialReservation.requestedMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 280000
+  );
   await store.completeReservation({
     reservationID: partialReservation.id,
     userID: account.userID,
@@ -416,7 +419,7 @@ async function main() {
     cancelled: true,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3320000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 280000);
 
   now = Date.parse('2026-02-28T10:15:00.000Z');
   balance = await store.getBalance(account);

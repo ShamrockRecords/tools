@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 
-const MONTHLY_FREE_MILLISECONDS = 60 * 60 * 1000;
+const MONTHLY_FREE_MILLISECONDS = 40 * 60 * 1000;
 const REALTIME_CHUNK_MILLISECONDS = 5 * 60 * 1000;
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
 const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
