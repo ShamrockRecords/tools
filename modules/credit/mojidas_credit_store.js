@@ -3,7 +3,6 @@ const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 
 const MONTHLY_FREE_MILLISECONDS = 40 * 60 * 1000;
-const REALTIME_CHUNK_MILLISECONDS = 5 * 60 * 1000;
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
 const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
 const UNLIMITED_AVAILABLE_MILLISECONDS = Number.MAX_SAFE_INTEGER;
@@ -177,12 +176,14 @@ class MojidasCreditStore {
       }
 
       if (isUnlimited) {
+        const allocatedMilliseconds = operation === 'realtime' ? 0 : requestedMilliseconds;
+        const ledgerKind = operation === 'realtime' ? 'start' : 'reserve';
         const reservation = {
           userID,
           operation,
           clientSessionID,
           recognitionRunID,
-          requestedMilliseconds,
+          requestedMilliseconds: allocatedMilliseconds,
           trackCount,
           unlimited: true,
           allocations: [],
@@ -190,7 +191,7 @@ class MojidasCreditStore {
           status: 'held',
           leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
             operation,
-            requestedMilliseconds
+            allocatedMilliseconds
           )),
           lastHeartbeatSequence: 0,
           createdAt: now,
@@ -198,20 +199,20 @@ class MojidasCreditStore {
         };
         transaction.set(reservationDocument, reservation);
         transaction.set(
-          this.collection('usageLedger').doc(deterministicID('reserve', reservationID)),
+          this.collection('usageLedger').doc(deterministicID(ledgerKind, reservationID)),
           {
             userID,
             grantID: null,
             reservationID,
-            kind: 'reserve',
+            kind: ledgerKind,
             milliseconds: 0,
-            idempotencyKey: `reserve:${reservationID}`,
+            idempotencyKey: `${ledgerKind}:${reservationID}`,
             occurredAt: now,
             metadata: {
               operation,
               trackCount,
               unlimited: true,
-              requestedMilliseconds,
+              requestedMilliseconds: allocatedMilliseconds,
             },
           }
         );
@@ -223,14 +224,21 @@ class MojidasCreditStore {
       const grantSnapshot = await transaction.get(grantQuery);
 
       const grants = activeGrantDocuments(grantSnapshot.docs, now);
-      const allocation = allocateFromGrants(grants, requestedMilliseconds);
-      const allocatedMilliseconds = requestedMilliseconds - allocation.remaining;
-      if (
-        allocation.remaining > 0
-        && (operation !== 'realtime' || allocatedMilliseconds <= 0)
-      ) {
+      const isRealtime = operation === 'realtime';
+      const allocation = allocateFromGrants(
+        grants,
+        isRealtime ? 0 : requestedMilliseconds
+      );
+      if (isRealtime && allocation.available <= 0) {
+        throw insufficientCreditError(1, 0);
+      }
+      if (!isRealtime && allocation.remaining > 0) {
         throw insufficientCreditError(requestedMilliseconds, allocation.available);
       }
+      const allocatedMilliseconds = isRealtime
+        ? 0
+        : requestedMilliseconds - allocation.remaining;
+      const ledgerKind = isRealtime ? 'start' : 'reserve';
 
       allocation.allocations.forEach((item) => {
         transaction.update(item.document, {
@@ -262,14 +270,14 @@ class MojidasCreditStore {
       };
       transaction.set(reservationDocument, reservation);
       transaction.set(
-        this.collection('usageLedger').doc(deterministicID('reserve', reservationID)),
+        this.collection('usageLedger').doc(deterministicID(ledgerKind, reservationID)),
         {
           userID,
           grantID: null,
           reservationID,
-          kind: 'reserve',
+          kind: ledgerKind,
           milliseconds: -allocatedMilliseconds,
-          idempotencyKey: `reserve:${reservationID}`,
+          idempotencyKey: `${ledgerKind}:${reservationID}`,
           occurredAt: now,
           metadata: { operation, trackCount },
         }
@@ -289,12 +297,19 @@ class MojidasCreditStore {
     const now = new Date(this.now());
     const document = this.collection('creditReservations').doc(reservationID);
 
-    return this.firestore.runTransaction(async (transaction) => {
+    const outcome = await this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
       const reservation = requireActiveReservation(snapshot, userID, now);
       const previousSequence = Number(reservation.lastHeartbeatSequence) || 0;
       const previousConsumed = Number(reservation.consumedMilliseconds) || 0;
-      if (sequence <= previousSequence) return publicReservation(reservationID, reservation);
+      if (sequence <= previousSequence) {
+        return {
+          reservation: publicReservation(reservationID, reservation),
+          insufficient: false,
+          requiredMilliseconds: previousConsumed,
+          availableMilliseconds: Number(reservation.requestedMilliseconds) || 0,
+        };
+      }
       const isMediaFile = reservation.operation === 'mediaFile';
       const reportedConsumed = isMediaFile ? 0 : consumedMilliseconds;
       if (reportedConsumed < previousConsumed) {
@@ -306,35 +321,20 @@ class MojidasCreditStore {
 
       let requestedMilliseconds = Number(reservation.requestedMilliseconds) || 0;
       let allocations = reservation.allocations || [];
+      let insufficient = false;
       if (reservation.operation === 'realtime' && reservation.unlimited) {
-        const trackCount = Math.max(1, Number(reservation.trackCount) || 1);
-        requestedMilliseconds = Math.max(
-          requestedMilliseconds,
-          reportedConsumed + (REALTIME_CHUNK_MILLISECONDS * trackCount)
-        );
+        requestedMilliseconds = Math.max(requestedMilliseconds, reportedConsumed);
       } else if (reservation.operation === 'realtime') {
-        const trackCount = Math.max(1, Number(reservation.trackCount) || 1);
-        const extensionLead = 60 * 1000 * trackCount;
-        if (requestedMilliseconds - reportedConsumed <= extensionLead) {
-          const desiredExtension = REALTIME_CHUNK_MILLISECONDS * trackCount;
+        const requiredConsumption = Math.max(0, reportedConsumed - requestedMilliseconds);
+        if (requiredConsumption > 0) {
           const grantQuery = this.collection('creditGrants')
             .where('userID', '==', userID);
           const grantSnapshot = await transaction.get(grantQuery);
           const extension = allocateFromGrants(
             activeGrantDocuments(grantSnapshot.docs, now),
-            desiredExtension
+            requiredConsumption
           );
-          const allocated = desiredExtension - extension.remaining;
-          const requiredToCoverConsumption = Math.max(0, reportedConsumed - requestedMilliseconds);
-          if (
-            allocated < requiredToCoverConsumption
-            || (allocated <= 0 && reportedConsumed >= requestedMilliseconds)
-          ) {
-            throw insufficientCreditError(
-              reportedConsumed + extensionLead,
-              requestedMilliseconds + extension.available
-            );
-          }
+          const allocated = requiredConsumption - extension.remaining;
           if (allocated > 0) {
             extension.allocations.forEach((item) => {
               transaction.update(item.document, {
@@ -352,31 +352,33 @@ class MojidasCreditStore {
             );
             transaction.set(
               this.collection('usageLedger').doc(
-                deterministicID('extend', `${reservationID}:${sequence}`)
+                deterministicID('consume', `${reservationID}:${sequence}`)
               ),
               {
                 userID,
                 grantID: null,
                 reservationID,
-                kind: 'reserve',
+                kind: 'consume',
                 milliseconds: -allocated,
-                idempotencyKey: `extend:${reservationID}:${sequence}`,
+                idempotencyKey: `consume:${reservationID}:${sequence}`,
                 occurredAt: now,
                 metadata: { sequence },
               }
             );
           }
+          insufficient = allocated < requiredConsumption;
         }
       }
-      if (reportedConsumed > requestedMilliseconds) {
-        throw insufficientCreditError(reportedConsumed, requestedMilliseconds);
-      }
+      const chargedConsumedMilliseconds = Math.min(
+        reportedConsumed,
+        requestedMilliseconds
+      );
 
       const updated = {
         ...reservation,
         requestedMilliseconds,
         allocations,
-        consumedMilliseconds: reportedConsumed,
+        consumedMilliseconds: chargedConsumedMilliseconds,
         lastHeartbeatSequence: sequence,
         status: 'consuming',
         leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
@@ -394,8 +396,20 @@ class MojidasCreditStore {
         leaseExpiresAt: updated.leaseExpiresAt,
         updatedAt: now,
       });
-      return publicReservation(reservationID, updated);
+      return {
+        reservation: publicReservation(reservationID, updated),
+        insufficient,
+        requiredMilliseconds: reportedConsumed,
+        availableMilliseconds: requestedMilliseconds,
+      };
     });
+    if (outcome.insufficient) {
+      throw insufficientCreditError(
+        outcome.requiredMilliseconds,
+        outcome.availableMilliseconds
+      );
+    }
+    return outcome.reservation;
   }
 
   async completeReservation({ reservationID, userID, consumedMilliseconds, cancelled = false }) {
@@ -448,8 +462,40 @@ class MojidasCreditStore {
         return publicReservation(reservationID, reservation);
       }
 
-      const requested = Math.max(0, Number(reservation.requestedMilliseconds) || 0);
+      let requested = Math.max(0, Number(reservation.requestedMilliseconds) || 0);
+      let allocations = reservation.allocations || [];
       const isMediaFile = reservation.operation === 'mediaFile';
+      const reported = isMediaFile
+        ? Math.max(0, Number(consumedMilliseconds) || 0)
+        : Math.max(
+          Number(reservation.consumedMilliseconds) || 0,
+          Number(consumedMilliseconds) || 0
+        );
+      let additionalAllocation = null;
+      let additionalMilliseconds = 0;
+
+      // リアルタイム認識は開始時に時間を予約しない。停止直前など、最後の
+      // heartbeat以降に確定した発話時間だけをここで追加消費する。
+      if (!isMediaFile && !reservation.unlimited && reported > requested) {
+        const requiredConsumption = reported - requested;
+        const grantQuery = this.collection('creditGrants')
+          .where('userID', '==', userID);
+        const grantSnapshot = await transaction.get(grantQuery);
+        additionalAllocation = allocateFromGrants(
+          activeGrantDocuments(grantSnapshot.docs, now),
+          requiredConsumption
+        );
+        additionalMilliseconds = requiredConsumption - additionalAllocation.remaining;
+        requested += additionalMilliseconds;
+        allocations = mergeAllocations(
+          allocations,
+          additionalAllocation.allocations.map((item) => ({
+            grantID: item.id,
+            milliseconds: item.milliseconds,
+          }))
+        );
+      }
+
       let consumed;
       if (isMediaFile && status === 'completed') {
         // ファイル認識は正常完了した場合だけ、予約した全時間を消費する。
@@ -457,18 +503,14 @@ class MojidasCreditStore {
       } else if (isMediaFile && status === 'expired') {
         // 完了通知がないまま期限切れになった予約は、サービス側の失敗として全返却する。
         consumed = 0;
+      } else if (reservation.unlimited) {
+        consumed = reported;
       } else {
-        const reported = isMediaFile
-          ? Math.max(0, Number(consumedMilliseconds) || 0)
-          : Math.max(
-            Number(reservation.consumedMilliseconds) || 0,
-            Number(consumedMilliseconds) || 0
-          );
         consumed = Math.min(requested, reported);
       }
       let remainingConsumption = consumed;
       const releases = [];
-      (reservation.allocations || []).forEach((allocation) => {
+      allocations.forEach((allocation) => {
         const allocated = Math.max(0, Number(allocation.milliseconds) || 0);
         const used = Math.min(allocated, remainingConsumption);
         remainingConsumption -= used;
@@ -481,6 +523,15 @@ class MojidasCreditStore {
         const grantDocument = this.collection('creditGrants').doc(release.grantID);
         const grantSnapshot = await transaction.get(grantDocument);
         grantSnapshots.push({ ...release, document: grantDocument, snapshot: grantSnapshot });
+      }
+
+      if (additionalAllocation) {
+        additionalAllocation.allocations.forEach((item) => {
+          transaction.update(item.document, {
+            remainingMilliseconds: item.remainingAfter,
+            updatedAt: now,
+          });
+        });
       }
 
       grantSnapshots.forEach((grant) => {
@@ -497,17 +548,36 @@ class MojidasCreditStore {
         : Math.max(0, requested - consumed);
       const updated = {
         ...reservation,
+        requestedMilliseconds: requested,
+        allocations,
         consumedMilliseconds: consumed,
         status,
         completedAt: now,
         updatedAt: now,
       };
       transaction.update(reservationDocument, {
+        requestedMilliseconds: requested,
+        allocations,
         consumedMilliseconds: consumed,
         status,
         completedAt: now,
         updatedAt: now,
       });
+      if (additionalMilliseconds > 0) {
+        transaction.set(
+          this.collection('usageLedger').doc(deterministicID('finalize-charge', reservationID)),
+          {
+            userID,
+            grantID: null,
+            reservationID,
+            kind: 'consume',
+            milliseconds: -additionalMilliseconds,
+            idempotencyKey: `finalize-charge:${reservationID}`,
+            occurredAt: now,
+            metadata: { status },
+          }
+        );
+      }
       if (releasedMilliseconds > 0) {
         transaction.set(
           this.collection('usageLedger').doc(deterministicID('release', reservationID)),
@@ -614,6 +684,11 @@ function activeGrantDocuments(documents, now) {
     .filter((grant) => !grant.startsAt || grant.startsAt.getTime() <= now.getTime())
     .filter((grant) => !grant.expiresAt || grant.expiresAt.getTime() > now.getTime())
     .sort((left, right) => {
+      // 無料・キャンペーン枠をすべて使い切ってから購入分を消費する。
+      // purchasedに将来有効期限が付いても、この商品仕様を優先する。
+      const leftPurchased = left.data.type === 'purchased' ? 1 : 0;
+      const rightPurchased = right.data.type === 'purchased' ? 1 : 0;
+      if (leftPurchased !== rightPurchased) return leftPurchased - rightPurchased;
       const leftExpiry = left.expiresAt ? left.expiresAt.getTime() : Number.MAX_SAFE_INTEGER;
       const rightExpiry = right.expiresAt ? right.expiresAt.getTime() : Number.MAX_SAFE_INTEGER;
       if (leftExpiry !== rightExpiry) return leftExpiry - rightExpiry;
@@ -716,7 +791,6 @@ module.exports.CreditStoreError = CreditStoreError;
 module.exports.MONTHLY_FREE_MILLISECONDS = MONTHLY_FREE_MILLISECONDS;
 module.exports.MojidasCreditStore = MojidasCreditStore;
 module.exports.MEDIA_RESERVATION_GRACE_MILLISECONDS = MEDIA_RESERVATION_GRACE_MILLISECONDS;
-module.exports.REALTIME_CHUNK_MILLISECONDS = REALTIME_CHUNK_MILLISECONDS;
 module.exports.RESERVATION_LEASE_MILLISECONDS = RESERVATION_LEASE_MILLISECONDS;
 module.exports.UNLIMITED_AVAILABLE_MILLISECONDS = UNLIMITED_AVAILABLE_MILLISECONDS;
 module.exports.reservationLeaseMilliseconds = reservationLeaseMilliseconds;

@@ -301,9 +301,18 @@ function createMojidasRouter({
     const operation = ['realtime', 'mediaFile'].includes(req.body.mode) ? req.body.mode : '';
     const clientSessionID = normalizeUUID(req.body.clientSessionID);
     const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
-    const requestedMilliseconds = normalizeMilliseconds(req.body.requestedMilliseconds, false);
+    const requestedMilliseconds = normalizeMilliseconds(
+      req.body.requestedMilliseconds,
+      operation === 'realtime'
+    );
     const trackCount = normalizeTrackCount(req.body.trackCount);
-    if (!operation || !clientSessionID || !recognitionRunID || !requestedMilliseconds || !trackCount) {
+    if (
+      !operation
+      || !clientSessionID
+      || !recognitionRunID
+      || requestedMilliseconds === null
+      || !trackCount
+    ) {
       return sendError(
         res,
         400,

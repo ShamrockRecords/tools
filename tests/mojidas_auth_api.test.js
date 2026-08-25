@@ -343,7 +343,7 @@ async function main() {
       mode: 'realtime',
       clientSessionID: '550e8400-e29b-41d4-a716-446655440000',
       recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd430c8',
-      requestedMilliseconds: 300000,
+      requestedMilliseconds: 0,
       trackCount: 1,
     }, {
       Authorization: 'Bearer access-token',
@@ -351,6 +351,7 @@ async function main() {
     assert.strictEqual(response.status, 201);
     assert.strictEqual(response.body.id, 'reservation-1');
     assert.strictEqual(creditCalls[1][1].isUnlimited, false);
+    assert.strictEqual(creditCalls[1][1].requestedMilliseconds, 0);
 
     response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/heartbeat', {
       sequence: 1,

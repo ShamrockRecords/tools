@@ -152,14 +152,14 @@ Authorization: Bearer {accessToken}
 
 管理画面で招待ユーザーに設定されたアカウントは`isUnlimited: true`を返します。この場合、後方互換用の`availableMilliseconds`は十分に大きな値を返しますが、Mac／Windowsアプリは数値ではなく`isUnlimited`を正本として「時間無制限」を表示します。招待状態はFirebase Authのcustom claim `mojidasInvitedUnlimited`で管理し、APIは認証リクエストごとに最新のUserRecordから判定します。
 
-### 利用時間予約API
+### 利用時間セッション／ファイル予約API
 
-- `POST /api/mojidas/usage/reservations`: 認識開始前に時間を予約
-- `POST /api/mojidas/usage/{id}/heartbeat`: 60秒ごとに予約を延長。ライブ認識は確定発話時間も報告し、ファイル認識は消費を確定しない
-- `POST /api/mojidas/usage/{id}/complete`: 利用時間を確定して未使用予約を返却
-- `POST /api/mojidas/usage/{id}/cancel`: 中断分を確定して未使用予約を返却
+- `POST /api/mojidas/usage/reservations`: ライブは時間を確保せず利用セッションを作成、ファイルは全時間を予約
+- `POST /api/mojidas/usage/{id}/heartbeat`: 60秒ごとにライブの確定発話時間だけを消費。ファイルは予約のleaseだけを延長
+- `POST /api/mojidas/usage/{id}/complete`: ライブの最終発話時間を確定、ファイルの未使用予約を返却
+- `POST /api/mojidas/usage/{id}/cancel`: ライブの最終発話時間を確定、ファイルの未使用予約を返却
 
-同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムの無音区間は消費せず、2チャンネルは各チャンネルの発話区間を個別に合算します。ファイル認識は開始時に全時間を退避し、正常完了時だけ全時間を消費します。処理エラーまたはlease期限切れでは全量を返却し、利用者が明示的に途中停止した場合はファイル全時間を消費します。期限付き時間は複数件を保持でき、有効期限が早い付与から使用し、その後に期限なし購入分を使用します。残高・予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
+同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムは開始時に時間を予約せず、無音区間を消費しません。2チャンネルは各チャンネルの確定発話区間を個別に合算し、heartbeatと終了時に増加分だけを消費します。ファイル認識は開始時に全時間を退避し、正常完了時だけ全時間を消費します。処理エラーまたはlease期限切れでは全量を返却し、利用者が明示的に途中停止した場合はファイル全時間を消費します。毎月無料枠を含む期限付き時間を先に使い、その後に期限なし購入分を使用します。残高・利用セッション・ファイル予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
 
 招待ユーザーの予約は`isUnlimited: true`を返し、クレジット付与を予約・消費しません。予約、heartbeat、終了の冪等性と監査用台帳は通常ユーザーと同じ経路を使い、予約台帳の増減時間は0として記録します。
 
