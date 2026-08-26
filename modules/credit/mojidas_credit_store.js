@@ -119,6 +119,7 @@ class MojidasCreditStore {
         startsAt: startDate,
         expiresAt: expiryDate,
         sourceReference: sourceReference || normalizedKey,
+        metadata: { ...metadata },
         createdAt: now,
       });
       transaction.set(

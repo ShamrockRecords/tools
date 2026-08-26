@@ -71,6 +71,31 @@ async function main() {
       adminUserCalls.push(['set', value]);
     },
   };
+  app.locals.mojidasPaidBalanceStore = {
+    async getReport() {
+      return {
+        asOf: new Date('2026-08-26T00:00:00.000Z'),
+        isComplete: true,
+        unusedPaidBalanceJPY: 165,
+        knownUnusedPaidBalanceJPY: 165,
+        exactKnownAmountJPY: 165,
+        totalRemainingMilliseconds: 1_800_000,
+        valuedRemainingMilliseconds: 1_800_000,
+        unvaluedRemainingMilliseconds: 0,
+        purchaseGrantCount: 1,
+        unvaluedGrantCount: 0,
+        reportingThresholdJPY: 10_000_000,
+        thresholdUsageRate: 165 / 10_000_000,
+        breakdown: [{
+          productID: 'credit_60m_jpy',
+          label: '60分購入',
+          grantCount: 1,
+          remainingMilliseconds: 1_800_000,
+          amountJPY: 165,
+        }],
+      };
+    },
+  };
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
 
@@ -105,6 +130,13 @@ async function main() {
     assert.match(response.body, /admin@example\.com/);
     assert.match(response.body, /サーバー管理者アカウント/);
     assert.match(response.body, /Mojidasユーザー管理/);
+    assert.match(response.body, /Mojidas未使用有償残高/);
+
+    response = await request(server, 'GET', '/admin/mojidas-paid-balance', { cookie });
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /現在の参考残高/);
+    assert.match(response.body, /￥165/);
+    assert.match(response.body, /credit_60m_jpy/);
 
     response = await request(server, 'GET', '/admin/mojidas-users', { cookie });
     assert.strictEqual(response.status, 200);
@@ -135,6 +167,7 @@ async function main() {
     console.log('admin auth API tests passed');
   } finally {
     delete app.locals.mojidasAdminUserStore;
+    delete app.locals.mojidasPaidBalanceStore;
     await new Promise((resolve) => server.close(resolve));
   }
 }

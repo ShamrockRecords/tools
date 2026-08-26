@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../parts/head', {title: 'Mojidas未使用有償残高'}) %>
+	<style>
+		body { background-color: #f8f9fa; min-height: 100vh; }
+		.balance-amount { font-size: clamp(2rem, 7vw, 4rem); letter-spacing: -0.04em; }
+	</style>
+</head>
+<body>
+	<div class="container py-5">
+		<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+			<div>
+				<a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
+				<h1 class="h3 fw-bold mt-2 mb-1">Mojidas未使用有償残高</h1>
+				<p class="text-muted mb-0"><%= formatDate(report.asOf) %> 現在</p>
+			</div>
+			<div class="text-muted small"><%= user.email || '管理者' %></div>
+		</div>
+
+		<% if (!report.isComplete) { %>
+			<div class="alert alert-danger" role="alert">
+				<strong>金額情報のない購入記録が <%= report.unvaluedGrantCount %> 件あります。</strong>
+				残高を過少表示しないため、合計額は確定していません。金額判明分は <%= formatJPY(report.knownUnusedPaidBalanceJPY) %> です。
+			</div>
+		<% } %>
+
+		<div class="card shadow-sm mb-4">
+			<div class="card-body p-4 p-md-5">
+				<div class="text-muted fw-semibold mb-2"><%= report.isComplete ? '現在の参考残高' : '現在の参考残高（集計不能）' %></div>
+				<div class="balance-amount fw-bold mb-3"><%= report.isComplete ? formatJPY(report.unusedPaidBalanceJPY) : '—' %></div>
+				<div class="progress mb-2" style="height: 0.75rem;" role="progressbar" aria-label="届出基準額に対する割合" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= report.thresholdUsageRate === null ? 0 : Math.min(100, report.thresholdUsageRate * 100) %>">
+					<div class="progress-bar <%= report.thresholdUsageRate !== null && report.thresholdUsageRate >= 0.8 ? 'bg-danger' : 'bg-success' %>" style="width: <%= report.thresholdUsageRate === null ? 0 : Math.min(100, report.thresholdUsageRate * 100) %>%"></div>
+				</div>
+				<div class="d-flex flex-wrap justify-content-between gap-2 small text-muted">
+					<span>1,000万円に対して <%= report.thresholdUsageRate === null ? '算出不能' : `${(report.thresholdUsageRate * 100).toFixed(2)}%` %></span>
+					<span>購入記録 <%= report.purchaseGrantCount.toLocaleString('ja-JP') %> 件</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="row g-4 mb-4">
+			<div class="col-12 col-md-6">
+				<div class="card shadow-sm h-100"><div class="card-body">
+					<div class="text-muted small mb-1">未使用の購入時間</div>
+					<div class="h3 mb-0"><%= formatDuration(report.totalRemainingMilliseconds) %></div>
+				</div></div>
+			</div>
+			<div class="col-12 col-md-6">
+				<div class="card shadow-sm h-100"><div class="card-body">
+					<div class="text-muted small mb-1">円換算できない購入時間</div>
+					<div class="h3 mb-0"><%= formatDuration(report.unvaluedRemainingMilliseconds) %></div>
+				</div></div>
+			</div>
+		</div>
+
+		<div class="card shadow-sm overflow-hidden mb-4">
+			<div class="card-header bg-white fw-bold py-3">商品別内訳</div>
+			<div class="table-responsive">
+				<table class="table align-middle mb-0">
+					<thead class="table-light"><tr><th>商品</th><th class="text-end">購入記録</th><th class="text-end">未使用時間</th><th class="text-end">円換算（按分）</th></tr></thead>
+					<tbody>
+						<% if (!report.breakdown.length) { %>
+							<tr><td colspan="4" class="text-center text-muted py-5">円換算できる未使用購入分はありません。</td></tr>
+						<% } %>
+						<% report.breakdown.forEach((item) => { %>
+							<tr>
+								<td><div class="fw-semibold"><%= item.label %></div><div class="small text-muted"><%= item.productID || '商品IDなし' %></div></td>
+								<td class="text-end"><%= item.grantCount.toLocaleString('ja-JP') %>件</td>
+								<td class="text-end"><%= formatDuration(item.remainingMilliseconds) %></td>
+								<td class="text-end fw-semibold"><%= formatJPY(item.amountJPY, 2) %></td>
+							</tr>
+						<% }) %>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="alert alert-secondary small mb-0" role="note">
+			購入時の税込金額を、その購入枠の未使用時間の割合で按分しています。処理中のファイル認識などで一時予約されている未消費時間も含み、合計は過少表示を避けるため1円未満を切り上げています。これは日々の管理用参考値であり、資金決済法上の基準日残高や会計上の確定額は専門家へ確認してください。Stripe上の返金だけではMojidasの時間残高に自動反映されません。
+		</div>
+	</div>
+</body>
+</html>

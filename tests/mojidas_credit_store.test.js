@@ -150,6 +150,14 @@ async function main() {
     label: '購入分',
     milliseconds: 300000,
     idempotencyKey: 'stripe:checkout:test-1',
+    metadata: { productID: 'test-product', totalJPY: 123 },
+  });
+  const purchasedRecord = multipleGrantFirestore
+    .records('Mojidas/production/creditGrants')
+    .find((record) => record.id === purchasedID);
+  assert.deepStrictEqual(purchasedRecord.data.metadata, {
+    productID: 'test-product',
+    totalJPY: 123,
   });
   assert.strictEqual(
     await multipleGrantStore.grantCredit({

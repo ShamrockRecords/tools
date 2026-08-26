@@ -7,6 +7,7 @@ const {
 } = require('../modules/auth/admin_credentials');
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
+const mojidasPaidBalanceStore = require('../modules/billing/mojidas_paid_balance_store');
 
 var router = express.Router();
 
@@ -94,6 +95,10 @@ async function ensureAdmin(req, res, next) {
 
 function getMojidasAdminUserStore(req) {
   return req.app.locals.mojidasAdminUserStore || mojidasAdminUserStore;
+}
+
+function getMojidasPaidBalanceStore(req) {
+  return req.app.locals.mojidasPaidBalanceStore || mojidasPaidBalanceStore;
 }
 
 function consumeAdminFlash(req) {
@@ -272,6 +277,31 @@ router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
       csrfToken: ensureAdminCSRFToken(req),
       flash: consumeAdminFlash(req),
       formatDate: formatAdminDate,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/mojidas-paid-balance', ensureAdmin, async function (req, res, next) {
+  try {
+    return res.render('admin/mojidas-paid-balance', {
+      user: await resolveUserRecord(req.adminUser),
+      report: await getMojidasPaidBalanceStore(req).getReport(),
+      formatDate: formatAdminDate,
+      formatJPY(value, maximumFractionDigits = 0) {
+        return new Intl.NumberFormat('ja-JP', {
+          style: 'currency',
+          currency: 'JPY',
+          maximumFractionDigits,
+        }).format(value);
+      },
+      formatDuration(milliseconds) {
+        const totalMinutes = Math.floor((Number(milliseconds) || 0) / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return hours > 0 ? `${hours.toLocaleString('ja-JP')}時間${minutes}分` : `${minutes}分`;
+      },
     });
   } catch (error) {
     return next(error);
