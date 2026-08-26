@@ -29,9 +29,12 @@ async function request(server, method, path, body, headers = {}) {
         responseBody += chunk;
       });
       response.on('end', () => {
+        const contentType = String(response.headers['content-type'] || '');
         resolve({
           status: response.statusCode,
-          body: responseBody ? JSON.parse(responseBody) : null,
+          body: responseBody
+            ? (contentType.includes('application/json') ? JSON.parse(responseBody) : responseBody)
+            : null,
         });
       });
     });
@@ -224,6 +227,18 @@ async function main() {
     response = await request(server, 'GET', '/api/mojidas/configuration');
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(response.body, serviceConfiguration);
+
+    response = await request(server, 'GET', '/api/mojidas/billing/success');
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /Mojidas/);
+    assert.match(response.body, /PAYMENT COMPLETE/);
+    assert.match(response.body, /購入を受け付けました/);
+    assert.match(response.body, /次の操作/);
+
+    response = await request(server, 'GET', '/api/mojidas/billing/cancel');
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /PAYMENT CANCELED/);
+    assert.match(response.body, /購入をキャンセルしました/);
 
     response = await request(server, 'POST', '/api/mojidas/auth/register', {
       email: ' User@Example.com ',

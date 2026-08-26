@@ -39,7 +39,7 @@ function main() {
     ledgerDocuments: [
       document('ledger-10h', {
         grantID: 'grant-10h',
-        metadata: { productID: 'credit_10h_jpy', totalJPY: 2970 },
+        metadata: { productID: 'credit_10h_jpy', totalJPY: 2200 },
       }),
     ],
     reservationDocuments: [
@@ -57,13 +57,13 @@ function main() {
   });
 
   assert.strictEqual(complete.isComplete, true);
-  assert.strictEqual(complete.unusedPaidBalanceJPY, 1733);
-  assert.strictEqual(complete.knownUnusedPaidBalanceJPY, 1733);
+  assert.strictEqual(complete.unusedPaidBalanceJPY, 1348);
+  assert.strictEqual(complete.knownUnusedPaidBalanceJPY, 1348);
   assert.strictEqual(complete.totalRemainingMilliseconds, 20_700_000);
   assert.strictEqual(complete.purchaseGrantCount, 2);
   assert.strictEqual(complete.breakdown.length, 2);
   assert.strictEqual(complete.reportingThresholdJPY, REPORTING_THRESHOLD_JPY);
-  assert.strictEqual(complete.thresholdUsageRate, 1733 / REPORTING_THRESHOLD_JPY);
+  assert.strictEqual(complete.thresholdUsageRate, 1348 / REPORTING_THRESHOLD_JPY);
 
   const incomplete = summarizePaidBalance({
     now,

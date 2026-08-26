@@ -298,6 +298,7 @@ function createMojidasRouter({
 
   router.get('/billing/success', function (req, res) {
     return res.type('html').send(checkoutResultPage({
+      status: 'success',
       title: '購入を受け付けました',
       message: '決済の確認後、Mojidasの認識可能時間へ反映します。アプリに戻って残時間を更新してください。',
     }));
@@ -305,6 +306,7 @@ function createMojidasRouter({
 
   router.get('/billing/cancel', function (req, res) {
     return res.type('html').send(checkoutResultPage({
+      status: 'cancel',
       title: '購入をキャンセルしました',
       message: '音声認識時間は購入されていません。このページを閉じてMojidasへ戻れます。',
     }));
@@ -583,7 +585,13 @@ function sendBillingError(res, error) {
   return sendError(res, status, code, message);
 }
 
-function checkoutResultPage({ title, message }) {
+function checkoutResultPage({ status, title, message }) {
+  const isSuccess = status === 'success';
+  const statusLabel = isSuccess ? 'PAYMENT COMPLETE' : 'PAYMENT CANCELED';
+  const statusIcon = isSuccess ? '✓' : '—';
+  const nextStep = isSuccess
+    ? 'Mojidasへ戻り、アカウント画面の更新ボタンを押してください。'
+    : 'Mojidasへ戻ると、そのまま引き続きご利用いただけます。';
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -591,19 +599,75 @@ function checkoutResultPage({ title, message }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} | Mojidas</title>
   <style>
-    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f3ff; color: #241978; }
-    main { width: min(520px, calc(100% - 48px)); padding: 40px; border-radius: 24px; background: white; box-shadow: 0 20px 60px rgba(36,25,120,.14); }
-    h1 { margin: 0 0 16px; font-size: 28px; }
-    p { margin: 0; line-height: 1.8; color: #555; }
-    @media (prefers-color-scheme: dark) {
-      body { background: #161329; color: #dcd7ff; }
-      main { background: #25213d; }
-      p { color: #c8c5d5; }
+    :root {
+      --ink: #17272d;
+      --muted: #5d7179;
+      --brand: #078aa6;
+      --brand-dark: #08657a;
+      --brand-soft: #eaf7fa;
+      --line: #d9e3e6;
+      --canvas: #f4f7f8;
+      --success: #1f7453;
+      --success-soft: #e9f6ef;
+      --warning: #8a5b00;
+      --warning-soft: #fff7e4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", Meiryo, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: var(--ink); background: linear-gradient(180deg, #fff 0%, #eef9fa 100%); }
+    header { height: 68px; background: rgba(255,255,255,.94); border-bottom: 1px solid rgba(195,209,213,.85); }
+    .header-inner { display: flex; align-items: center; max-width: 1160px; height: 100%; margin: 0 auto; padding: 0 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: #252278; font-size: 25px; font-weight: 800; letter-spacing: -.02em; text-decoration: none; }
+    .brand svg { width: 27px; height: 34px; overflow: visible; }
+    main { display: grid; place-items: center; min-height: calc(100vh - 68px); padding: 56px 24px; }
+    .result-card { width: min(680px, 100%); padding: 48px; background: #fff; border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 18px 50px rgba(20,56,66,.1); }
+    .status-icon { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 22px; color: var(--success); background: var(--success-soft); border-radius: 18px; font-size: 28px; font-weight: 900; }
+    .result-card.cancel .status-icon { color: var(--warning); background: var(--warning-soft); }
+    .eyebrow { margin: 0 0 8px; color: var(--brand-dark); font-size: 12px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(30px, 5vw, 42px); line-height: 1.35; letter-spacing: -.025em; }
+    .message { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.9; }
+    .next-step { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; margin-top: 28px; padding: 20px 22px; background: var(--brand-soft); border-radius: 14px; }
+    .next-step strong { grid-row: 1 / 3; align-self: center; color: var(--brand-dark); font-size: 14px; }
+    .next-step span { color: var(--ink); line-height: 1.7; }
+    .close-note { margin: 18px 2px 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 560px) {
+      header { height: 62px; }
+      .header-inner { padding: 0 18px; }
+      .brand { font-size: 22px; }
+      .brand svg { width: 24px; height: 31px; }
+      main { min-height: calc(100vh - 62px); padding: 28px 18px; }
+      .result-card { padding: 30px 24px; border-radius: 18px; }
+      .status-icon { width: 52px; height: 52px; margin-bottom: 19px; border-radius: 15px; }
+      .message { font-size: 15px; }
+      .next-step { grid-template-columns: 1fr; gap: 4px; padding: 18px; }
+      .next-step strong { grid-row: auto; }
     }
   </style>
 </head>
-<body><main><h1>${title}</h1><p>${message}</p></main></body>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="https://app.mojidas.jp/" aria-label="Mojidas トップへ">
+        <svg viewBox="0 0 28 36" aria-hidden="true">
+          <rect x="8" y="2" width="12" height="21" rx="6" fill="none" stroke="#252278" stroke-width="2.2"/>
+          <path d="M4 16v2a10 10 0 0 0 20 0v-2M14 28v6M8 34h12" fill="none" stroke="#078aa6" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M11 7v11M17 7v11" stroke="#745ac8" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span>Mojidas</span>
+      </a>
+    </div>
+  </header>
+  <main>
+    <section class="result-card ${isSuccess ? 'success' : 'cancel'}" aria-labelledby="result-title">
+      <div class="status-icon" aria-hidden="true">${statusIcon}</div>
+      <p class="eyebrow">${statusLabel}</p>
+      <h1 id="result-title">${title}</h1>
+      <p class="message">${message}</p>
+      <div class="next-step"><strong>次の操作</strong><span>${nextStep}</span></div>
+      <p class="close-note">確認が終わったら、このページは閉じてかまいません。</p>
+    </section>
+  </main>
+</body>
 </html>`;
 }
 
@@ -680,3 +744,4 @@ module.exports.normalizeTrackCount = normalizeTrackCount;
 module.exports.sendCreditError = sendCreditError;
 module.exports.sendDictionaryError = sendDictionaryError;
 module.exports.sendBillingError = sendBillingError;
+module.exports.checkoutResultPage = checkoutResultPage;

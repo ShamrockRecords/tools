@@ -1,4 +1,4 @@
-const DEFAULT_MONTHLY_FREE_MINUTES = 40;
+const DEFAULT_MONTHLY_FREE_MINUTES = 30;
 const MIN_MONTHLY_FREE_MINUTES = 1;
 const MAX_MONTHLY_FREE_MINUTES = 24 * 60;
 
@@ -15,7 +15,7 @@ const PRODUCT_DEFINITIONS = Object.freeze({
     id: 'credit_10h_jpy',
     label: '10時間購入',
     milliseconds: 10 * 60 * 60 * 1000,
-    totalJPY: 2970,
+    totalJPY: 2200,
     currency: 'JPY',
     priceEnvironmentKey: 'STRIPE_PRICE_CREDIT_10H_JPY',
   }),

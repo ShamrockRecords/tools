@@ -145,7 +145,7 @@ Authorization: Bearer {accessToken}
 
 ### `GET /api/mojidas/credits/balance`
 
-確認済みユーザーの利用可能時間と付与内訳を返します。初回取得時と毎月の更新時は、Firebaseのアカウント作成日時を起点とする40分の無料枠をFirestoreへ冪等に作成します。
+確認済みユーザーの利用可能時間と付与内訳を返します。初回取得時と毎月の更新時は、Firebaseのアカウント作成日時を起点とする30分の無料枠をFirestoreへ冪等に作成します。
 
 ```http
 Authorization: Bearer {accessToken}
@@ -223,7 +223,7 @@ Authorization: Bearer {accessToken}
 {"productID":"credit_60m_jpy"}
 ```
 
-商品は`credit_60m_jpy`（60分・税込330円）と`credit_10h_jpy`（10時間・税込2,970円）です。カード情報はStripe画面だけで入力します。
+商品は`credit_60m_jpy`（60分・税込330円）と`credit_10h_jpy`（10時間・税込2,200円）です。カード情報はStripe画面だけで入力します。
 
 Stripe DashboardではWebhook送信先を次へ設定します。
 
@@ -279,7 +279,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `FIREBASE_ADMIN_CREDENTIALS`
 - `FIREBASE_PROJECT_ID`（推奨）
 - `MOJIDAS_ALLOWED_HOSTS`（任意。既定値は`app.mojidas.jp`、複数指定はカンマ区切り）
-- `MOJIDAS_MONTHLY_FREE_MINUTES`（任意。毎月の無料枠を分単位で指定、既定値`40`）
+- `MOJIDAS_MONTHLY_FREE_MINUTES`（任意。毎月の無料枠を分単位で指定、既定値`30`）
 - `ACP_SERVICE_ID`
 - `ACP_SERVICE_PASSWORD`
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
@@ -294,7 +294,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
-StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,970円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
+StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,200円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
 
 通常のリアルタイム認識キーは`ACP_API_KEY_EXPIRY_MS`を使います。credit reservationの`mode`が`mediaFile`の場合は、ACP非同期HTTP v2の待機・再認証を考慮して600000 ms（10分）のキーを発行します。クライアントが送る`purpose`だけでは期限を変更せず、必ず保存済みreservationのmodeを根拠にします。
 

@@ -24,7 +24,8 @@ Use `npm start` for both local and production parity; prefer adding a dedicated 
 
 ## Commit & Pull Request Guidelines
 - History shows short, descriptive subjects (often Japanese sentences); stick with that voice or optionally use `feat:`/`fix:` prefixes when clarity improves.
-- Each commit should address one concern, cite related issues, and explain the user-facing change in the body.
+- `コミットしてください`という依頼は、現在のGitリポジトリにある追跡済み・未追跡の変更をすべてステージし、内容別に分割せず1つのコミットへまとめる指示として扱ってください。除外や複数コミットが必要な場合は、ユーザーが明示的に指定します。複数のGitリポジトリに変更がある場合だけは、Gitの制約上、各リポジトリで1コミットずつ作成してください。
+- 現在チェックアウトされているブランチで作業し、ユーザーが明示的に依頼しない限り、ブランチの作成や切り替えを行わないでください。
 - PRs need a crisp summary, validation steps (commands, browsers, bots), and media for UI changes. Note any config deltas beyond the default `ROOT_URL=http://localhost:3000`.
 
 ## Localization & Configuration Tips

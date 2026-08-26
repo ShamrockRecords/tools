@@ -8,7 +8,9 @@ const {
 } = require('../modules/mojidas_service_configuration');
 
 function main() {
+  assert.strictEqual(DEFAULT_MONTHLY_FREE_MINUTES, 30);
   assert.strictEqual(monthlyFreeMinutes({}), DEFAULT_MONTHLY_FREE_MINUTES);
+  assert.strictEqual(monthlyFreeMilliseconds({}), 1_800_000);
   assert.strictEqual(monthlyFreeMinutes({ MOJIDAS_MONTHLY_FREE_MINUTES: '30' }), 30);
   assert.strictEqual(monthlyFreeMilliseconds({ MOJIDAS_MONTHLY_FREE_MINUTES: '30' }), 1_800_000);
   assert.strictEqual(
@@ -41,7 +43,7 @@ function main() {
       id: 'credit_10h_jpy',
       label: '10時間購入',
       milliseconds: 36_000_000,
-      totalJPY: 2970,
+      totalJPY: 2200,
       currency: 'JPY',
     },
   ]);
