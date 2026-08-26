@@ -189,7 +189,7 @@ Authorization: Bearer {accessToken}
 
 ### 音声認識時間の購入
 
-`POST /api/mojidas/billing/checkout-session`へログイン済みユーザーが商品IDだけを送ると、Stripe Hosted Checkout URLを返します。金額、付与時間、Stripe Price IDはサーバーの商品表から決定し、アプリから受け取りません。
+`POST /api/mojidas/billing/checkout-session`へログイン済みユーザーが商品IDだけを送ると、Stripe Hosted Checkout URLを返します。金額、付与時間、Stripe Price IDはサーバーの商品表から決定し、アプリから受け取りません。ログイン中のメールアドレスをPaymentIntentの`receipt_email`へ設定し、支払い完了時にStripeから領収書を送信します。
 
 ```json
 {"productID":"credit_60m_jpy"}

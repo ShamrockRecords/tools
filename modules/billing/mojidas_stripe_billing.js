@@ -98,6 +98,7 @@ class MojidasStripeBillingService {
         mojidasProductID: product.id,
       },
       payment_intent_data: {
+        receipt_email: email,
         metadata: {
           mojidasUserID: userID,
           mojidasProductID: product.id,
