@@ -17,6 +17,9 @@ const mojidasDictionaryStore = require('../../modules/dictionary/mojidas_diction
 const {
   mojidasStripeBillingService,
 } = require('../../modules/billing/mojidas_stripe_billing');
+const {
+  publicServiceConfiguration,
+} = require('../../modules/mojidas_service_configuration');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -31,6 +34,7 @@ function createMojidasRouter({
   creditStore = mojidasCreditStore,
   dictionaryStore = mojidasDictionaryStore,
   billingService = mojidasStripeBillingService,
+  serviceConfigurationProvider = publicServiceConfiguration,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -87,6 +91,11 @@ function createMojidasRouter({
   });
 
   router.use(createHostGuard({ allowedHosts, allowLocalhost }));
+
+  router.get('/configuration', function (req, res) {
+    res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+    return res.json(serviceConfigurationProvider());
+  });
 
   router.post('/auth/register', registerRateLimit, async function (req, res) {
     const email = normalizeEmail(req.body.email);
@@ -231,11 +240,15 @@ function createMojidasRouter({
 
   router.get('/credits/balance', authenticate(client), async function (req, res) {
     try {
-      return res.json(await creditStore.getBalance({
+      const balance = await creditStore.getBalance({
         userID: req.mojidasUser.uid,
         accountCreatedAt: accountCreationTime(req.mojidasUser),
         isUnlimited: isInvitedUnlimited(req.mojidasUser),
-      }));
+      });
+      return res.json({
+        ...balance,
+        configuration: serviceConfigurationProvider(),
+      });
     } catch (error) {
       return sendCreditError(res, error);
     }

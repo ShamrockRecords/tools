@@ -119,6 +119,18 @@ async function main() {
   assert.strictEqual(period.startsAt.toISOString(), '2026-02-28T10:15:00.000Z');
   assert.strictEqual(period.expiresAt.toISOString(), '2026-03-31T10:15:00.000Z');
 
+  const configuredFreeFirestore = new FakeFirestore();
+  const configuredFreeStore = new MojidasCreditStore({
+    firestoreProvider: () => configuredFreeFirestore,
+    now: () => Date.parse('2026-02-15T00:00:00.000Z'),
+    monthlyFreeAllowanceMilliseconds: 30 * 60 * 1000,
+  });
+  const configuredFreeBalance = await configuredFreeStore.getBalance({
+    userID: 'configured-free-user',
+    accountCreatedAt: new Date('2026-02-01T00:00:00.000Z'),
+  });
+  assert.strictEqual(configuredFreeBalance.availableMilliseconds, 30 * 60 * 1000);
+
   const multipleGrantFirestore = new FakeFirestore();
   const multipleGrantStore = new MojidasCreditStore({
     firestoreProvider: () => multipleGrantFirestore,

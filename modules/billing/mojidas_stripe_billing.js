@@ -1,21 +1,5 @@
 const mojidasCreditStore = require('../credit/mojidas_credit_store');
-
-const PRODUCT_DEFINITIONS = Object.freeze({
-  credit_60m_jpy: Object.freeze({
-    id: 'credit_60m_jpy',
-    label: '60分購入',
-    milliseconds: 60 * 60 * 1000,
-    totalJPY: 330,
-    priceEnvironmentKey: 'STRIPE_PRICE_CREDIT_60M_JPY',
-  }),
-  credit_10h_jpy: Object.freeze({
-    id: 'credit_10h_jpy',
-    label: '10時間購入',
-    milliseconds: 10 * 60 * 60 * 1000,
-    totalJPY: 2970,
-    priceEnvironmentKey: 'STRIPE_PRICE_CREDIT_10H_JPY',
-  }),
-});
+const { PRODUCT_DEFINITIONS } = require('../mojidas_service_configuration');
 
 const CHECKOUT_EVENT_TYPES = new Set([
   'checkout.session.completed',

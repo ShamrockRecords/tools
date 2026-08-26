@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
+const { monthlyFreeMilliseconds } = require('../mojidas_service_configuration');
 
-const MONTHLY_FREE_MILLISECONDS = 40 * 60 * 1000;
+const MONTHLY_FREE_MILLISECONDS = monthlyFreeMilliseconds();
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
 const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
 const UNLIMITED_AVAILABLE_MILLISECONDS = Number.MAX_SAFE_INTEGER;
@@ -17,9 +18,14 @@ class CreditStoreError extends Error {
 }
 
 class MojidasCreditStore {
-  constructor({ firestoreProvider = getFirestore, now = () => Date.now() } = {}) {
+  constructor({
+    firestoreProvider = getFirestore,
+    now = () => Date.now(),
+    monthlyFreeAllowanceMilliseconds = MONTHLY_FREE_MILLISECONDS,
+  } = {}) {
     this.firestoreProvider = firestoreProvider;
     this.now = now;
+    this.monthlyFreeAllowanceMilliseconds = monthlyFreeAllowanceMilliseconds;
   }
 
   async getBalance({ userID, accountCreatedAt, isUnlimited = false }) {
@@ -54,8 +60,8 @@ class MojidasCreditStore {
       transaction.set(document, {
         userID,
         type: 'monthlyFree',
-        totalMilliseconds: MONTHLY_FREE_MILLISECONDS,
-        remainingMilliseconds: MONTHLY_FREE_MILLISECONDS,
+        totalMilliseconds: this.monthlyFreeAllowanceMilliseconds,
+        remainingMilliseconds: this.monthlyFreeAllowanceMilliseconds,
         startsAt: period.startsAt,
         expiresAt: period.expiresAt,
         sourceReference: `monthlyFree:${period.startsAt.toISOString()}`,
@@ -68,7 +74,7 @@ class MojidasCreditStore {
           grantID,
           reservationID: null,
           kind: 'grant',
-          milliseconds: MONTHLY_FREE_MILLISECONDS,
+          milliseconds: this.monthlyFreeAllowanceMilliseconds,
           idempotencyKey: `grant:${grantID}`,
           occurredAt: now,
           metadata: { type: 'monthlyFree' },

@@ -13,6 +13,24 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 - 更新トークンはOSの資格情報ストア（macOS Keychain / Windows DPAPI）へ保存
 - `app.mojidas.jp`以外の公開ホストでは404を返す（ローカル開発用の`localhost`、`127.0.0.1`、`::1`を除く）
 
+### `GET /api/mojidas/configuration`
+
+認証前にも利用できる公開設定を返します。クライアントは起動時に取得してキャッシュし、無料枠と購入商品の表示に使用できます。秘密情報やStripe Price IDは含みません。
+
+```json
+{
+  "schemaVersion": 1,
+  "monthlyFreeAllowanceMilliseconds": 2400000,
+  "products": [{
+    "id": "credit_60m_jpy",
+    "label": "60分購入",
+    "milliseconds": 3600000,
+    "totalJPY": 330,
+    "currency": "JPY"
+  }]
+}
+```
+
 ## エンドポイント
 
 ### `POST /api/mojidas/auth/register`
@@ -139,6 +157,11 @@ Authorization: Bearer {accessToken}
   "availableMilliseconds": 2400000,
   "expiringMilliseconds": 2400000,
   "purchasedMilliseconds": 0,
+  "configuration": {
+    "schemaVersion": 1,
+    "monthlyFreeAllowanceMilliseconds": 2400000,
+    "products": []
+  },
   "grants": [{
     "id": "monthly_xxx",
     "type": "monthlyFree",
@@ -256,6 +279,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `FIREBASE_ADMIN_CREDENTIALS`
 - `FIREBASE_PROJECT_ID`（推奨）
 - `MOJIDAS_ALLOWED_HOSTS`（任意。既定値は`app.mojidas.jp`、複数指定はカンマ区切り）
+- `MOJIDAS_MONTHLY_FREE_MINUTES`（任意。毎月の無料枠を分単位で指定、既定値`40`）
 - `ACP_SERVICE_ID`
 - `ACP_SERVICE_PASSWORD`
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）

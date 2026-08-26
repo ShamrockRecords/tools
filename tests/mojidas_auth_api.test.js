@@ -183,6 +183,17 @@ async function main() {
       return { revision: 4, acceptedThroughSequence: 1 };
     },
   };
+  const serviceConfiguration = {
+    schemaVersion: 1,
+    monthlyFreeAllowanceMilliseconds: 1_800_000,
+    products: [{
+      id: 'credit_60m_jpy',
+      label: '60分購入',
+      milliseconds: 3_600_000,
+      totalJPY: 330,
+      currency: 'JPY',
+    }],
+  };
   const app = express();
   app.use(express.json());
   app.use('/api/mojidas', createMojidasRouter({
@@ -192,6 +203,7 @@ async function main() {
     creditStore,
     dictionaryStore,
     billingService,
+    serviceConfigurationProvider: () => serviceConfiguration,
   }));
   const server = await new Promise((resolve) => {
     const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
@@ -208,6 +220,10 @@ async function main() {
       Host: 'app.mojidas.jp',
     });
     assert.strictEqual(response.status, 401);
+
+    response = await request(server, 'GET', '/api/mojidas/configuration');
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(response.body, serviceConfiguration);
 
     response = await request(server, 'POST', '/api/mojidas/auth/register', {
       email: ' User@Example.com ',
@@ -280,6 +296,7 @@ async function main() {
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.availableMilliseconds, 2400000);
+    assert.deepStrictEqual(response.body.configuration, serviceConfiguration);
     assert.deepStrictEqual(creditCalls[0], ['balance', {
       userID: 'user-1',
       accountCreatedAt: '2026-08-14T01:00:00.000Z',
