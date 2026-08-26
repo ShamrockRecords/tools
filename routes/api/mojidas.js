@@ -617,8 +617,8 @@ function checkoutResultPage({ status, title, message }) {
     body { margin: 0; min-height: 100vh; color: var(--ink); background: linear-gradient(180deg, #fff 0%, #eef9fa 100%); }
     header { height: 68px; background: rgba(255,255,255,.94); border-bottom: 1px solid rgba(195,209,213,.85); }
     .header-inner { display: flex; align-items: center; max-width: 1160px; height: 100%; margin: 0 auto; padding: 0 24px; }
-    .brand { display: inline-flex; align-items: center; gap: 10px; color: #252278; font-size: 25px; font-weight: 800; letter-spacing: -.02em; text-decoration: none; }
-    .brand svg { width: 27px; height: 34px; overflow: visible; }
+    .brand { display: inline-flex; align-items: center; text-decoration: none; }
+    .brand img { display: block; width: 126px; height: auto; }
     main { display: grid; place-items: center; min-height: calc(100vh - 68px); padding: 56px 24px; }
     .result-card { width: min(680px, 100%); padding: 48px; background: #fff; border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 18px 50px rgba(20,56,66,.1); }
     .status-icon { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 22px; color: var(--success); background: var(--success-soft); border-radius: 18px; font-size: 28px; font-weight: 900; }
@@ -633,8 +633,7 @@ function checkoutResultPage({ status, title, message }) {
     @media (max-width: 560px) {
       header { height: 62px; }
       .header-inner { padding: 0 18px; }
-      .brand { font-size: 22px; }
-      .brand svg { width: 24px; height: 31px; }
+      .brand img { width: 108px; }
       main { min-height: calc(100vh - 62px); padding: 28px 18px; }
       .result-card { padding: 30px 24px; border-radius: 18px; }
       .status-icon { width: 52px; height: 52px; margin-bottom: 19px; border-radius: 15px; }
@@ -648,12 +647,7 @@ function checkoutResultPage({ status, title, message }) {
   <header>
     <div class="header-inner">
       <a class="brand" href="https://app.mojidas.jp/" aria-label="Mojidas トップへ">
-        <svg viewBox="0 0 28 36" aria-hidden="true">
-          <rect x="8" y="2" width="12" height="21" rx="6" fill="none" stroke="#252278" stroke-width="2.2"/>
-          <path d="M4 16v2a10 10 0 0 0 20 0v-2M14 28v6M8 34h12" fill="none" stroke="#078aa6" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M11 7v11M17 7v11" stroke="#745ac8" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        <span>Mojidas</span>
+        <img src="/assets/mojidas-logo.png" alt="Mojidas">
       </a>
     </div>
   </header>

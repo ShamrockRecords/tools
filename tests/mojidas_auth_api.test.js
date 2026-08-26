@@ -231,6 +231,7 @@ async function main() {
     response = await request(server, 'GET', '/api/mojidas/billing/success');
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /Mojidas/);
+    assert.match(response.body, /\/assets\/mojidas-logo\.png/);
     assert.match(response.body, /PAYMENT COMPLETE/);
     assert.match(response.body, /購入を受け付けました/);
     assert.match(response.body, /次の操作/);
