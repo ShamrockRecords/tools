@@ -49,6 +49,19 @@
 
 Firebase IDトークン、Firebase Session Cookie、Firebase Web SDKはこの処理に使用しません。
 
+## Mojidasユーザー管理
+
+管理者ページの「一斉メール送信」と同じ管理機能一覧から「Mojidasユーザー管理」を開きます。専用画面は`/admin/mojidas-users`です。
+
+- Firebase Authenticationのアカウントを20件ずつ表示します。
+- 前後のページへ移動でき、ページトークンは管理者セッション内だけに保持します。
+- メールアドレス、利用可否、メール確認、作成日時、最終ログインを確認できます。
+- 「招待ユーザー」に設定するとFirebase Authのcustom claim `mojidasInvitedUnlimited: true`を保存します。
+- 設定変更時は既存のcustom claimsを保持し、招待設定だけを追加または削除します。
+- 状態変更は管理者セッションに加えてCSRF tokenを検証します。
+
+招待ユーザーは音声認識時間を消費しません。アプリは残高APIの`isUnlimited`を正本とし、設定 > アカウントに「招待ユーザー」「時間無制限」を表示して時間追加の購入導線を隠します。
+
 ## Mojidasとの分離
 
 MojidasのデスクトップアプリはFirebase Authenticationを引き続き使用します。JSON API、IDトークン、更新トークン、メール認証コードについては`docs/MOJIDAS_AUTH_API.md`を参照してください。
@@ -62,5 +75,5 @@ npm test
 次にローカル環境へ3つの必須認証変数を設定し、`/admin`で次を確認します。
 
 1. 誤った資格情報ではログインできない。
-2. 正しい資格情報では管理画面と`/admin/bulk-mail`を開ける。
+2. 正しい資格情報では管理画面、`/admin/bulk-mail`、`/admin/mojidas-users`を開ける。
 3. ログアウト後は保護画面へ戻れない。

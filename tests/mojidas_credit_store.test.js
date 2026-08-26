@@ -4,6 +4,7 @@ const {
   MEDIA_RESERVATION_GRACE_MILLISECONDS,
   MONTHLY_FREE_MILLISECONDS,
   MojidasCreditStore,
+  UNLIMITED_AVAILABLE_MILLISECONDS,
   monthlyPeriod,
 } = require('../modules/credit/mojidas_credit_store');
 
@@ -185,10 +186,15 @@ async function main() {
   const reservationRecord = multipleGrantFirestore
     .records('Mojidas/production/creditReservations')
     .find((record) => record.id === multipleGrantReservation.id);
-  assert.deepStrictEqual(reservationRecord.data.allocations, [
-    { grantID: earlyCampaignID, milliseconds: 120000 },
-    { grantID: laterCampaignID, milliseconds: 130000 },
-  ]);
+  assert.strictEqual(multipleGrantReservation.requestedMilliseconds, 0);
+  assert.deepStrictEqual(reservationRecord.data.allocations, []);
+  let balanceBeforeRealtimeCompletion = await multipleGrantStore.getBalance(
+    multipleGrantAccount
+  );
+  assert.strictEqual(
+    balanceBeforeRealtimeCompletion.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS + 600000
+  );
   await multipleGrantStore.completeReservation({
     reservationID: multipleGrantReservation.id,
     userID: multipleGrantAccount.userID,
@@ -199,6 +205,31 @@ async function main() {
   assert.strictEqual(
     multipleBalance.grants.find((grant) => grant.id === laterCampaignID).remainingMilliseconds,
     50000
+  );
+  assert.strictEqual(
+    multipleBalance.grants.find((grant) => grant.id === purchasedID).remainingMilliseconds,
+    300000
+  );
+
+  const freePriorityRealtime = await multipleGrantStore.createReservation({
+    ...multipleGrantAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440002',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd430ca',
+    requestedMilliseconds: 300000,
+    trackCount: 1,
+  });
+  assert.strictEqual(freePriorityRealtime.requestedMilliseconds, 0);
+  await multipleGrantStore.completeReservation({
+    reservationID: freePriorityRealtime.id,
+    userID: multipleGrantAccount.userID,
+    consumedMilliseconds: 100000,
+  });
+  multipleBalance = await multipleGrantStore.getBalance(multipleGrantAccount);
+  assert.strictEqual(
+    multipleBalance.grants.find((grant) => grant.type === 'monthlyFree')
+      .remainingMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 50000
   );
   assert.strictEqual(
     multipleBalance.grants.find((grant) => grant.id === purchasedID).remainingMilliseconds,
@@ -233,9 +264,9 @@ async function main() {
     requestedMilliseconds: 300000,
     trackCount: 1,
   });
-  assert.strictEqual(reservation.requestedMilliseconds, 300000);
+  assert.strictEqual(reservation.requestedMilliseconds, 0);
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3300000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
 
   await store.heartbeat({
     reservationID: reservation.id,
@@ -244,13 +275,15 @@ async function main() {
     sequence: 1,
     consumedMilliseconds: 15000,
   });
+  balance = await store.getBalance(account);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 15000);
   await store.completeReservation({
     reservationID: reservation.id,
     userID: account.userID,
     consumedMilliseconds: 30000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3570000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 30000);
 
   await store.completeReservation({
     reservationID: reservation.id,
@@ -258,7 +291,7 @@ async function main() {
     consumedMilliseconds: 30000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3570000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 30000);
 
   const extendedReservation = await store.createReservation({
     ...account,
@@ -275,14 +308,69 @@ async function main() {
     sequence: 1,
     consumedMilliseconds: 240000,
   });
-  assert.strictEqual(extended.requestedMilliseconds, 600000);
+  assert.strictEqual(extended.requestedMilliseconds, 240000);
   await store.completeReservation({
     reservationID: extendedReservation.id,
     userID: account.userID,
     consumedMilliseconds: 250000,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3320000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 280000);
+
+  const insufficientFirestore = new FakeFirestore();
+  const insufficientStore = new MojidasCreditStore({
+    firestoreProvider: () => insufficientFirestore,
+    now: () => Date.parse('2026-01-31T10:15:00.000Z'),
+  });
+  const insufficientAccount = {
+    userID: 'insufficient-user',
+    accountCreatedAt: januaryAnchor,
+  };
+  const almostExhausted = await insufficientStore.createReservation({
+    ...insufficientAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440020',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd43020',
+    requestedMilliseconds: 0,
+    trackCount: 1,
+  });
+  await insufficientStore.completeReservation({
+    reservationID: almostExhausted.id,
+    userID: insufficientAccount.userID,
+    consumedMilliseconds: MONTHLY_FREE_MILLISECONDS - 10000,
+  });
+  const overBalance = await insufficientStore.createReservation({
+    ...insufficientAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440021',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd43021',
+    requestedMilliseconds: 0,
+    trackCount: 1,
+  });
+  await assert.rejects(
+    () => insufficientStore.heartbeat({
+      reservationID: overBalance.id,
+      userID: insufficientAccount.userID,
+      accountCreatedAt: insufficientAccount.accountCreatedAt,
+      sequence: 1,
+      consumedMilliseconds: 15000,
+    }),
+    (error) => error.code === 'INSUFFICIENT_CREDIT'
+      && error.details.requiredMilliseconds === 15000
+      && error.details.availableMilliseconds === 10000
+  );
+  const exhaustedBalance = await insufficientStore.getBalance(insufficientAccount);
+  assert.strictEqual(exhaustedBalance.availableMilliseconds, 0);
+  await insufficientStore.completeReservation({
+    reservationID: overBalance.id,
+    userID: insufficientAccount.userID,
+    consumedMilliseconds: 15000,
+  });
+  const exhaustedReservation = insufficientFirestore
+    .records('Mojidas/production/creditReservations')
+    .find((record) => record.id === overBalance.id);
+  assert.strictEqual(exhaustedReservation.data.status, 'completed');
+  assert.strictEqual(exhaustedReservation.data.consumedMilliseconds, 10000);
 
   await assert.rejects(
     () => store.createReservation({
@@ -294,7 +382,7 @@ async function main() {
       trackCount: 1,
     }),
     (error) => error.code === 'INSUFFICIENT_CREDIT'
-      && error.details.availableMilliseconds === 3320000
+      && error.details.availableMilliseconds === MONTHLY_FREE_MILLISECONDS - 280000
   );
 
   const mediaFirestore = new FakeFirestore();
@@ -317,7 +405,7 @@ async function main() {
     trackCount: 1,
   });
   let mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 600000);
   await mediaStore.heartbeat({
     reservationID: failedMediaReservation.id,
     userID: mediaAccount.userID,
@@ -353,7 +441,7 @@ async function main() {
     cancelled: true,
   });
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 3000000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 600000);
 
   const completedMediaReservation = await mediaStore.createReservation({
     ...mediaAccount,
@@ -373,7 +461,7 @@ async function main() {
     .find((record) => record.id === completedMediaReservation.id);
   assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 600000);
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
 
   const expiredMediaReservation = await mediaStore.createReservation({
     ...mediaAccount,
@@ -392,7 +480,7 @@ async function main() {
   });
   mediaNow += 600000 + MEDIA_RESERVATION_GRACE_MILLISECONDS + 1;
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, 2400000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
   mediaReservationRecord = mediaFirestore
     .records('Mojidas/production/creditReservations')
     .find((record) => record.id === expiredMediaReservation.id);
@@ -407,7 +495,7 @@ async function main() {
     requestedMilliseconds: 4000000,
     trackCount: 1,
   });
-  assert.strictEqual(partialReservation.requestedMilliseconds, 3320000);
+  assert.strictEqual(partialReservation.requestedMilliseconds, 0);
   await store.completeReservation({
     reservationID: partialReservation.id,
     userID: account.userID,
@@ -415,13 +503,77 @@ async function main() {
     cancelled: true,
   });
   balance = await store.getBalance(account);
-  assert.strictEqual(balance.availableMilliseconds, 3320000);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 280000);
 
   now = Date.parse('2026-02-28T10:15:00.000Z');
   balance = await store.getBalance(account);
   assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
   assert.strictEqual(balance.grants.length, 1);
   assert.strictEqual(firestore.records('Mojidas/production/creditGrants').length, 2);
+
+  const unlimitedFirestore = new FakeFirestore();
+  const unlimitedStore = new MojidasCreditStore({
+    firestoreProvider: () => unlimitedFirestore,
+    now: () => Date.parse('2026-08-22T00:00:00.000Z'),
+  });
+  const unlimitedAccount = {
+    userID: 'invited-user',
+    accountCreatedAt: new Date('2026-08-01T00:00:00.000Z'),
+    isUnlimited: true,
+  };
+  const unlimitedBalance = await unlimitedStore.getBalance(unlimitedAccount);
+  assert.strictEqual(unlimitedBalance.isUnlimited, true);
+  assert.strictEqual(
+    unlimitedBalance.availableMilliseconds,
+    UNLIMITED_AVAILABLE_MILLISECONDS
+  );
+  assert.strictEqual(unlimitedBalance.grants.length, 0);
+  assert.strictEqual(
+    unlimitedFirestore.records('Mojidas/production/creditGrants').length,
+    0
+  );
+
+  const unlimitedReservation = await unlimitedStore.createReservation({
+    ...unlimitedAccount,
+    operation: 'realtime',
+    clientSessionID: '550e8400-e29b-41d4-a716-446655440099',
+    recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd43099',
+    requestedMilliseconds: 300000,
+    trackCount: 1,
+  });
+  assert.strictEqual(unlimitedReservation.isUnlimited, true);
+  assert.strictEqual(unlimitedReservation.requestedMilliseconds, 0);
+  let unlimitedRecord = unlimitedFirestore
+    .records('Mojidas/production/creditReservations')[0];
+  assert.deepStrictEqual(unlimitedRecord.data.allocations, []);
+  assert.strictEqual(unlimitedRecord.data.unlimited, true);
+  const unlimitedReserveLedger = unlimitedFirestore
+    .records('Mojidas/production/usageLedger')
+    .find((record) => record.data.kind === 'start');
+  assert.strictEqual(unlimitedReserveLedger.data.milliseconds, 0);
+
+  const extendedUnlimitedReservation = await unlimitedStore.heartbeat({
+    reservationID: unlimitedReservation.id,
+    userID: unlimitedAccount.userID,
+    accountCreatedAt: unlimitedAccount.accountCreatedAt,
+    sequence: 1,
+    consumedMilliseconds: 290000,
+  });
+  assert.strictEqual(extendedUnlimitedReservation.requestedMilliseconds, 290000);
+  await unlimitedStore.completeReservation({
+    reservationID: unlimitedReservation.id,
+    userID: unlimitedAccount.userID,
+    consumedMilliseconds: 320000,
+  });
+  unlimitedRecord = unlimitedFirestore
+    .records('Mojidas/production/creditReservations')[0];
+  assert.strictEqual(unlimitedRecord.data.status, 'completed');
+  assert.strictEqual(unlimitedRecord.data.consumedMilliseconds, 320000);
+  assert.strictEqual(
+    unlimitedFirestore.records('Mojidas/production/usageLedger')
+      .filter((record) => record.data.kind === 'release').length,
+    0
+  );
 
   console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }

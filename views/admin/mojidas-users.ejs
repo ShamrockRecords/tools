@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../parts/head', {title: 'Mojidasユーザー管理'}) %>
+	<style>
+		body { background-color: #f8f9fa; min-height: 100vh; }
+		.user-email { min-width: 15rem; }
+		.account-date { min-width: 10rem; white-space: nowrap; }
+	</style>
+</head>
+<body>
+	<div class="container py-5">
+		<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+			<div>
+				<a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
+				<h1 class="h3 fw-bold mt-2 mb-1">Mojidasユーザー管理</h1>
+				<p class="text-muted mb-0">20件ずつ表示します。招待ユーザーは音声認識時間を消費しません。</p>
+			</div>
+			<div class="text-muted small"><%= user.email || '管理者' %></div>
+		</div>
+
+		<% if (flash) { %>
+			<div class="alert alert-<%= flash.type %>" role="alert"><%= flash.message %></div>
+		<% } %>
+
+		<div class="alert alert-info d-flex gap-2 align-items-start" role="status">
+			<i class="bi bi-info-circle mt-1"></i>
+			<div>招待ユーザーに設定すると、アプリには「招待ユーザー・時間無制限」と表示され、時間追加の案内は表示されません。</div>
+		</div>
+
+		<div class="card shadow-sm overflow-hidden">
+			<div class="table-responsive">
+				<table class="table table-hover align-middle mb-0">
+					<thead class="table-light">
+						<tr>
+							<th scope="col">アカウント</th>
+							<th scope="col">状態</th>
+							<th scope="col">作成日時</th>
+							<th scope="col">最終ログイン</th>
+							<th scope="col" class="text-end">招待ユーザー</th>
+						</tr>
+					</thead>
+					<tbody>
+						<% if (!users.length) { %>
+							<tr><td colspan="5" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
+						<% } %>
+						<% users.forEach((account) => { %>
+							<tr>
+								<td class="user-email">
+									<div class="fw-semibold text-break"><%= account.email || 'メールアドレス未設定' %></div>
+									<div class="small text-muted text-break"><%= account.uid %></div>
+								</td>
+								<td>
+									<% if (account.disabled) { %>
+										<span class="badge bg-secondary text-white">無効</span>
+									<% } else { %>
+										<span class="badge bg-success text-white">有効</span>
+									<% } %>
+									<% if (account.emailVerified) { %>
+										<span class="badge bg-light text-dark border">メール確認済み</span>
+									<% } %>
+								</td>
+								<td class="account-date"><%= formatDate(account.createdAt) %></td>
+								<td class="account-date"><%= formatDate(account.lastSignInAt) %></td>
+								<td class="text-end">
+									<form method="post" action="/admin/mojidas-users/<%= encodeURIComponent(account.uid) %>/invited-unlimited">
+										<input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+										<input type="hidden" name="page" value="<%= page %>">
+										<input type="hidden" name="enabled" value="<%= account.invitedUnlimited ? 'false' : 'true' %>">
+										<button class="btn <%= account.invitedUnlimited ? 'btn-success' : 'btn-outline-secondary' %>" type="submit">
+											<i class="bi <%= account.invitedUnlimited ? 'bi-infinity' : 'bi-person-plus' %>"></i>
+											<%= account.invitedUnlimited ? '時間無制限' : '招待に設定' %>
+										</button>
+									</form>
+								</td>
+							</tr>
+						<% }) %>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<nav class="d-flex justify-content-between align-items-center mt-4" aria-label="ユーザー一覧ページ">
+			<div class="text-muted"><%= page %> ページ目</div>
+			<div class="btn-group">
+				<a class="btn btn-outline-secondary <%= page <= 1 ? 'disabled' : '' %>" href="/admin/mojidas-users?page=<%= Math.max(1, page - 1) %>">前へ</a>
+				<a class="btn btn-outline-secondary <%= !hasNext ? 'disabled' : '' %>" href="/admin/mojidas-users?page=<%= page + 1 %>">次へ</a>
+			</div>
+		</nav>
+	</div>
+</body>
+</html>

@@ -46,6 +46,7 @@ async function request(server, method, path, body, headers = {}) {
 
 async function main() {
   const calls = [];
+  let invitedUnlimited = false;
   const authClient = {
     async register(email) {
       calls.push(['register', email]);
@@ -97,6 +98,7 @@ async function main() {
         uid: 'user-1',
         email: 'user@example.com',
         emailVerified: true,
+        customClaims: invitedUnlimited ? { mojidasInvitedUnlimited: true } : {},
         metadata: { creationTime: '2026-08-14T01:00:00.000Z' },
       };
     },
@@ -109,6 +111,7 @@ async function main() {
   const reservationChecks = [];
   const creditCalls = [];
   const checkoutCalls = [];
+  const dictionaryCalls = [];
   let reservationMode = 'realtime';
   const userStore = {
     async recordLogin(user) {
@@ -128,13 +131,14 @@ async function main() {
     async getBalance(value) {
       creditCalls.push(['balance', value]);
       return {
-        availableMilliseconds: 3600000,
-        expiringMilliseconds: 3600000,
+        isUnlimited: value.isUnlimited,
+        availableMilliseconds: 2400000,
+        expiringMilliseconds: 2400000,
         purchasedMilliseconds: 0,
         grants: [{
           id: 'monthly-grant',
           type: 'monthlyFree',
-          remainingMilliseconds: 3600000,
+          remainingMilliseconds: 2400000,
           expiresAt: '2026-09-14T01:00:00.000Z',
         }],
         serverTime: '2026-08-14T01:00:00.000Z',
@@ -169,6 +173,16 @@ async function main() {
       };
     },
   };
+  const dictionaryStore = {
+    async getChanges(value) {
+      dictionaryCalls.push(['changes', value]);
+      return { revision: 3, updatedAt: null, changes: [] };
+    },
+    async synchronize(value) {
+      dictionaryCalls.push(['sync', value]);
+      return { revision: 4, acceptedThroughSequence: 1 };
+    },
+  };
   const app = express();
   app.use(express.json());
   app.use('/api/mojidas', createMojidasRouter({
@@ -176,6 +190,7 @@ async function main() {
     userStore,
     apiKeyIssuer,
     creditStore,
+    dictionaryStore,
     billingService,
   }));
   const server = await new Promise((resolve) => {
@@ -264,11 +279,47 @@ async function main() {
       Authorization: 'Bearer access-token',
     });
     assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.availableMilliseconds, 3600000);
+    assert.strictEqual(response.body.availableMilliseconds, 2400000);
     assert.deepStrictEqual(creditCalls[0], ['balance', {
       userID: 'user-1',
       accountCreatedAt: '2026-08-14T01:00:00.000Z',
+      isUnlimited: false,
     }]);
+
+    response = await request(
+      server,
+      'GET',
+      '/api/mojidas/dictionary/changes?afterRevision=2',
+      undefined,
+      { Authorization: 'Bearer access-token' }
+    );
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.revision, 3);
+
+    response = await request(server, 'POST', '/api/mojidas/dictionary/sync', {
+      deviceID: '11111111-1111-4111-8111-111111111111',
+      mutations: [{
+        sequence: 1,
+        wordID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        operation: 'delete',
+      }],
+    }, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.acceptedThroughSequence, 1);
+    assert.deepStrictEqual(dictionaryCalls, [
+      ['changes', { userID: 'user-1', afterRevision: 2 }],
+      ['sync', {
+        userID: 'user-1',
+        deviceID: '11111111-1111-4111-8111-111111111111',
+        mutations: [{
+          sequence: 1,
+          wordID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          operation: 'delete',
+        }],
+      }],
+    ]);
 
     response = await request(server, 'POST', '/api/mojidas/billing/checkout-session', {
       productID: 'credit_60m_jpy',
@@ -292,13 +343,15 @@ async function main() {
       mode: 'realtime',
       clientSessionID: '550e8400-e29b-41d4-a716-446655440000',
       recognitionRunID: '6ba7b810-9dad-41d1-80b4-00c04fd430c8',
-      requestedMilliseconds: 300000,
+      requestedMilliseconds: 0,
       trackCount: 1,
     }, {
       Authorization: 'Bearer access-token',
     });
     assert.strictEqual(response.status, 201);
     assert.strictEqual(response.body.id, 'reservation-1');
+    assert.strictEqual(creditCalls[1][1].isUnlimited, false);
+    assert.strictEqual(creditCalls[1][1].requestedMilliseconds, 0);
 
     response = await request(server, 'POST', '/api/mojidas/usage/reservation-1/heartbeat', {
       sequence: 1,
@@ -326,6 +379,14 @@ async function main() {
       'complete',
       'complete',
     ]);
+
+    invitedUnlimited = true;
+    response = await request(server, 'GET', '/api/mojidas/credits/balance', undefined, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.isUnlimited, true);
+    assert.strictEqual(creditCalls.at(-1)[1].isUnlimited, true);
 
     response = await request(server, 'POST', '/api/mojidas/auth/password-reset', {
       email: 'missing@example.com',
