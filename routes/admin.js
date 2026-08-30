@@ -8,6 +8,7 @@ const {
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
 const mojidasPaidBalanceStore = require('../modules/billing/mojidas_paid_balance_store');
+const mojidasVersionStore = require('../modules/mojidas_version_store');
 
 var router = express.Router();
 
@@ -99,6 +100,10 @@ function getMojidasAdminUserStore(req) {
 
 function getMojidasPaidBalanceStore(req) {
   return req.app.locals.mojidasPaidBalanceStore || mojidasPaidBalanceStore;
+}
+
+function getMojidasVersionStore(req) {
+  return req.app.locals.mojidasVersionStore || mojidasVersionStore;
 }
 
 function consumeAdminFlash(req) {
@@ -304,6 +309,61 @@ router.get('/mojidas-paid-balance', ensureAdmin, async function (req, res, next)
       },
     });
   } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/mojidas-versions', ensureAdmin, async function (req, res, next) {
+  try {
+    const versions = await getMojidasVersionStore(req).getVersions();
+    const form = req.session.mojidasVersionForm || {
+      macOSVersion: versions.macOSVersion,
+      windowsVersion: versions.windowsVersion,
+    };
+    delete req.session.mojidasVersionForm;
+
+    return res.render('admin/mojidas-versions', {
+      user: await resolveUserRecord(req.adminUser),
+      form,
+      updatedAt: versions.updatedAt,
+      csrfToken: ensureAdminCSRFToken(req),
+      flash: consumeAdminFlash(req),
+      formatDate: formatAdminDate,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/mojidas-versions', ensureAdmin, async function (req, res, next) {
+  if (!hasValidAdminCSRFToken(req)) {
+    req.session.adminFlash = {
+      type: 'danger',
+      message: '画面の有効期限が切れました。もう一度操作してください。',
+    };
+    return res.redirect(303, '/admin/mojidas-versions');
+  }
+
+  const form = {
+    macOSVersion: typeof req.body.macOSVersion === 'string' ? req.body.macOSVersion.trim() : '',
+    windowsVersion: typeof req.body.windowsVersion === 'string'
+      ? req.body.windowsVersion.trim()
+      : '',
+  };
+
+  try {
+    await getMojidasVersionStore(req).setVersions(form);
+    req.session.adminFlash = {
+      type: 'success',
+      message: 'Mojidasの公開バージョンを更新しました。',
+    };
+    return res.redirect(303, '/admin/mojidas-versions');
+  } catch (error) {
+    if (error && error.code === 'INVALID_VERSION') {
+      req.session.mojidasVersionForm = form;
+      req.session.adminFlash = { type: 'danger', message: error.message };
+      return res.redirect(303, '/admin/mojidas-versions');
+    }
     return next(error);
   }
 });

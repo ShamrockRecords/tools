@@ -197,6 +197,16 @@ async function main() {
       currency: 'JPY',
     }],
   };
+  const versionStore = {
+    async getVersions() {
+      return {
+        schemaVersion: 1,
+        macOSVersion: '1.2.3',
+        windowsVersion: '4.5.6.7',
+        updatedAt: new Date('2026-08-30T12:00:00.000Z'),
+      };
+    },
+  };
   const app = express();
   app.use(express.json());
   app.use('/api/mojidas', createMojidasRouter({
@@ -207,6 +217,7 @@ async function main() {
     dictionaryStore,
     billingService,
     serviceConfigurationProvider: () => serviceConfiguration,
+    versionStore,
   }));
   const server = await new Promise((resolve) => {
     const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
@@ -227,6 +238,15 @@ async function main() {
     response = await request(server, 'GET', '/api/mojidas/configuration');
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(response.body, serviceConfiguration);
+
+    response = await request(server, 'GET', '/api/mojidas/version');
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(response.body, {
+      schemaVersion: 1,
+      macOSVersion: '1.2.3',
+      windowsVersion: '4.5.6.7',
+      updatedAt: '2026-08-30T12:00:00.000Z',
+    });
 
     response = await request(server, 'GET', '/api/mojidas/billing/success');
     assert.strictEqual(response.status, 200);

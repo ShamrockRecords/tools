@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<%- include('../parts/head', {title: 'Mojidasバージョン管理'}) %>
+	<style>
+		body {
+			background-color: #f8f9fa;
+			min-height: 100vh;
+		}
+		.version-preview {
+			font-variant-numeric: tabular-nums;
+		}
+	</style>
+</head>
+<body>
+	<div class="container py-5" style="max-width: 860px;">
+		<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+			<div>
+				<a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
+				<h1 class="h3 fw-bold mt-2 mb-1">Mojidasバージョン管理</h1>
+				<p class="text-muted mb-0">Mac版とWindows版の公開バージョンを管理します。</p>
+			</div>
+			<div class="text-muted small"><%= user.email || '管理者' %></div>
+		</div>
+
+		<% if (flash) { %>
+			<div class="alert alert-<%= flash.type %>" role="alert"><%= flash.message %></div>
+		<% } %>
+
+		<div class="card shadow-sm">
+			<div class="card-body p-4 p-md-5">
+				<form method="post" action="/admin/mojidas-versions">
+					<input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+
+					<div class="mb-4">
+						<label for="macOSVersion" class="form-label fw-bold">Mac版</label>
+						<input
+							class="form-control form-control-lg version-preview"
+							id="macOSVersion"
+							name="macOSVersion"
+							type="text"
+							value="<%= form.macOSVersion %>"
+							placeholder="0.0.0"
+							pattern="[0-9]+\.[0-9]+\.[0-9]+"
+							maxlength="64"
+							inputmode="decimal"
+							autocomplete="off"
+							required
+						>
+						<div class="form-text">3要素の文字列で入力します。先頭の数字（現在: <strong><%= form.macOSVersion.split('.')[0] || '—' %></strong>）が表示バージョンです。</div>
+					</div>
+
+					<div class="mb-4">
+						<label for="windowsVersion" class="form-label fw-bold">Windows版</label>
+						<input
+							class="form-control form-control-lg version-preview"
+							id="windowsVersion"
+							name="windowsVersion"
+							type="text"
+							value="<%= form.windowsVersion %>"
+							placeholder="0.0.0.0"
+							pattern="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"
+							maxlength="64"
+							inputmode="decimal"
+							autocomplete="off"
+							required
+						>
+						<div class="form-text">4要素の文字列で入力します。先頭の数字（現在: <strong><%= form.windowsVersion.split('.')[0] || '—' %></strong>）が表示バージョンです。</div>
+					</div>
+
+					<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+						<div class="small text-muted">
+							<% if (updatedAt) { %>
+								最終更新: <%= formatDate(updatedAt) %>
+							<% } else { %>
+								未保存のため、現在は既定値を返しています。
+							<% } %>
+						</div>
+						<button type="submit" class="btn btn-primary px-4">バージョンを保存</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="alert alert-secondary small mt-4 mb-0" role="note">
+			アプリは公開API <code>GET /api/mojidas/version</code> からこの値を取得します。保存後、アプリ側のキャッシュ状況により反映まで最大1分程度かかる場合があります。
+		</div>
+	</div>
+</body>
+</html>

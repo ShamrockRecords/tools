@@ -20,6 +20,7 @@ const {
 const {
   publicServiceConfiguration,
 } = require('../../modules/mojidas_service_configuration');
+const mojidasVersionStore = require('../../modules/mojidas_version_store');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -35,6 +36,7 @@ function createMojidasRouter({
   dictionaryStore = mojidasDictionaryStore,
   billingService = mojidasStripeBillingService,
   serviceConfigurationProvider = publicServiceConfiguration,
+  versionStore = mojidasVersionStore,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -95,6 +97,21 @@ function createMojidasRouter({
   router.get('/configuration', function (req, res) {
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
     return res.json(serviceConfigurationProvider());
+  });
+
+  router.get('/version', async function (req, res) {
+    try {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+      return res.json(await versionStore.getVersions());
+    } catch (error) {
+      console.error('[Mojidas] version fetch failed:', error);
+      return sendError(
+        res,
+        503,
+        'VERSION_UNAVAILABLE',
+        'バージョン情報を取得できませんでした。'
+      );
+    }
   });
 
   router.post('/auth/register', registerRateLimit, async function (req, res) {

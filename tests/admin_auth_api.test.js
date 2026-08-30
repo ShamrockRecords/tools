@@ -96,6 +96,21 @@ async function main() {
       };
     },
   };
+  const versionCalls = [];
+  app.locals.mojidasVersionStore = {
+    async getVersions() {
+      return {
+        schemaVersion: 1,
+        macOSVersion: '0.8.0',
+        windowsVersion: '0.11.0.0',
+        updatedAt: new Date('2026-08-30T12:00:00.000Z'),
+      };
+    },
+    async setVersions(value) {
+      versionCalls.push(value);
+      return value;
+    },
+  };
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
 
@@ -131,6 +146,28 @@ async function main() {
     assert.match(response.body, /サーバー管理者アカウント/);
     assert.match(response.body, /Mojidasユーザー管理/);
     assert.match(response.body, /Mojidas未使用有償残高/);
+    assert.match(response.body, /Mojidasバージョン管理/);
+
+    response = await request(server, 'GET', '/admin/mojidas-versions', { cookie });
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /value="0\.8\.0"/);
+    assert.match(response.body, /value="0\.11\.0\.0"/);
+    const versionCSRFMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
+    assert.ok(versionCSRFMatch);
+
+    response = await request(server, 'POST', '/admin/mojidas-versions', {
+      cookie,
+      body: {
+        csrfToken: versionCSRFMatch[1],
+        macOSVersion: '1.2.3',
+        windowsVersion: '4.5.6.7',
+      },
+    });
+    assert.strictEqual(response.status, 303);
+    assert.deepStrictEqual(versionCalls, [{
+      macOSVersion: '1.2.3',
+      windowsVersion: '4.5.6.7',
+    }]);
 
     response = await request(server, 'GET', '/admin/mojidas-paid-balance', { cookie });
     assert.strictEqual(response.status, 200);
@@ -168,6 +205,7 @@ async function main() {
   } finally {
     delete app.locals.mojidasAdminUserStore;
     delete app.locals.mojidasPaidBalanceStore;
+    delete app.locals.mojidasVersionStore;
     await new Promise((resolve) => server.close(resolve));
   }
 }

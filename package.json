@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "test": "node tests/caption_editor_tokens.test.js && node tests/generate_srt_data.test.js && node tests/acp_api_key_issuer.test.js && node tests/admin_credentials.test.js && node tests/admin_auth_api.test.js && node tests/mojidas_admin_user_store.test.js && node tests/mojidas_verification_email.test.js && node tests/mojidas_credit_store.test.js && node tests/mojidas_paid_balance_store.test.js && node tests/mojidas_service_configuration.test.js && node tests/mojidas_dictionary_store.test.js && node tests/mojidas_auth_api.test.js && node tests/mojidas_stripe_billing.test.js",
+    "test": "node tests/caption_editor_tokens.test.js && node tests/generate_srt_data.test.js && node tests/acp_api_key_issuer.test.js && node tests/admin_credentials.test.js && node tests/admin_auth_api.test.js && node tests/mojidas_admin_user_store.test.js && node tests/mojidas_verification_email.test.js && node tests/mojidas_credit_store.test.js && node tests/mojidas_paid_balance_store.test.js && node tests/mojidas_service_configuration.test.js && node tests/mojidas_version_store.test.js && node tests/mojidas_dictionary_store.test.js && node tests/mojidas_auth_api.test.js && node tests/mojidas_stripe_billing.test.js",
     "admin:hash-password": "node scripts/hash_admin_password.js",
     "mojidas:reset-test-data": "node scripts/reset_mojidas_test_data.js"
   },
