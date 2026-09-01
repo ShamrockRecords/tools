@@ -95,7 +95,9 @@ class MojidasTranslationService {
     if (!normalizedDisplayLanguage) {
       throw invalidRequest('表示言語コードが正しくありません。');
     }
-    const languages = await this.googleTranslation.listSupportedLanguages(normalizedDisplayLanguage);
+    const languages = canonicalizeTranslationLanguages(
+      await this.googleTranslation.listSupportedLanguages(normalizedDisplayLanguage)
+    );
     return {
       schemaVersion: 1,
       provider: GOOGLE_PROVIDER,
@@ -671,6 +673,32 @@ function googleTranslationLanguageCode(value) {
   return value;
 }
 
+function canonicalizeTranslationLanguages(languages) {
+  const canonical = [];
+  const indexByCode = new Map();
+  for (const language of Array.isArray(languages) ? languages : []) {
+    const rawCode = normalizeLanguageCode(language && language.code);
+    const name = normalizeText(language && language.name, 1000);
+    if (!rawCode || !name) continue;
+    const normalizedCode = canonicalLanguageForPassThrough(rawCode);
+    const code = normalizedCode === 'zh-hans'
+      ? 'zh-CN'
+      : normalizedCode === 'zh-hant'
+        ? 'zh-TW'
+        : rawCode;
+    const key = normalizedCode.toLowerCase();
+    const existingIndex = indexByCode.get(key);
+    const entry = { code, name };
+    if (existingIndex === undefined) {
+      indexByCode.set(key, canonical.length);
+      canonical.push(entry);
+    } else if (rawCode.toLowerCase() === code.toLowerCase()) {
+      canonical[existingIndex] = entry;
+    }
+  }
+  return canonical;
+}
+
 function textFingerprint(text) {
   const digest = crypto
     .createHash('sha256')
@@ -783,6 +811,7 @@ function invalidGoogleResponse() {
 }
 
 module.exports = {
+  canonicalizeTranslationLanguages,
   GOOGLE_PROVIDER,
   PASS_THROUGH_PROVIDER,
   REUSE_TOKEN_PREFIX,

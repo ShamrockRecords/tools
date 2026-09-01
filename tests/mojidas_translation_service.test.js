@@ -1,6 +1,7 @@
 const assert = require('assert');
 
 const {
+  canonicalizeTranslationLanguages,
   MojidasTranslationService,
   areEquivalentLanguages,
   calculateBillableMilliseconds,
@@ -40,7 +41,7 @@ function realtimeRequest(overrides = {}) {
   };
 }
 
-function fakeGoogle({ supportedCodes = ['ja', 'en', 'zh-CN', 'zh-TW'], empty = false } = {}) {
+function fakeGoogle({ supportedCodes = ['ja', 'en', 'zh', 'zh-CN', 'zh-TW'], empty = false } = {}) {
   const calls = { languages: [], translations: [] };
   return {
     calls,
@@ -56,6 +57,14 @@ function fakeGoogle({ supportedCodes = ['ja', 'en', 'zh-CN', 'zh-TW'], empty = f
 }
 
 async function main() {
+  assert.deepStrictEqual(canonicalizeTranslationLanguages([
+    { code: 'zh', name: '中国語（簡体）' },
+    { code: 'zh-CN', name: '中国語（簡体）' },
+    { code: 'zh-TW', name: '中国語（繁体）' },
+  ]), [
+    { code: 'zh-CN', name: '中国語（簡体）' },
+    { code: 'zh-TW', name: '中国語（繁体）' },
+  ]);
   assert.strictEqual(areEquivalentLanguages('zh', 'zh-CN'), true);
   assert.strictEqual(areEquivalentLanguages('zh-Hans', 'ZH-cn'), true);
   assert.strictEqual(areEquivalentLanguages('zh-SG', 'zh'), true);
@@ -84,6 +93,13 @@ async function main() {
   const languages = await service.listSupportedLanguages('ja');
   assert.strictEqual(languages.provider, 'googleCloudTranslationBasicV2');
   assert.strictEqual(languages.languages.length, 4);
+  assert.deepStrictEqual(
+    languages.languages.filter((language) => language.code.toLowerCase().startsWith('zh')),
+    [
+      { code: 'zh-CN', name: 'name:zh-CN' },
+      { code: 'zh-TW', name: 'name:zh-TW' },
+    ]
+  );
 
   const translatedRealtime = await service.translateRealtime({
     userID: 'user-1',

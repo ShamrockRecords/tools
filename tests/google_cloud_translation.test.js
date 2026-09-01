@@ -4,6 +4,7 @@ const {
   GoogleCloudTranslation,
   GoogleCloudTranslationError,
   buildTranslationBatches,
+  compactTranslationText,
   decodeHTMLEntities,
   MAX_TEXTS_PER_REQUEST,
   MAX_CODE_POINTS_PER_REQUEST,
@@ -14,6 +15,10 @@ function response(payload, statusCode = 200) {
 }
 
 async function testTranslationAndBatching() {
+  assert.strictEqual(
+    compactTranslationText(' First sentence. \r\n\t \r\n Second sentence.  '),
+    'First sentence.\nSecond sentence.'
+  );
   assert.strictEqual(
     decodeHTMLEntities('&quot;Hello&#39;s &amp; &lt;tag&gt; &#x1F600;'),
     '"Hello\'s & <tag> 😀'

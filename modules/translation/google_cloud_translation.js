@@ -282,11 +282,21 @@ function parseTranslations(payload, expectedCount) {
       throw invalidResponse('Google Cloud Translationから空の翻訳結果を受信しました。');
     }
     const decodedText = decodeHTMLEntities(translatedText);
-    if (!decodedText.trim()) {
+    const compactedText = compactTranslationText(decodedText);
+    if (!compactedText) {
       throw invalidResponse('Google Cloud Translationから空の翻訳結果を受信しました。');
     }
-    return decodedText;
+    return compactedText;
   });
+}
+
+function compactTranslationText(value) {
+  return String(value)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 function decodeHTMLEntities(value) {
@@ -456,6 +466,7 @@ function cloneLanguages(languages) {
 }
 
 module.exports = {
+  compactTranslationText,
   GoogleCloudTranslation,
   GoogleCloudTranslationError,
   buildTranslationBatches,
