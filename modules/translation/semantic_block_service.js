@@ -72,15 +72,24 @@ class SemanticBlockService {
       );
     }
 
+    // UUIDをそのままLLMへ復唱させると、大文字小文字の変換や長い出力による
+    // 欠落が起きやすい。request内だけの短い連番へ置き換え、検証後に戻す。
+    const providerSegments = segments.map((segment, index) => ({
+      ...segment,
+      id: String(index),
+    }));
+    const providerIDs = providerSegments.map((segment) => segment.id);
+    const originalIDByProviderID = new Map(providerSegments.map((segment, index) => (
+      [segment.id, segments[index].id]
+    )));
     const requestBody = createResponsesRequest({
       model: this.model,
-      segments,
+      segments: providerSegments,
       softTargetCharacters: this.softTargetCharacters,
     });
-    let response;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        response = await this.requester({
+        const response = await this.requester({
           endpoint: this.endpoint,
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
@@ -91,7 +100,11 @@ class SemanticBlockService {
           timeoutMilliseconds: DEFAULT_TIMEOUT_MILLISECONDS,
           maxResponseBytes: MAX_RESPONSE_BYTES,
         });
-        break;
+        const groups = validateBoundaryOutput(
+          providerIDs,
+          parseStructuredOutput(response)
+        );
+        return groups.map((group) => group.map((id) => originalIDByProviderID.get(id)));
       } catch (error) {
         const normalized = error instanceof SemanticBlockServiceError
           ? error
@@ -99,16 +112,17 @@ class SemanticBlockService {
             'OPENAI_REQUEST_FAILED',
             '意味ブロック判定サービスへ接続できませんでした。'
           );
-        if (attempt === 0 && isRetryableOpenAIError(normalized)) continue;
+        if (attempt === 0 && shouldRetryOpenAIError(normalized)) continue;
+        if (isFallbackBoundaryError(normalized)) {
+          return deterministicBoundaryGroups(
+            segments,
+            this.softTargetCharacters
+          ).map((group) => group.map((segment) => segment.id));
+        }
         throw normalized;
       }
     }
-
-    const output = parseStructuredOutput(response);
-    return validateBoundaryOutput(
-      segments.map((segment) => segment.id),
-      output
-    );
+    throw invalidBoundaryOutput();
   }
 }
 
@@ -221,6 +235,29 @@ function partitionPromptWindows(segments) {
   return windows;
 }
 
+function deterministicBoundaryGroups(segments, targetCharacters) {
+  const groups = [];
+  let current = [];
+  let currentCharacters = 0;
+  for (const segment of segments) {
+    const characters = Array.from(segment.text).length;
+    const separatorCharacters = current.length > 0 ? 1 : 0;
+    if (
+      current.length > 0
+      && currentCharacters + separatorCharacters + characters > targetCharacters
+    ) {
+      groups.push(current);
+      current = [];
+      currentCharacters = 0;
+    }
+    if (current.length > 0) currentCharacters += 1;
+    current.push(segment);
+    currentCharacters += characters;
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
 function hardBoundaryKey(segment) {
   return JSON.stringify([
     segment.inputID,
@@ -252,6 +289,7 @@ function createResponsesRequest({ model, segments, softTargetCharacters }) {
           text: [
             'あなたは字幕翻訳前の意味ブロック境界だけを決めます。',
             '本文を翻訳・要約・修正せず、入力IDを連続したグループへ分けてください。',
+            'IDは短い数字文字列です。文字列を変更せず完全一致で返してください。',
             '全IDを入力順のまま重複・欠落なく一度ずつ返してください。',
             '文や意味のまとまりを優先し、各ブロックはsoftTargetCharacters付近を目安にしてください。',
           ].join(''),
@@ -434,6 +472,18 @@ function isRetryableOpenAIError(error) {
   return !Number.isInteger(error.statusCode) || error.statusCode >= 500;
 }
 
+function shouldRetryOpenAIError(error) {
+  return isRetryableOpenAIError(error) || isFallbackBoundaryError(error);
+}
+
+function isFallbackBoundaryError(error) {
+  return Boolean(error && [
+    'OPENAI_INVALID_RESPONSE',
+    'OPENAI_INCOMPLETE_RESPONSE',
+    'INVALID_SEMANTIC_BOUNDARIES',
+  ].includes(error.code));
+}
+
 function postJSON({ endpoint, headers, body, timeoutMilliseconds, maxResponseBytes }) {
   const payload = JSON.stringify(body);
   return new Promise((resolve, reject) => {
@@ -509,6 +559,7 @@ module.exports = {
   SemanticBlockService,
   SemanticBlockServiceError,
   createResponsesRequest,
+  deterministicBoundaryGroups,
   hardBoundaryKey,
   normalizeLanguageCode,
   partitionHardBoundaryGroups,

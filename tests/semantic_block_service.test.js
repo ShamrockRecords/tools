@@ -51,8 +51,8 @@ async function main() {
       calls.push(request);
       const userInput = JSON.parse(request.body.input[1].content[0].text);
       const ids = userInput.segments.map((item) => item.id);
-      return ids[0] === 's1'
-        ? structuredResponse([['s1', 's2'], ['s3']])
+      return ids.length === 3
+        ? structuredResponse([['0', '1'], ['2']])
         : structuredResponse([ids]);
     },
   });
@@ -75,6 +75,11 @@ async function main() {
   assert.strictEqual(calls[0].body.text.format.type, 'json_schema');
   assert.strictEqual(calls[0].body.text.format.strict, true);
   assert.match(calls[0].headers.Authorization, /^Bearer /);
+  assert.deepStrictEqual(
+    JSON.parse(calls[0].body.input[1].content[0].text)
+      .segments.map((item) => item.id),
+    ['0', '1', '2']
+  );
 
   const hardGroups = partitionHardBoundaryGroups([
     segment('a'),
@@ -100,7 +105,7 @@ async function main() {
     apiKey: 'test-openai-key',
     requester: async () => {
       legacyRunCalls += 1;
-      return structuredResponse([['legacy-1', 'legacy-2']]);
+      return structuredResponse([['0', '1']]);
     },
   });
   const missingRun = segment('legacy-1');
@@ -145,9 +150,10 @@ async function main() {
     apiKey: 'test-openai-key',
     requester: async () => structuredResponse([['s1']]),
   });
-  await assert.rejects(
-    invalidResponseService.groupSegments([segment('s1'), segment('s2')]),
-    (error) => error.code === 'INVALID_SEMANTIC_BOUNDARIES'
+  assert.deepStrictEqual(
+    (await invalidResponseService.groupSegments([segment('s1'), segment('s2')]))
+      .map((block) => block.map((item) => item.id)),
+    [['s1', 's2']]
   );
 
   const missingStatusService = new SemanticBlockService({
@@ -156,9 +162,10 @@ async function main() {
       output: structuredResponse([['s1', 's2']]).output,
     }),
   });
-  await assert.rejects(
-    missingStatusService.groupSegments([segment('s1'), segment('s2')]),
-    (error) => error.code === 'OPENAI_INCOMPLETE_RESPONSE'
+  assert.deepStrictEqual(
+    (await missingStatusService.groupSegments([segment('s1'), segment('s2')]))
+      .map((block) => block.map((item) => item.id)),
+    [['s1', 's2']]
   );
 
   const refusalService = new SemanticBlockService({
@@ -184,7 +191,7 @@ async function main() {
       if (retryCalls === 1) {
         throw new SemanticBlockServiceError('OPENAI_RATE_LIMITED', 'temporary', 429);
       }
-      return structuredResponse([['s1', 's2']]);
+      return structuredResponse([['0', '1']]);
     },
   });
   assert.deepStrictEqual(
@@ -193,6 +200,68 @@ async function main() {
     [['s1', 's2']]
   );
   assert.strictEqual(retryCalls, 2);
+
+  let invalidBoundaryRetryCalls = 0;
+  const invalidBoundaryRetryService = new SemanticBlockService({
+    apiKey: 'test-openai-key',
+    requester: async () => {
+      invalidBoundaryRetryCalls += 1;
+      return invalidBoundaryRetryCalls === 1
+        ? structuredResponse([['1', '0']])
+        : structuredResponse([['0'], ['1']]);
+    },
+  });
+  assert.deepStrictEqual(
+    (await invalidBoundaryRetryService.groupSegments([
+      segment('UPPERCASE-ID-A'),
+      segment('UPPERCASE-ID-B'),
+    ])).map((block) => block.map((item) => item.id)),
+    [['UPPERCASE-ID-A'], ['UPPERCASE-ID-B']]
+  );
+  assert.strictEqual(invalidBoundaryRetryCalls, 2);
+
+  const macUUIDs = [
+    'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
+    'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB',
+  ];
+  let uuidProviderIDs;
+  let uuidProviderInput;
+  const uuidService = new SemanticBlockService({
+    apiKey: 'test-openai-key',
+    requester: async (request) => {
+      uuidProviderInput = request.body.input[1].content[0].text;
+      const input = JSON.parse(request.body.input[1].content[0].text);
+      uuidProviderIDs = input.segments.map((item) => item.id);
+      return structuredResponse([['0', '1']]);
+    },
+  });
+  assert.deepStrictEqual(
+    (await uuidService.groupSegments(macUUIDs.map((id) => segment(id, {
+      text: 'UUIDを含まない合成本文です。',
+    })))).map((block) => block.map((item) => item.id)),
+    [macUUIDs]
+  );
+  assert.deepStrictEqual(uuidProviderIDs, ['0', '1']);
+  for (const id of macUUIDs) assert.ok(!uuidProviderInput.includes(id));
+
+  let fallbackCalls = 0;
+  const fallbackService = new SemanticBlockService({
+    apiKey: 'test-openai-key',
+    softTargetCharacters: 50,
+    requester: async () => {
+      fallbackCalls += 1;
+      return structuredResponse([['missing']]);
+    },
+  });
+  assert.deepStrictEqual(
+    (await fallbackService.groupSegments([
+      segment('fallback-1', { text: 'a'.repeat(30) }),
+      segment('fallback-2', { text: 'b'.repeat(30) }),
+      segment('fallback-3', { text: 'c'.repeat(30) }),
+    ])).map((block) => block.map((item) => item.id)),
+    [['fallback-1'], ['fallback-2'], ['fallback-3']]
+  );
+  assert.strictEqual(fallbackCalls, 2);
 
   let exhaustedRetryCalls = 0;
   const exhaustedRetryService = new SemanticBlockService({

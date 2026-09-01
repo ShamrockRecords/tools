@@ -353,6 +353,11 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 失敗時のMojidas error envelopeを処理する。jobは現在Expressプロセスのメモリ上で
 30分保持するため、複数dynoへ拡張する際はrate limitと合わせて共有ストアへ移行する。
 
+意味ブロック判定では端末由来のUUIDをOpenAIへ復唱させず、request内だけで有効な
+数字の連番へ置き換える。応答が欠落・重複・順序違反などで検証に失敗した場合は1回だけ
+再試行し、再度失敗した場合は発話順とhard boundaryを維持した固定文字数blockへ
+フォールバックして、本文翻訳を継続する。
+
 ## 必須設定
 
 Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管理者ログインはFirebase Authenticationを使用しません。
