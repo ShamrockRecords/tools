@@ -245,7 +245,7 @@ Authorization: Bearer {accessToken}
 ```
 
 `POST /api/mojidas/translation/formal`は発話列を意味ブロックへまとめて翻訳します。`inputID`、`recordingID`、`recognitionRunID`、`sourceLanguageCode`、`label`（話者）の境界を跨ぎません。旧セッションでは`recognitionRunID`を省略または`null`にできます。
-正式翻訳は空の発話を除き最大2,000発話、本文合計100,000文字まで受け付けます。
+正式翻訳は空の発話を除き、既定で最大2,000発話、本文合計100,000文字まで受け付けます。運用上限はサーバー設定で変更できます。
 
 ```json
 {
@@ -381,6 +381,9 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `MOJIDAS_CHECKOUT_SUCCESS_URL`（任意）
 - `MOJIDAS_CHECKOUT_CANCEL_URL`（任意）
 - `MOJIDAS_GOOGLE_TRANSLATION_API_KEY`
+- `MOJIDAS_TRANSLATION_MAX_SEGMENTS`（任意。正式翻訳1回の最大発話数。`1`〜`10000`、既定値`2000`）
+- `MOJIDAS_TRANSLATION_MAX_TEXT_CHARACTERS`（任意。正式翻訳1回の本文合計文字数。`1000`〜`1000000`、既定値`100000`）
+- `MOJIDAS_API_BODY_LIMIT`（任意。Mojidas APIの受信上限。`64kb`〜`25mb`、既定値`3mb`）
 - `MOJIDAS_TRANSLATION_BLOCK_MIN_CHARACTERS`（任意。文末でblockを閉じる最小文字数。既定値`60`）
 - `MOJIDAS_TRANSLATION_BLOCK_MAX_CHARACTERS`（任意。文末記号がない意味blockの上限。既定値`160`）
 - `MOJIDAS_TRANSLATION_REUSE_SECRET`（任意。正式翻訳blockの再利用署名用。未設定時はGoogle翻訳API keyを使用）

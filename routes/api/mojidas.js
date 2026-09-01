@@ -45,6 +45,7 @@ function createMojidasRouter({
   serviceConfigurationProvider = publicServiceConfiguration,
   versionStore = mojidasVersionStore,
   translationService,
+  translationOptions,
   formalTranslationJobStore,
   allowedHosts,
   allowLocalhost = true,
@@ -55,7 +56,7 @@ function createMojidasRouter({
     firebaseAdmin,
   });
   const issuer = apiKeyIssuer || new ACPApiKeyIssuer();
-  const translator = translationService || new MojidasTranslationService();
+  const translator = translationService || new MojidasTranslationService(translationOptions);
   const formalJobs = formalTranslationJobStore || new MemoryFormalTranslationJobStore();
   const registerRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 60 * 1000,

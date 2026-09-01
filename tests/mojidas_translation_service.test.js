@@ -196,6 +196,23 @@ async function main() {
       colorHex: 'FF0000',
     }),
   ];
+  const limitedFormalService = new MojidasTranslationService({
+    googleTranslation: fakeGoogle(),
+    semanticBlockService,
+    maxFormalSegments: 1,
+  });
+  await assert.rejects(
+    limitedFormalService.translateFormal({
+      userID: 'user-1',
+      request: {
+        sourceSessionID: 'session-configured-limit',
+        targetLanguageCode: 'en',
+        segments: formalSegments.slice(0, 2),
+        idempotencyKey: 'formal-configured-limit',
+      },
+    }),
+    (error) => error.code === 'INVALID_TRANSLATION_REQUEST'
+  );
   const sentenceService = new MojidasTranslationService({
     googleTranslation: fakeGoogle(),
     reuseSecret: 'sentence-test-secret',

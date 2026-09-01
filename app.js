@@ -5,6 +5,9 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var firebaseAdmin = require('firebase-admin');
 var crypto = require('crypto');
+const {
+  resolveMojidasApiBodyLimit,
+} = require('./modules/config/mojidas_translation_config');
 
 require('dotenv').config();
 
@@ -139,8 +142,12 @@ app.use(function (req, res, next) {
 
 // Mojidasの正式翻訳は長時間ライブセッションの発話列と再利用情報を受け取る。
 // 後段の既存Web機能向け100MB parserより先に、用途に十分な範囲で容量を制限する。
-const mojidasJsonParser = express.json({ limit: '3mb' });
-const mojidasUrlencodedParser = express.urlencoded({ extended: false, limit: '3mb' });
+const mojidasApiBodyLimit = resolveMojidasApiBodyLimit();
+const mojidasJsonParser = express.json({ limit: mojidasApiBodyLimit });
+const mojidasUrlencodedParser = express.urlencoded({
+  extended: false,
+  limit: mojidasApiBodyLimit,
+});
 app.use('/api/mojidas', function (req, res, next) {
   mojidasJsonParser(req, res, function (jsonError) {
     if (jsonError) return sendMojidasBodyParserError(res, next, jsonError);

@@ -1,7 +1,9 @@
+const {
+  resolveMojidasTranslationLimits,
+} = require('../config/mojidas_translation_config');
+
 const DEFAULT_MINIMUM_BLOCK_CHARACTERS = 60;
 const DEFAULT_MAXIMUM_BLOCK_CHARACTERS = 160;
-const MAX_SEGMENTS = 2000;
-const MAX_TOTAL_TEXT_CHARACTERS = 100 * 1000;
 const LEGACY_RECOGNITION_RUN_SENTINEL = '__legacy_recognition_run__';
 const SENTENCE_END_PATTERN = /[。！？.!?](?:["'”’」』】）)\]]*)$/u;
 const SENTENCE_END_CHARACTERS = new Set(['。', '！', '？', '.', '!', '?']);
@@ -22,7 +24,15 @@ class SemanticBlockService {
     maximumBlockCharacters,
     // 直前の実装で追加した設定名も互換用に受け付ける。
     softTargetCharacters,
+    maxSegments,
+    maxTotalTextCharacters,
   } = {}) {
+    const limits = resolveMojidasTranslationLimits({
+      maxSegments,
+      maxTextCharacters: maxTotalTextCharacters,
+    });
+    this.maxSegments = limits.maxSegments;
+    this.maxTotalTextCharacters = limits.maxTextCharacters;
     this.maximumBlockCharacters = normalizeBlockCharacters(
       maximumBlockCharacters
         ?? process.env.MOJIDAS_TRANSLATION_BLOCK_MAX_CHARACTERS
@@ -43,7 +53,11 @@ class SemanticBlockService {
   }
 
   async groupSegments(segments) {
-    const normalizedSegments = normalizeSegments(segments);
+    const normalizedSegments = normalizeSegments(
+      segments,
+      this.maxSegments,
+      this.maxTotalTextCharacters
+    );
     const fragments = normalizedSegments.flatMap((segment) => (
       splitSegmentAtSentenceEndings(segment, this.maximumBlockCharacters)
     ));
@@ -57,11 +71,11 @@ class SemanticBlockService {
   }
 }
 
-function normalizeSegments(segments) {
-  if (!Array.isArray(segments) || segments.length > MAX_SEGMENTS) {
+function normalizeSegments(segments, maxSegments, maxTotalTextCharacters) {
+  if (!Array.isArray(segments) || segments.length > maxSegments) {
     throw new SemanticBlockServiceError(
       'INVALID_TRANSLATION_SEGMENTS',
-      `意味ブロックに指定できる発話は最大${MAX_SEGMENTS}件です。`
+      `意味ブロックに指定できる発話は最大${maxSegments}件です。`
     );
   }
 
@@ -93,10 +107,10 @@ function normalizeSegments(segments) {
     }
     seenIDs.add(id);
     totalCharacters += Array.from(text).length;
-    if (totalCharacters > MAX_TOTAL_TEXT_CHARACTERS) {
+    if (totalCharacters > maxTotalTextCharacters) {
       throw new SemanticBlockServiceError(
         'TRANSLATION_INPUT_TOO_LARGE',
-        `意味ブロック判定へ送信できる本文は最大${MAX_TOTAL_TEXT_CHARACTERS}文字です。`
+        `意味ブロック判定へ送信できる本文は最大${maxTotalTextCharacters}文字です。`
       );
     }
     return {

@@ -138,6 +138,20 @@ async function main() {
     service.groupSegments([segment('empty', { text: '   ' })]),
     (error) => error.code === 'INVALID_TRANSLATION_SEGMENTS'
   );
+  const limitedService = new SemanticBlockService({
+    maxSegments: 1,
+    maxTotalTextCharacters: 1000,
+  });
+  await assert.rejects(
+    limitedService.groupSegments([segment('limit-1'), segment('limit-2')]),
+    (error) => error.code === 'INVALID_TRANSLATION_SEGMENTS'
+      && error.message.includes('最大1件')
+  );
+  await assert.rejects(
+    limitedService.groupSegments([segment('too-long', { text: 'a'.repeat(1001) })]),
+    (error) => error.code === 'TRANSLATION_INPUT_TOO_LARGE'
+      && error.message.includes('最大1000文字')
+  );
 
   const noKeyService = new SemanticBlockService();
   assert.deepStrictEqual(

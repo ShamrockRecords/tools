@@ -1,5 +1,8 @@
 const crypto = require('crypto');
 
+const {
+  resolveMojidasTranslationLimits,
+} = require('../config/mojidas_translation_config');
 const { GoogleCloudTranslation } = require('./google_cloud_translation');
 const {
   SemanticBlockService,
@@ -9,10 +12,6 @@ const {
 const GOOGLE_PROVIDER = 'googleCloudTranslationBasicV2';
 const PASS_THROUGH_PROVIDER = 'passthrough';
 const MAX_REALTIME_TEXT_CHARACTERS = 5000;
-// 長時間のライブ認識では短い確定発話が多くなる。本文総量の上限を別に維持しつつ、
-// 約2時間規模のセッションを1つの正式翻訳リクエストで扱える件数にする。
-const MAX_FORMAL_SEGMENTS = 2000;
-const MAX_FORMAL_TEXT_CHARACTERS = 100 * 1000;
 const MAX_LABEL_CHARACTERS = 100;
 const MAX_IDEMPOTENCY_ENTRIES = 10000;
 const IDEMPOTENCY_TTL_MILLISECONDS = 30 * 60 * 1000;
@@ -81,15 +80,26 @@ class MemoryTranslationIdempotencyStore {
 class MojidasTranslationService {
   constructor({
     googleTranslation = new GoogleCloudTranslation(),
-    semanticBlockService = new SemanticBlockService(),
+    semanticBlockService,
     idempotencyStore = new MemoryTranslationIdempotencyStore(),
     reuseSecret = process.env.MOJIDAS_TRANSLATION_REUSE_SECRET
       || process.env.MOJIDAS_GOOGLE_TRANSLATION_API_KEY,
+    maxFormalSegments,
+    maxFormalTextCharacters,
   } = {}) {
+    const limits = resolveMojidasTranslationLimits({
+      maxSegments: maxFormalSegments,
+      maxTextCharacters: maxFormalTextCharacters,
+    });
     this.googleTranslation = googleTranslation;
-    this.semanticBlockService = semanticBlockService;
+    this.semanticBlockService = semanticBlockService || new SemanticBlockService({
+      maxSegments: limits.maxSegments,
+      maxTotalTextCharacters: limits.maxTextCharacters,
+    });
     this.idempotencyStore = idempotencyStore;
     this.reuseSecret = normalizeSecret(reuseSecret);
+    this.maxFormalSegments = limits.maxSegments;
+    this.maxFormalTextCharacters = limits.maxTextCharacters;
   }
 
   async listSupportedLanguages(displayLanguageCode) {
@@ -157,7 +167,10 @@ class MojidasTranslationService {
 
   async translateFormal({ userID, request }) {
     const normalizedUserID = normalizeIdentifier(userID);
-    const normalized = normalizeFormalRequest(request);
+    const normalized = normalizeFormalRequest(request, {
+      maxSegments: this.maxFormalSegments,
+      maxTextCharacters: this.maxFormalTextCharacters,
+    });
     if (!normalizedUserID) throw invalidRequest('ユーザー情報を確認できませんでした。');
     const operationKey = `${normalizedUserID}:formal:${normalized.idempotencyKey}`;
     const requestFingerprint = stableFingerprint(normalized);
@@ -316,7 +329,8 @@ function normalizeRealtimeRequest(request) {
   };
 }
 
-function normalizeFormalRequest(request) {
+function normalizeFormalRequest(request, limitOptions = {}) {
+  const limits = resolveMojidasTranslationLimits(limitOptions);
   if (!hasRequiredAndAllowedKeys(request, [
     'sourceSessionID',
     'targetLanguageCode',
@@ -332,7 +346,7 @@ function normalizeFormalRequest(request) {
     || !idempotencyKey
     || !Array.isArray(request.segments)
     || request.segments.length === 0
-    || request.segments.length > MAX_FORMAL_SEGMENTS
+    || request.segments.length > limits.maxSegments
   ) {
     throw invalidRequest('正式翻訳の内容が正しくありません。');
   }
@@ -393,10 +407,10 @@ function normalizeFormalRequest(request) {
     }
     seenIDs.add(id);
     totalCharacters += Array.from(text).length;
-    if (totalCharacters > MAX_FORMAL_TEXT_CHARACTERS) {
+    if (totalCharacters > limits.maxTextCharacters) {
       throw new MojidasTranslationServiceError(
         'TRANSLATION_INPUT_TOO_LARGE',
-        `正式翻訳へ送信できる本文は最大${MAX_FORMAL_TEXT_CHARACTERS}文字です。`
+        `正式翻訳へ送信できる本文は最大${limits.maxTextCharacters}文字です。`
       );
     }
     return {
@@ -416,7 +430,8 @@ function normalizeFormalRequest(request) {
   });
   const reusableBlocks = normalizeReusableBlocks(
     request.reusableBlocks === undefined ? [] : request.reusableBlocks,
-    targetLanguageCode
+    targetLanguageCode,
+    limits.maxSegments
   );
   return {
     sourceSessionID,
@@ -427,8 +442,8 @@ function normalizeFormalRequest(request) {
   };
 }
 
-function normalizeReusableBlocks(value, targetLanguageCode) {
-  if (!Array.isArray(value) || value.length > MAX_FORMAL_SEGMENTS) {
+function normalizeReusableBlocks(value, targetLanguageCode, maxSegments) {
+  if (!Array.isArray(value) || value.length > maxSegments) {
     throw invalidRequest('再利用する翻訳ブロックが正しくありません。');
   }
   const usedKeys = new Set();
@@ -446,7 +461,7 @@ function normalizeReusableBlocks(value, targetLanguageCode) {
     if (
       !Array.isArray(block.sourceTranscriptIDs)
       || block.sourceTranscriptIDs.length === 0
-      || block.sourceTranscriptIDs.length > MAX_FORMAL_SEGMENTS
+      || block.sourceTranscriptIDs.length > maxSegments
     ) {
       throw invalidRequest('再利用する翻訳ブロックが正しくありません。');
     }
