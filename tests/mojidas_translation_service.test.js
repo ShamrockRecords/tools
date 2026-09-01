@@ -291,6 +291,37 @@ async function main() {
     [['s1の本文\ns2の本文', 's4の本文']]
   );
 
+  const longLiveGoogle = fakeGoogle();
+  const longLiveService = new MojidasTranslationService({
+    googleTranslation: longLiveGoogle,
+    reuseSecret: 'long-live-test-secret',
+  });
+  const longLiveSegments = Array.from({ length: 628 }, (_, index) => sourceSegment(
+    `live-${index}`,
+    {
+      startMilliseconds: index * 1000,
+      endMilliseconds: index * 1000 + 800,
+      text: `ライブ発話${index}です。`,
+    }
+  ));
+  const longLiveResult = await longLiveService.translateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-long-live',
+      targetLanguageCode: 'en',
+      segments: longLiveSegments,
+      idempotencyKey: 'formal-long-live',
+    },
+  });
+  assert.strictEqual(
+    longLiveResult.blocks.flatMap((block) => block.sourceTranscriptIDs).length,
+    longLiveSegments.length
+  );
+  assert.deepStrictEqual(
+    new Set(longLiveResult.blocks.flatMap((block) => block.sourceTranscriptIDs)),
+    new Set(longLiveSegments.map((segment) => segment.id))
+  );
+
   const speakerBoundaryResult = await service.translateFormal({
     userID: 'user-1',
     request: {

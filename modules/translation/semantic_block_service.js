@@ -1,6 +1,6 @@
 const DEFAULT_MINIMUM_BLOCK_CHARACTERS = 60;
 const DEFAULT_MAXIMUM_BLOCK_CHARACTERS = 160;
-const MAX_SEGMENTS = 500;
+const MAX_SEGMENTS = 2000;
 const MAX_TOTAL_TEXT_CHARACTERS = 100 * 1000;
 const LEGACY_RECOGNITION_RUN_SENTINEL = '__legacy_recognition_run__';
 const SENTENCE_END_PATTERN = /[。！？.!?](?:["'”’」』】）)\]]*)$/u;

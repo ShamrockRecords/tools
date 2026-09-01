@@ -245,6 +245,7 @@ Authorization: Bearer {accessToken}
 ```
 
 `POST /api/mojidas/translation/formal`は発話列を意味ブロックへまとめて翻訳します。`inputID`、`recordingID`、`recognitionRunID`、`sourceLanguageCode`、`label`（話者）の境界を跨ぎません。旧セッションでは`recognitionRunID`を省略または`null`にできます。
+正式翻訳は空の発話を除き最大2,000発話、本文合計100,000文字まで受け付けます。
 
 ```json
 {

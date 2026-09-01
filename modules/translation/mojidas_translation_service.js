@@ -9,7 +9,9 @@ const {
 const GOOGLE_PROVIDER = 'googleCloudTranslationBasicV2';
 const PASS_THROUGH_PROVIDER = 'passthrough';
 const MAX_REALTIME_TEXT_CHARACTERS = 5000;
-const MAX_FORMAL_SEGMENTS = 500;
+// 長時間のライブ認識では短い確定発話が多くなる。本文総量の上限を別に維持しつつ、
+// 約2時間規模のセッションを1つの正式翻訳リクエストで扱える件数にする。
+const MAX_FORMAL_SEGMENTS = 2000;
 const MAX_FORMAL_TEXT_CHARACTERS = 100 * 1000;
 const MAX_LABEL_CHARACTERS = 100;
 const MAX_IDEMPOTENCY_ENTRIES = 10000;

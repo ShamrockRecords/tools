@@ -137,10 +137,10 @@ app.use(function (req, res, next) {
   next();
 });
 
-// Mojidas APIは認証情報と短いJSONだけを受け取る。後段の既存Web機能向け
-// 100MB parserより先に実容量を制限し、巨大JSONをparseしてから弾く状態を避ける。
-const mojidasJsonParser = express.json({ limit: '1mb' });
-const mojidasUrlencodedParser = express.urlencoded({ extended: false, limit: '1mb' });
+// Mojidasの正式翻訳は長時間ライブセッションの発話列と再利用情報を受け取る。
+// 後段の既存Web機能向け100MB parserより先に、用途に十分な範囲で容量を制限する。
+const mojidasJsonParser = express.json({ limit: '3mb' });
+const mojidasUrlencodedParser = express.urlencoded({ extended: false, limit: '3mb' });
 app.use('/api/mojidas', function (req, res, next) {
   mojidasJsonParser(req, res, function (jsonError) {
     if (jsonError) return sendMojidasBodyParserError(res, next, jsonError);
