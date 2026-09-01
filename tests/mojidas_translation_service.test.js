@@ -180,6 +180,71 @@ async function main() {
       colorHex: 'FF0000',
     }),
   ];
+  const sentenceService = new MojidasTranslationService({
+    googleTranslation: fakeGoogle(),
+    reuseSecret: 'sentence-test-secret',
+  });
+  const sentenceSegments = [
+    sourceSegment('sentence-1', {
+      text: `${'a'.repeat(65)}。${'b'.repeat(65)}。`,
+    }),
+    sourceSegment('sentence-2', { text: `${'c'.repeat(65)}。` }),
+    sourceSegment('sentence-3', { text: 'd'.repeat(100) }),
+    sourceSegment('sentence-4', { text: 'e'.repeat(100) }),
+  ];
+  const sentenceResult = await sentenceService.translateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-sentence-boundaries',
+      targetLanguageCode: 'en',
+      segments: sentenceSegments,
+      idempotencyKey: 'formal-sentence-boundaries',
+    },
+  });
+  assert.deepStrictEqual(
+    sentenceResult.blocks.map((block) => block.sourceTranscriptIDs),
+    [
+      ['sentence-1'],
+      ['sentence-1'],
+      ['sentence-2'],
+      ['sentence-3'],
+      ['sentence-4'],
+    ]
+  );
+  const repeatedSourceReuse = await sentenceService.translateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-sentence-boundaries',
+      targetLanguageCode: 'en',
+      segments: sentenceSegments,
+      reusableBlocks: sentenceResult.blocks.map((block) => ({
+        sourceTranscriptIDs: block.sourceTranscriptIDs,
+        sourceTextFingerprint: block.sourceTextFingerprint,
+        sourceLanguageCode: block.sourceLanguageCode,
+        targetLanguageCode: 'en',
+        translatedText: block.translatedText,
+        provider: block.provider,
+        isPassThrough: block.isPassThrough,
+        reuseToken: block.reuseToken,
+      })),
+      idempotencyKey: 'formal-sentence-boundaries-reuse',
+    },
+  });
+  assert.strictEqual(repeatedSourceReuse.reusedBlockCount, sentenceResult.blocks.length);
+
+  const shortSentenceResult = await sentenceService.translateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-short-sentences',
+      targetLanguageCode: 'en',
+      segments: [sourceSegment('short-sentences', { text: 'はい。そうです。続けます。' })],
+      idempotencyKey: 'formal-short-sentences',
+    },
+  });
+  assert.strictEqual(shortSentenceResult.blocks.length, 1);
+  assert.deepStrictEqual(shortSentenceResult.blocks[0].sourceTranscriptIDs, ['short-sentences']);
+  assert.strictEqual(shortSentenceResult.blocks[0].sourceText, 'はい。そうです。続けます。');
+
   const formalResult = await service.translateFormal({
     userID: 'user-1',
     request: {

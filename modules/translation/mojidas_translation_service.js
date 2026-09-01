@@ -427,7 +427,6 @@ function normalizeReusableBlocks(value, targetLanguageCode) {
   if (!Array.isArray(value) || value.length > MAX_FORMAL_SEGMENTS) {
     throw invalidRequest('再利用する翻訳ブロックが正しくありません。');
   }
-  const usedTranscriptIDs = new Set();
   const usedKeys = new Set();
   return value.map((block) => {
     if (!hasExactKeys(block, [
@@ -448,10 +447,9 @@ function normalizeReusableBlocks(value, targetLanguageCode) {
       throw invalidRequest('再利用する翻訳ブロックが正しくありません。');
     }
     const sourceTranscriptIDs = block.sourceTranscriptIDs.map((id) => normalizeIdentifier(id));
-    if (sourceTranscriptIDs.some((id) => !id || usedTranscriptIDs.has(id))) {
-      throw invalidRequest('再利用する翻訳ブロックの発話IDが重複しています。');
+    if (sourceTranscriptIDs.some((id) => !id)) {
+      throw invalidRequest('再利用する翻訳ブロックの発話IDが正しくありません。');
     }
-    sourceTranscriptIDs.forEach((id) => usedTranscriptIDs.add(id));
     const sourceTextFingerprint = normalizeSourceTextFingerprint(block.sourceTextFingerprint);
     const sourceLanguageCode = normalizeLanguageCode(block.sourceLanguageCode);
     const reusableTargetLanguageCode = normalizeLanguageCode(block.targetLanguageCode);
@@ -493,8 +491,16 @@ function createFormalBlock({ segments, targetLanguageCode }) {
   if (!Array.isArray(segments) || segments.length === 0) throw invalidRequest();
   const first = segments[0];
   const last = segments[segments.length - 1];
-  const sourceTranscriptIDs = segments.map((segment) => segment.id);
-  const sourceText = segments.map((segment) => segment.text).join('\n');
+  const sourceTranscriptIDs = [...new Set(segments.map((segment) => (
+    segment.sourceTranscriptID || segment.id
+  )))];
+  const sourceText = segments.map((segment, index) => {
+    if (index === 0) return segment.text;
+    const previous = segments[index - 1];
+    const sourceID = segment.sourceTranscriptID || segment.id;
+    const previousSourceID = previous.sourceTranscriptID || previous.id;
+    return `${sourceID === previousSourceID ? '' : '\n'}${segment.text}`;
+  }).join('');
   const isPassThrough = areEquivalentLanguages(first.sourceLanguageCode, targetLanguageCode);
   return {
     sourceTranscriptIDs,

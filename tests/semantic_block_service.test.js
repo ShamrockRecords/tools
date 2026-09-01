@@ -1,11 +1,12 @@
 const assert = require('assert');
 
 const {
+  DEFAULT_MINIMUM_BLOCK_CHARACTERS,
+  DEFAULT_MAXIMUM_BLOCK_CHARACTERS,
   SemanticBlockService,
-  SemanticBlockServiceError,
-  createResponsesRequest,
+  hasSentenceEnding,
   partitionHardBoundaryGroups,
-  validateBoundaryOutput,
+  splitSegmentAtSentenceEndings,
 } = require('../modules/translation/semantic_block_service');
 
 function segment(id, overrides = {}) {
@@ -16,73 +17,80 @@ function segment(id, overrides = {}) {
     recognitionRunID: 'run-1',
     sourceLanguageCode: 'ja',
     label: '話者1',
-    text: `${id}の本文です。`,
+    text: `${id}の本文`,
     ...overrides,
   };
 }
 
-function structuredResponse(blocks) {
-  return {
-    status: 'completed',
-    output: [{
-      type: 'message',
-      content: [{
-        type: 'output_text',
-        text: JSON.stringify({
-          blocks: blocks.map((sourceTranscriptIDs) => ({ sourceTranscriptIDs })),
-        }),
-      }],
-    }],
-  };
+function sourceIDs(blocks) {
+  return blocks.map((block) => block.map((item) => item.sourceTranscriptID || item.id));
 }
 
 async function main() {
-  const single = new SemanticBlockService();
-  assert.deepStrictEqual(
-    await single.groupSegments([segment('s1')]),
-    [[segment('s1')]]
-  );
+  assert.strictEqual(DEFAULT_MINIMUM_BLOCK_CHARACTERS, 60);
+  assert.strictEqual(DEFAULT_MAXIMUM_BLOCK_CHARACTERS, 160);
+  assert.strictEqual(hasSentenceEnding('文です。'), true);
+  assert.strictEqual(hasSentenceEnding('文です！」'), true);
+  assert.strictEqual(hasSentenceEnding('Sentence?'), true);
+  assert.strictEqual(hasSentenceEnding('まだ続く'), false);
 
-  const calls = [];
-  const service = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    model: 'test-boundary-model',
-    requester: async (request) => {
-      calls.push(request);
-      const userInput = JSON.parse(request.body.input[1].content[0].text);
-      const ids = userInput.segments.map((item) => item.id);
-      return ids.length === 3
-        ? structuredResponse([['0', '1'], ['2']])
-        : structuredResponse([ids]);
-    },
-  });
-  const sourceSegments = [
-    segment('s1'),
-    segment('s2'),
-    segment('s3'),
-    segment('s4', { inputID: 'input-2' }),
-    segment('s5', { inputID: 'input-2' }),
-  ];
-  const blocks = await service.groupSegments(sourceSegments);
-  assert.deepStrictEqual(blocks.map((block) => block.map((item) => item.id)), [
+  const service = new SemanticBlockService({ minimumBlockCharacters: 10 });
+  const sentenceBlocks = await service.groupSegments([
+    segment('s1', { text: 'これは' }),
+    segment('s2', { text: '最初の文です。' }),
+    segment('s3', { text: '次の文章として十分です！' }),
+    segment('s4', { text: '句点がなく' }),
+    segment('s5', { text: '最後まで続きます' }),
+  ]);
+  assert.deepStrictEqual(sourceIDs(sentenceBlocks), [
     ['s1', 's2'],
     ['s3'],
     ['s4', 's5'],
   ]);
-  assert.strictEqual(calls.length, 2);
-  assert.strictEqual(calls[0].body.model, 'test-boundary-model');
-  assert.strictEqual(calls[0].body.store, false);
-  assert.strictEqual(calls[0].body.text.format.type, 'json_schema');
-  assert.strictEqual(calls[0].body.text.format.strict, true);
-  assert.match(calls[0].headers.Authorization, /^Bearer /);
-  assert.deepStrictEqual(
-    JSON.parse(calls[0].body.input[1].content[0].text)
-      .segments.map((item) => item.id),
-    ['0', '1', '2']
-  );
-  const firstBoundaryInput = JSON.parse(calls[0].body.input[1].content[0].text);
-  assert.strictEqual(firstBoundaryInput.softTargetCharacters, 160);
-  assert.strictEqual(firstBoundaryInput.maximumBlockCharacters, 240);
+
+  const defaultService = new SemanticBlockService();
+  const mergedShortSentences = await defaultService.groupSegments([
+    segment('short-1', { text: 'はい。' }),
+    segment('short-2', { text: 'そうです。' }),
+    segment('short-3', { text: 'もう少し詳しく説明するための文章です。'.repeat(2) }),
+  ]);
+  assert.deepStrictEqual(sourceIDs(mergedShortSentences), [
+    ['short-1', 'short-2', 'short-3', 'short-3'],
+  ]);
+
+  const cappedService = new SemanticBlockService({ maximumBlockCharacters: 50 });
+  const cappedBlocks = await cappedService.groupSegments([
+    segment('cap-1', { text: 'a'.repeat(30) }),
+    segment('cap-2', { text: 'b'.repeat(30) }),
+    segment('cap-3', { text: 'c'.repeat(10) + '。' }),
+  ]);
+  assert.deepStrictEqual(sourceIDs(cappedBlocks), [
+    ['cap-1'],
+    ['cap-2', 'cap-3'],
+  ]);
+
+  const singleLongBlock = await cappedService.groupSegments([
+    segment('long', { text: 'a'.repeat(80) }),
+  ]);
+  assert.deepStrictEqual(sourceIDs(singleLongBlock), [
+    ['long'],
+    ['long'],
+  ]);
+
+  const splitSource = segment('multi-sentence', {
+    text: '一文です。二文目です！最後です。',
+    startMilliseconds: 1000,
+    endMilliseconds: 4000,
+  });
+  const splitFragments = splitSegmentAtSentenceEndings(splitSource, 160);
+  assert.deepStrictEqual(splitFragments.map((item) => item.text), [
+    '一文です。',
+    '二文目です！',
+    '最後です。',
+  ]);
+  assert.strictEqual(splitFragments[0].startMilliseconds, 1000);
+  assert.strictEqual(splitFragments[splitFragments.length - 1].endMilliseconds, 4000);
+  assert.ok(splitFragments[0].endMilliseconds <= splitFragments[1].startMilliseconds);
 
   const hardGroups = partitionHardBoundaryGroups([
     segment('a'),
@@ -103,234 +111,42 @@ async function main() {
     ['f'],
   ]);
 
-  let legacyRunCalls = 0;
-  const legacyRunService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      legacyRunCalls += 1;
-      return structuredResponse([['0', '1']]);
-    },
-  });
+  const hardBoundaryBlocks = await service.groupSegments([
+    segment('hard-1', { text: '前半' }),
+    segment('hard-2', { text: '後半。', inputID: 'input-2' }),
+  ]);
+  assert.deepStrictEqual(sourceIDs(hardBoundaryBlocks), [
+    ['hard-1'],
+    ['hard-2'],
+  ]);
+
   const missingRun = segment('legacy-1');
   delete missingRun.recognitionRunID;
-  const legacyRunBlocks = await legacyRunService.groupSegments([
+  const legacyBlocks = await service.groupSegments([
     missingRun,
-    segment('legacy-2', { recognitionRunID: null }),
+    segment('legacy-2', { recognitionRunID: null, text: '完了。' }),
   ]);
-  assert.deepStrictEqual(
-    legacyRunBlocks.map((block) => block.map((item) => item.id)),
-    [['legacy-1', 'legacy-2']]
-  );
-  assert.strictEqual(legacyRunCalls, 1);
-
-  assert.deepStrictEqual(
-    validateBoundaryOutput(['a', 'b', 'c'], {
-      blocks: [
-        { sourceTranscriptIDs: ['a', 'b'] },
-        { sourceTranscriptIDs: ['c'] },
-      ],
-    }),
-    [['a', 'b'], ['c']]
-  );
-
-  const invalidOutputs = [
-    { blocks: [{ sourceTranscriptIDs: ['a', 'b'] }] },
-    { blocks: [{ sourceTranscriptIDs: ['a', 'b', 'b', 'c'] }] },
-    { blocks: [{ sourceTranscriptIDs: ['a', 'c'] }, { sourceTranscriptIDs: ['b'] }] },
-    { blocks: [{ sourceTranscriptIDs: ['b', 'a', 'c'] }] },
-    { blocks: [] },
-    { blocks: [{ sourceTranscriptIDs: ['a', 'b', 'c'], extra: true }] },
-    { blocks: [{ sourceTranscriptIDs: ['a', 'b', 'c'] }], extra: true },
-  ];
-  for (const output of invalidOutputs) {
-    assert.throws(
-      () => validateBoundaryOutput(['a', 'b', 'c'], output),
-      (error) => error.code === 'INVALID_SEMANTIC_BOUNDARIES'
-    );
-  }
-
-  const invalidResponseService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => structuredResponse([['s1']]),
-  });
-  assert.deepStrictEqual(
-    (await invalidResponseService.groupSegments([segment('s1'), segment('s2')]))
-      .map((block) => block.map((item) => item.id)),
-    [['s1', 's2']]
-  );
-
-  const missingStatusService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => ({
-      output: structuredResponse([['s1', 's2']]).output,
-    }),
-  });
-  assert.deepStrictEqual(
-    (await missingStatusService.groupSegments([segment('s1'), segment('s2')]))
-      .map((block) => block.map((item) => item.id)),
-    [['s1', 's2']]
-  );
-
-  const refusalService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => ({
-      ...structuredResponse([['s1', 's2']]),
-      output_text: JSON.stringify({
-        blocks: [{ sourceTranscriptIDs: ['s1', 's2'] }],
-      }),
-      output: [{ content: [{ type: 'refusal', refusal: 'no' }] }],
-    }),
-  });
-  await assert.rejects(
-    refusalService.groupSegments([segment('s1'), segment('s2')]),
-    (error) => error.code === 'OPENAI_REFUSED'
-  );
-
-  let retryCalls = 0;
-  const retryingService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      retryCalls += 1;
-      if (retryCalls === 1) {
-        throw new SemanticBlockServiceError('OPENAI_RATE_LIMITED', 'temporary', 429);
-      }
-      return structuredResponse([['0', '1']]);
-    },
-  });
-  assert.deepStrictEqual(
-    (await retryingService.groupSegments([segment('s1'), segment('s2')]))
-      .map((block) => block.map((item) => item.id)),
-    [['s1', 's2']]
-  );
-  assert.strictEqual(retryCalls, 2);
-
-  let invalidBoundaryRetryCalls = 0;
-  const invalidBoundaryRetryService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      invalidBoundaryRetryCalls += 1;
-      return invalidBoundaryRetryCalls === 1
-        ? structuredResponse([['1', '0']])
-        : structuredResponse([['0'], ['1']]);
-    },
-  });
-  assert.deepStrictEqual(
-    (await invalidBoundaryRetryService.groupSegments([
-      segment('UPPERCASE-ID-A'),
-      segment('UPPERCASE-ID-B'),
-    ])).map((block) => block.map((item) => item.id)),
-    [['UPPERCASE-ID-A'], ['UPPERCASE-ID-B']]
-  );
-  assert.strictEqual(invalidBoundaryRetryCalls, 2);
-
-  const macUUIDs = [
-    'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
-    'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB',
-  ];
-  let uuidProviderIDs;
-  let uuidProviderInput;
-  const uuidService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async (request) => {
-      uuidProviderInput = request.body.input[1].content[0].text;
-      const input = JSON.parse(request.body.input[1].content[0].text);
-      uuidProviderIDs = input.segments.map((item) => item.id);
-      return structuredResponse([['0', '1']]);
-    },
-  });
-  assert.deepStrictEqual(
-    (await uuidService.groupSegments(macUUIDs.map((id) => segment(id, {
-      text: 'UUIDを含まない合成本文です。',
-    })))).map((block) => block.map((item) => item.id)),
-    [macUUIDs]
-  );
-  assert.deepStrictEqual(uuidProviderIDs, ['0', '1']);
-  for (const id of macUUIDs) assert.ok(!uuidProviderInput.includes(id));
-
-  let fallbackCalls = 0;
-  const fallbackService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    softTargetCharacters: 50,
-    requester: async () => {
-      fallbackCalls += 1;
-      return structuredResponse([['missing']]);
-    },
-  });
-  assert.deepStrictEqual(
-    (await fallbackService.groupSegments([
-      segment('fallback-1', { text: 'a'.repeat(30) }),
-      segment('fallback-2', { text: 'b'.repeat(30) }),
-      segment('fallback-3', { text: 'c'.repeat(30) }),
-    ])).map((block) => block.map((item) => item.id)),
-    [['fallback-1'], ['fallback-2'], ['fallback-3']]
-  );
-  assert.strictEqual(fallbackCalls, 2);
-
-  let oversizedBoundaryCalls = 0;
-  const oversizedBoundaryService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      oversizedBoundaryCalls += 1;
-      return structuredResponse([['0', '1', '2']]);
-    },
-  });
-  assert.deepStrictEqual(
-    (await oversizedBoundaryService.groupSegments([
-      segment('oversized-1', { text: 'a'.repeat(100) }),
-      segment('oversized-2', { text: 'b'.repeat(100) }),
-      segment('oversized-3', { text: 'c'.repeat(100) }),
-    ])).map((block) => block.map((item) => item.id)),
-    [['oversized-1'], ['oversized-2'], ['oversized-3']]
-  );
-  assert.strictEqual(oversizedBoundaryCalls, 1);
-
-  let exhaustedRetryCalls = 0;
-  const exhaustedRetryService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      exhaustedRetryCalls += 1;
-      throw new SemanticBlockServiceError('OPENAI_REQUEST_FAILED', 'temporary', 500);
-    },
-  });
-  await assert.rejects(
-    exhaustedRetryService.groupSegments([segment('s1'), segment('s2')]),
-    (error) => error.code === 'OPENAI_REQUEST_FAILED'
-  );
-  assert.strictEqual(exhaustedRetryCalls, 2);
-
-  let oversizedJoinCalls = 0;
-  const boundedJoinService = new SemanticBlockService({
-    apiKey: 'test-openai-key',
-    requester: async () => {
-      oversizedJoinCalls += 1;
-      throw new Error('5,000文字を超える結合はOpenAIへ送らない');
-    },
-  });
-  const boundedJoinBlocks = await boundedJoinService.groupSegments([
-    segment('long-1', { text: 'a'.repeat(2500) }),
-    segment('long-2', { text: 'b'.repeat(2500) }),
+  assert.deepStrictEqual(sourceIDs(legacyBlocks), [
+    ['legacy-1', 'legacy-2'],
   ]);
-  assert.deepStrictEqual(
-    boundedJoinBlocks.map((block) => block.map((item) => item.id)),
-    [['long-1'], ['long-2']]
-  );
-  assert.strictEqual(oversizedJoinCalls, 0);
 
-  const missingKeyService = new SemanticBlockService({ apiKey: '' });
   await assert.rejects(
-    missingKeyService.groupSegments([segment('s1'), segment('s2')]),
-    (error) => error.code === 'OPENAI_NOT_CONFIGURED'
+    service.groupSegments([segment('duplicate'), segment('duplicate')]),
+    (error) => error.code === 'INVALID_TRANSLATION_SEGMENTS'
+  );
+  await assert.rejects(
+    service.groupSegments([segment('empty', { text: '   ' })]),
+    (error) => error.code === 'INVALID_TRANSLATION_SEGMENTS'
   );
 
-  const structuredRequest = createResponsesRequest({
-    model: 'test-model',
-    segments: [segment('s1')],
-    softTargetCharacters: 300,
-  });
-  assert.strictEqual(structuredRequest.store, false);
-  assert.strictEqual(structuredRequest.text.format.schema.additionalProperties, false);
-  const structuredInput = JSON.parse(structuredRequest.input[1].content[0].text);
-  assert.strictEqual(structuredInput.maximumBlockCharacters, 450);
+  const noKeyService = new SemanticBlockService();
+  assert.deepStrictEqual(
+    (await noKeyService.groupSegments([
+      segment('no-key-1'),
+      segment('no-key-2', { text: 'APIキーなしでも完了。' }),
+    ])).map((block) => block.map((item) => item.sourceTranscriptID || item.id)),
+    [['no-key-1', 'no-key-2']]
+  );
 }
 
 main()

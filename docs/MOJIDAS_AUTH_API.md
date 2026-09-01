@@ -278,11 +278,11 @@ Authorization: Bearer {accessToken}
 }
 ```
 
-OpenAI Responses APIは発話IDのグループ分けだけに使用し、翻訳・本文修正は行わせません。Structured Outputsを使い、全IDが入力順のまま重複・欠落なく一度ずつ含まれることをサーバーで検証します。Googleの翻訳件数、空文字、応答形式も検証し、全翻訳が成功した場合だけ応答します。
+意味ブロックはserver内で文末記号と文字数上限から決定し、外部LLMは使用しません。Googleの翻訳件数、空文字、応答形式を検証し、全翻訳が成功した場合だけ応答します。
 
 更新時は`reusableBlocks`を省略できます。指定する各候補には、以前の正式翻訳応答blockでサーバーが発行した`reuseToken`が必須です。サーバーは意味ブロック生成後に発話ID列、原文fingerprint、翻訳元・翻訳先言語が完全一致し、かつHMAC署名が現在のユーザー、provider、pass-through状態、翻訳本文に一致するblockだけを再利用します。署名不一致やsecret変更後の候補はエラーにせず通常翻訳へ戻します。再利用blockはGoogleへ再送せず、`isReused: true`で返し、課金区間にも含めません。ユーザーが編集した表示用翻訳はクライアント側で保持し、`reusableBlocks.translatedText`には保存済みのプロバイダー原文を指定します。正式翻訳の応答は各blockへ新しい`reuseToken`（署名用secret未設定時は`null`）を含めます。
 
-Google／OpenAIの429、5xx、タイムアウト等の一時エラーは同一リクエスト内で最大1回だけ再試行します。入力不備、認証失敗、検証失敗は再試行しません。
+Googleの429、5xx、タイムアウト等の一時エラーは同一リクエスト内で最大1回だけ再試行します。入力不備、認証失敗、検証失敗は再試行しません。
 
 正式翻訳の`billableMilliseconds`は、対象言語と異なる発話区間を`inputID + recordingID + recognitionRunID`ごとにunionしてから合計した値です。Google翻訳がすべて成功した後、この時間を既存の残時間から消費します。`chargedMilliseconds`は実際の消費量で、時間無制限ユーザーは0です。同一ユーザー・同一`idempotencyKey`の再試行はFirestore台帳で冪等に処理し、二重消費しません。台帳には正規化済み正式翻訳リクエスト全体のSHA-256も保存し、本文等が異なる同一keyは消費時間が偶然同じでも`IDEMPOTENCY_CONFLICT`として拒否します。
 
@@ -353,11 +353,11 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 失敗時のMojidas error envelopeを処理する。jobは現在Expressプロセスのメモリ上で
 30分保持するため、複数dynoへ拡張する際はrate limitと合わせて共有ストアへ移行する。
 
-意味ブロック判定では端末由来のUUIDをOpenAIへ復唱させず、request内だけで有効な
-数字の連番へ置き換える。応答が欠落・重複・順序違反などで検証に失敗した場合は1回だけ
-再試行し、再度失敗した場合は発話順とhard boundaryを維持した固定文字数blockへ
-フォールバックして、本文翻訳を継続する。編集しやすさのため通常は約160文字を目安とし、
-単一発話だけで上限を超える場合を除いて240文字を超えた判定blockはサーバーで再分割する。
+意味ブロックはLLMへ依存せず、`。`、`！`、`？`と半角の`.!?`を分割候補にする。
+既定60文字へ達した後の最初の文末記号でblockを閉じ、文末記号が現れない場合は
+既定160文字を上限として分割する。1発話内に複数の文がある場合も文単位へ分ける。
+入力、録音、認識実行、認識言語、話者の変化は従来どおりhard boundaryとし、
+発話内を分けた断片の時刻は元発話区間へ文字量で比例配分する。
 
 ## 必須設定
 
@@ -380,16 +380,15 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `MOJIDAS_CHECKOUT_SUCCESS_URL`（任意）
 - `MOJIDAS_CHECKOUT_CANCEL_URL`（任意）
 - `MOJIDAS_GOOGLE_TRANSLATION_API_KEY`
-- `OPENAI_API_KEY`
-- `MOJIDAS_TRANSLATION_BOUNDARY_MODEL`（任意。既定値`gpt-4o-mini`）
-- `MOJIDAS_TRANSLATION_BLOCK_TARGET_CHARACTERS`（任意。意味blockの目安文字数。既定値`160`、上限は指定値の1.5倍）
+- `MOJIDAS_TRANSLATION_BLOCK_MIN_CHARACTERS`（任意。文末でblockを閉じる最小文字数。既定値`60`）
+- `MOJIDAS_TRANSLATION_BLOCK_MAX_CHARACTERS`（任意。文末記号がない意味blockの上限。既定値`160`）
 - `MOJIDAS_TRANSLATION_REUSE_SECRET`（任意。正式翻訳blockの再利用署名用。未設定時はGoogle翻訳API keyを使用）
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
 StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,200円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
 
-翻訳用のGoogle／OpenAIキーと再利用署名secretもHeroku Config Vars等のサーバー秘密情報として設定します。GoogleキーはCloud Translation APIだけにAPI制限し、可能なら本番サーバーの送信元IP制限も設定してください。`MOJIDAS_TRANSLATION_REUSE_SECRET`がなければGoogleキーをHMAC署名にも使用し、両方なければ再利用候補を信用せず通常翻訳へ戻します。いずれの秘密情報もURL、ログ、Webページ、Mac／Windowsアプリ、Firestoreへ含めません。
+翻訳用のGoogleキーと再利用署名secretもHeroku Config Vars等のサーバー秘密情報として設定します。GoogleキーはCloud Translation APIだけにAPI制限し、可能なら本番サーバーの送信元IP制限も設定してください。`MOJIDAS_TRANSLATION_REUSE_SECRET`がなければGoogleキーをHMAC署名にも使用し、両方なければ再利用候補を信用せず通常翻訳へ戻します。いずれの秘密情報もURL、ログ、Webページ、Mac／Windowsアプリ、Firestoreへ含めません。
 
 通常のリアルタイム認識キーは`ACP_API_KEY_EXPIRY_MS`を使います。credit reservationの`mode`が`mediaFile`の場合は、ACP非同期HTTP v2の待機・再認証を考慮して600000 ms（10分）のキーを発行します。クライアントが送る`purpose`だけでは期限を変更せず、必ず保存済みreservationのmodeを根拠にします。
 
