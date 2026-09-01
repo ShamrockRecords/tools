@@ -77,6 +77,22 @@ async function main() {
       if (nextError) throw nextError;
       return { translatedText: 'Hello', sourceTranscriptID: value.request.sourceTranscriptID };
     },
+    async estimateFormal(value) {
+      calls.push(['formal-estimate', value]);
+      if (nextError) throw nextError;
+      return {
+        sourceSessionID: value.request.sourceSessionID,
+        targetLanguageCode: value.request.targetLanguageCode,
+        targetMilliseconds: 2400,
+        billingRate: 0.5,
+        billableMilliseconds: 1200,
+        totalBlockCount: 3,
+        translationBlockCount: 2,
+        reusedBlockCount: 1,
+        passThroughBlockCount: 0,
+        noTranslationRequired: false,
+      };
+    },
     async translateFormal(value) {
       calls.push(['formal', value]);
       if (nextError) throw nextError;
@@ -180,6 +196,29 @@ async function main() {
       segments: [],
       idempotencyKey: 'formal-1',
     };
+    const estimateBody = {
+      sourceSessionID: formalBody.sourceSessionID,
+      targetLanguageCode: formalBody.targetLanguageCode,
+      segments: formalBody.segments,
+      reusableBlocks: [],
+    };
+    response = await request(
+      server,
+      'POST',
+      '/api/mojidas/translation/formal/estimate',
+      estimateBody,
+      'user-one-token'
+    );
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.targetMilliseconds, 2400);
+    assert.strictEqual(response.body.billingRate, 0.5);
+    assert.strictEqual(response.body.billableMilliseconds, 1200);
+    assert.strictEqual(creditCalls.length, 0);
+    assert.deepStrictEqual(calls.at(-1), [
+      'formal-estimate',
+      { userID: 'user-1', request: estimateBody },
+    ]);
+
     response = await request(
       server,
       'POST',

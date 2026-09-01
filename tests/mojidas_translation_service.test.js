@@ -5,6 +5,7 @@ const {
   MojidasTranslationService,
   areEquivalentLanguages,
   calculateBillableMilliseconds,
+  calculateTranslationChargeMilliseconds,
   googleTranslationLanguageCode,
   textFingerprint,
 } = require('../modules/translation/mojidas_translation_service');
@@ -196,6 +197,31 @@ async function main() {
       colorHex: 'FF0000',
     }),
   ];
+  const estimateGoogle = fakeGoogle();
+  const estimateService = new MojidasTranslationService({
+    googleTranslation: estimateGoogle,
+    semanticBlockService: {
+      async groupSegments(segments) { return [segments]; },
+    },
+    reuseSecret: 'estimate-test-secret',
+  });
+  const initialEstimate = await estimateService.estimateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-estimate',
+      targetLanguageCode: 'en',
+      segments: formalSegments,
+    },
+  });
+  assert.strictEqual(initialEstimate.targetMilliseconds, 1900);
+  assert.strictEqual(initialEstimate.billingRate, 0.5);
+  assert.strictEqual(initialEstimate.billableMilliseconds, 950);
+  assert.strictEqual(initialEstimate.translationBlockCount, 2);
+  assert.strictEqual(initialEstimate.passThroughBlockCount, 1);
+  assert.strictEqual(initialEstimate.reusedBlockCount, 0);
+  assert.strictEqual(initialEstimate.noTranslationRequired, false);
+  assert.strictEqual(estimateGoogle.calls.translations.length, 0);
+
   const limitedFormalService = new MojidasTranslationService({
     googleTranslation: fakeGoogle(),
     semanticBlockService,
@@ -300,7 +326,9 @@ async function main() {
   assert.strictEqual(formalResult.blocks[2].inputID, 'input-2');
   assert.strictEqual(formalResult.blocks[2].label, '話者2');
   assert.strictEqual(formalResult.blocks[2].colorHex, 'FF0000');
-  assert.strictEqual(formalResult.billableMilliseconds, 1900);
+  assert.strictEqual(formalResult.targetMilliseconds, 1900);
+  assert.strictEqual(formalResult.billingRate, 0.5);
+  assert.strictEqual(formalResult.billableMilliseconds, 950);
   assert.strictEqual(formalResult.noTranslationRequired, false);
   assert.strictEqual(semanticCalls, 2);
   assert.deepStrictEqual(
@@ -358,6 +386,29 @@ async function main() {
 
   const reusableSourceBlock = formalResult.blocks[0];
   assert.match(reusableSourceBlock.reuseToken, /^mojidas-reuse-v1\.[A-Za-z0-9_-]{43}$/);
+  const translationCallCountBeforeUpdateEstimate = google.calls.translations.length;
+  const updateEstimate = await service.estimateFormal({
+    userID: 'user-1',
+    request: {
+      sourceSessionID: 'session-1',
+      targetLanguageCode: 'en',
+      segments: formalSegments,
+      reusableBlocks: [{
+        sourceTranscriptIDs: reusableSourceBlock.sourceTranscriptIDs,
+        sourceTextFingerprint: reusableSourceBlock.sourceTextFingerprint,
+        sourceLanguageCode: reusableSourceBlock.sourceLanguageCode,
+        targetLanguageCode: 'en',
+        translatedText: reusableSourceBlock.translatedText,
+        provider: reusableSourceBlock.provider,
+        isPassThrough: reusableSourceBlock.isPassThrough,
+        reuseToken: reusableSourceBlock.reuseToken,
+      }],
+    },
+  });
+  assert.strictEqual(updateEstimate.targetMilliseconds, 400);
+  assert.strictEqual(updateEstimate.billableMilliseconds, 200);
+  assert.strictEqual(updateEstimate.reusedBlockCount, 1);
+  assert.strictEqual(google.calls.translations.length, translationCallCountBeforeUpdateEstimate);
   const updateResult = await service.translateFormal({
     userID: 'user-1',
     request: {
@@ -381,7 +432,8 @@ async function main() {
   assert.strictEqual(updateResult.blocks[0].translatedText, reusableSourceBlock.translatedText);
   assert.strictEqual(updateResult.blocks[0].reuseToken, reusableSourceBlock.reuseToken);
   assert.strictEqual(updateResult.reusedBlockCount, 1);
-  assert.strictEqual(updateResult.billableMilliseconds, 400);
+  assert.strictEqual(updateResult.targetMilliseconds, 400);
+  assert.strictEqual(updateResult.billableMilliseconds, 200);
   assert.deepStrictEqual(google.calls.translations.at(-1).texts, ['s4の本文']);
 
   const macOSTranscriptID = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA';
@@ -425,6 +477,7 @@ async function main() {
   });
   assert.strictEqual(windowsReuseResult.blocks[0].isReused, true);
   assert.strictEqual(windowsReuseResult.billableMilliseconds, 0);
+  assert.strictEqual(windowsReuseResult.noTranslationRequired, true);
 
   const timingAndLabelUpdateResult = await service.translateFormal({
     userID: 'user-1',
@@ -475,7 +528,8 @@ async function main() {
     },
   });
   assert.strictEqual(reusableMismatchResult.reusedBlockCount, 0);
-  assert.strictEqual(reusableMismatchResult.billableMilliseconds, 1900);
+  assert.strictEqual(reusableMismatchResult.targetMilliseconds, 1900);
+  assert.strictEqual(reusableMismatchResult.billableMilliseconds, 950);
   assert.deepStrictEqual(
     google.calls.translations.at(-1).texts,
     ['s1の本文\ns2の本文', 's4の本文']
@@ -501,7 +555,7 @@ async function main() {
     },
   });
   assert.strictEqual(forgedReuseResult.reusedBlockCount, 0);
-  assert.strictEqual(forgedReuseResult.billableMilliseconds, 1900);
+  assert.strictEqual(forgedReuseResult.billableMilliseconds, 950);
   assert.strictEqual(forgedReuseResult.blocks[0].translatedText, 'translated:s1の本文\ns2の本文');
 
   const otherUserReuseResult = await service.translateFormal({
@@ -524,7 +578,7 @@ async function main() {
     },
   });
   assert.strictEqual(otherUserReuseResult.reusedBlockCount, 0);
-  assert.strictEqual(otherUserReuseResult.billableMilliseconds, 1900);
+  assert.strictEqual(otherUserReuseResult.billableMilliseconds, 950);
 
   const noReuseSecretGoogle = fakeGoogle();
   const noReuseSecretService = new MojidasTranslationService({
@@ -552,7 +606,8 @@ async function main() {
     },
   });
   assert.strictEqual(noReuseSecretResult.reusedBlockCount, 0);
-  assert.strictEqual(noReuseSecretResult.billableMilliseconds, 1500);
+  assert.strictEqual(noReuseSecretResult.targetMilliseconds, 1500);
+  assert.strictEqual(noReuseSecretResult.billableMilliseconds, 750);
   assert.strictEqual(noReuseSecretResult.blocks[0].reuseToken, null);
 
   const previousReuseSecret = process.env.MOJIDAS_TRANSLATION_REUSE_SECRET;
@@ -613,6 +668,8 @@ async function main() {
     sourceSegment('e', { sourceLanguageCode: 'en', startMilliseconds: 0, endMilliseconds: 5000 }),
   ], 'en');
   assert.strictEqual(directBillable, 2700);
+  assert.strictEqual(calculateTranslationChargeMilliseconds(directBillable), 1350);
+  assert.strictEqual(calculateTranslationChargeMilliseconds(1), 1);
 
   const onlyPassGoogle = fakeGoogle();
   let onlyPassSemanticCalls = 0;

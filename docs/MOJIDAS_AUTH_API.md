@@ -218,7 +218,9 @@ Authorization: Bearer {accessToken}
 
 ### 翻訳API
 
-翻訳APIはすべてFirebase IDトークンを必要とします。翻訳先はCloud Translation Basic v2のNMTモデルが返す全対応言語です。APIキーはサーバーだけが保持し、アプリへ返しません。
+翻訳APIはすべてFirebase IDトークンを必要とします。翻訳本文はCloud Translation Basic v2の標準NMTだけで生成し、主翻訳、fallback、事後校正、品質判定、意味ブロック生成にLLMを使用しません。Google NMTが失敗した場合も別の生成AIへfallbackせず、翻訳失敗を返します。翻訳先は同NMTモデルが返す全対応言語です。APIキーはサーバーだけが保持し、アプリへ返しません。
+
+翻訳の同一性と差分判定は翻訳結果ではなく原文を正本にします。`sourceTextFingerprint`は原文をNFC正規化したUTF-8のSHA-256で、`sha256-nfc-v1:<lowercase hex>`形式です。サーバーは受信した原文から再計算し、指定fingerprintと一致しなければ`SOURCE_TEXT_FINGERPRINT_MISMATCH`で拒否します。翻訳結果や利用者編集済みの翻訳文は、原文の同一性キーに使用しません。
 
 `GET /api/mojidas/translation/languages?displayLanguage=ja`は、Googleから動的に取得してキャッシュした言語コードと表示名を返します。
 
@@ -279,13 +281,32 @@ Authorization: Bearer {accessToken}
 }
 ```
 
+`POST /api/mojidas/translation/formal/estimate`は、上記と同じ`sourceSessionID`、`targetLanguageCode`、`segments`、`reusableBlocks`を受け付けます。`idempotencyKey`は不要です。正式翻訳と同じ意味ブロック生成、原文fingerprint検証、再利用判定、課金区間unionを行いますが、Google翻訳、翻訳job作成、残時間の予約・消費は行いません。
+
+```json
+{
+  "sourceSessionID": "session-id",
+  "targetLanguageCode": "en",
+  "targetMilliseconds": 120000,
+  "billingRate": 0.5,
+  "billableMilliseconds": 60000,
+  "totalBlockCount": 10,
+  "translationBlockCount": 4,
+  "reusedBlockCount": 5,
+  "passThroughBlockCount": 1,
+  "noTranslationRequired": false
+}
+```
+
+初回見積もりは同一言語pass-throughを除く全blockが翻訳対象です。更新時は、署名付き再利用候補のうち原文fingerprint等が一致するblockを除いた差分だけが対象になります。`noTranslationRequired`は新たにGoogleへ送るblockがない場合に`true`です。
+
 意味ブロックはserver内で文末記号と文字数上限から決定し、外部LLMは使用しません。Googleの翻訳件数、空文字、応答形式を検証し、全翻訳が成功した場合だけ応答します。
 
-更新時は`reusableBlocks`を省略できます。指定する各候補には、以前の正式翻訳応答blockでサーバーが発行した`reuseToken`が必須です。サーバーは意味ブロック生成後に発話ID列、原文fingerprint、翻訳元・翻訳先言語が完全一致し、かつHMAC署名が現在のユーザー、provider、pass-through状態、翻訳本文に一致するblockだけを再利用します。署名不一致やsecret変更後の候補はエラーにせず通常翻訳へ戻します。再利用blockはGoogleへ再送せず、`isReused: true`で返し、課金区間にも含めません。ユーザーが編集した表示用翻訳はクライアント側で保持し、`reusableBlocks.translatedText`には保存済みのプロバイダー原文を指定します。正式翻訳の応答は各blockへ新しい`reuseToken`（署名用secret未設定時は`null`）を含めます。
+更新時は`reusableBlocks`を省略できます。指定する各候補には、以前の正式翻訳応答blockでサーバーが発行した`reuseToken`が必須です。blockの差分照合・再利用キーは、順序付き発話ID列、原文fingerprint、正規化済み翻訳元・翻訳先言語です。翻訳結果は同一性キーに含めませんが、改ざん防止のためHMAC署名対象に含めます。サーバーは意味ブロック生成後にこのキーが完全一致し、かつHMAC署名が現在のユーザー、provider、pass-through状態、翻訳本文に一致するblockだけを再利用します。署名不一致やsecret変更後の候補はエラーにせず通常翻訳へ戻します。再利用blockはGoogleへ再送せず、`isReused: true`で返し、課金区間にも含めません。ユーザーが編集した表示用翻訳はクライアント側で保持し、`reusableBlocks.translatedText`には保存済みのプロバイダー生成翻訳を指定します。正式翻訳の応答は各blockへ新しい`reuseToken`（署名用secret未設定時は`null`）を含めます。
 
 Googleの429、5xx、タイムアウト等の一時エラーは同一リクエスト内で最大1回だけ再試行します。入力不備、認証失敗、検証失敗は再試行しません。
 
-正式翻訳の`billableMilliseconds`は、対象言語と異なる発話区間を`inputID + recordingID + recognitionRunID`ごとにunionしてから合計した値です。Google翻訳がすべて成功した後、この時間を既存の残時間から消費します。`chargedMilliseconds`は実際の消費量で、時間無制限ユーザーは0です。同一ユーザー・同一`idempotencyKey`の再試行はFirestore台帳で冪等に処理し、二重消費しません。台帳には正規化済み正式翻訳リクエスト全体のSHA-256も保存し、本文等が異なる同一keyは消費時間が偶然同じでも`IDEMPOTENCY_CONFLICT`として拒否します。
+正式翻訳の`targetMilliseconds`は、対象言語と異なる発話区間を`inputID + recordingID + recognitionRunID`ごとにunionしてから合計した値です。`billableMilliseconds`は`ceil(targetMilliseconds × 0.5)`で、Google翻訳がすべて成功した後にこの時間を既存の残時間から消費します。`billingRate`は`0.5`です。`chargedMilliseconds`は実際の消費量で、時間無制限ユーザーは0です。同一ユーザー・同一`idempotencyKey`の再試行はFirestore台帳で冪等に処理し、二重消費しません。台帳には正規化済み正式翻訳リクエスト全体のSHA-256も保存し、本文等が異なる同一keyは消費時間が偶然同じでも`IDEMPOTENCY_CONFLICT`として拒否します。
 
 ### 音声認識時間の購入
 
@@ -343,6 +364,7 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 | checkout-session | 1時間に20回 |
 | translation/languages | 認証ユーザーごとに1分30回 |
 | translation/realtime | 認証ユーザーごとに1分120回 |
+| translation/formal/estimate | 認証ユーザーごとに1分60回 |
 | translation/formal | 認証ユーザーごとに1時間20回 |
 | translation/formal/jobs/:jobID | 認証ユーザーごとに1分180回 |
 

@@ -121,6 +121,12 @@ function createMojidasRouter({
     keyPrefix: 'mojidas-translation-formal',
     keyGenerator: authenticatedUserRateLimitKey,
   });
+  const formalTranslationEstimateRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 60,
+    keyPrefix: 'mojidas-translation-formal-estimate',
+    keyGenerator: authenticatedUserRateLimitKey,
+  });
   const formalTranslationPollingRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 1000,
     max: 180,
@@ -353,6 +359,22 @@ function createMojidasRouter({
     async function (req, res) {
       try {
         return res.json(await translator.translateRealtime({
+          userID: req.mojidasUser.uid,
+          request: req.body,
+        }));
+      } catch (error) {
+        return sendTranslationError(res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/translation/formal/estimate',
+    authenticate(client),
+    formalTranslationEstimateRateLimit,
+    async function (req, res) {
+      try {
+        return res.json(await translator.estimateFormal({
           userID: req.mojidasUser.uid,
           request: req.body,
         }));
@@ -737,19 +759,11 @@ function sendTranslationError(res, error) {
     SOURCE_TEXT_FINGERPRINT_MISMATCH: [409, '原文が変更されたため翻訳を実行できません。'],
     IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
     GOOGLE_TRANSLATION_NOT_CONFIGURED: [503, 'Google翻訳の設定が完了していません。'],
-    OPENAI_NOT_CONFIGURED: [503, '意味ブロック判定の設定が完了していません。'],
     GOOGLE_TRANSLATION_TIMEOUT: [504, 'Google翻訳への接続がタイムアウトしました。'],
-    OPENAI_TIMEOUT: [504, '意味ブロック判定がタイムアウトしました。'],
     GOOGLE_TRANSLATION_REQUEST_FAILED: [502, 'Google翻訳へ接続できませんでした。'],
     GOOGLE_TRANSLATION_RATE_LIMITED: [503, 'Google翻訳が混み合っています。'],
-    OPENAI_REQUEST_FAILED: [502, '意味ブロック判定サービスへ接続できませんでした。'],
-    OPENAI_RATE_LIMITED: [503, '意味ブロック判定サービスが混み合っています。'],
     GOOGLE_TRANSLATION_RESPONSE_TOO_LARGE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
     GOOGLE_TRANSLATION_INVALID_RESPONSE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
-    OPENAI_INVALID_RESPONSE: [502, '意味ブロック判定サービスから有効な応答を取得できませんでした。'],
-    OPENAI_INCOMPLETE_RESPONSE: [502, '意味ブロック判定を完了できませんでした。'],
-    OPENAI_REFUSED: [502, '意味ブロック判定を実行できませんでした。'],
-    INVALID_SEMANTIC_BOUNDARIES: [502, '意味ブロック判定の応答を検証できませんでした。'],
   };
   const [status, message] = mapping[code] || [502, '翻訳サービスとの通信に失敗しました。'];
   return sendError(res, status, code, message);

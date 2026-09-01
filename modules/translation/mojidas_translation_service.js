@@ -17,6 +17,7 @@ const MAX_IDEMPOTENCY_ENTRIES = 10000;
 const IDEMPOTENCY_TTL_MILLISECONDS = 30 * 60 * 1000;
 const SOURCE_TEXT_FINGERPRINT_PREFIX = 'sha256-nfc-v1:';
 const REUSE_TOKEN_PREFIX = 'mojidas-reuse-v1.';
+const FORMAL_TRANSLATION_BILLING_RATE = 0.5;
 
 class MojidasTranslationServiceError extends Error {
   constructor(code, message, statusCode) {
@@ -179,46 +180,11 @@ class MojidasTranslationService {
       key: operationKey,
       requestFingerprint,
       operation: async () => {
-        await this.assertSupportedLanguages([
-          normalized.targetLanguageCode,
-          ...new Set(normalized.segments.map((segment) => segment.sourceLanguageCode)),
-        ]);
-        const segmentBlocks = [];
-        for (const hardBoundaryGroup of partitionHardBoundaryGroups(normalized.segments)) {
-          if (areEquivalentLanguages(
-            hardBoundaryGroup[0].sourceLanguageCode,
-            normalized.targetLanguageCode
-          )) {
-            // 同一言語は翻訳も意味判定も不要。発話単位を保つことで原文を無加工で残す。
-            segmentBlocks.push(...hardBoundaryGroup.map((segment) => [segment]));
-          } else {
-            segmentBlocks.push(...await this.semanticBlockService.groupSegments(hardBoundaryGroup));
-          }
-        }
-
-        const reusableByKey = new Map(normalized.reusableBlocks.map((block) => [
-          reusableBlockKey(block),
-          block,
-        ]));
-        const blocks = segmentBlocks.map((segments) => createFormalBlock({
-          segments,
-          targetLanguageCode: normalized.targetLanguageCode,
-        })).map((block) => applyReusableBlock({
-          block,
-          userID: normalizedUserID,
-          targetLanguageCode: normalized.targetLanguageCode,
-          reusableByKey,
-          reuseSecret: this.reuseSecret,
-        }));
-        const billableBySourceLanguage = new Map();
-        const billableTranscriptIDs = new Set();
-        blocks.forEach((block, index) => {
-          if (block.isPassThrough || block.isReused) return;
-          const entries = billableBySourceLanguage.get(block.sourceLanguageCode) || [];
-          entries.push({ index, text: block.sourceText });
-          billableBySourceLanguage.set(block.sourceLanguageCode, entries);
-          block.sourceTranscriptIDs.forEach((id) => billableTranscriptIDs.add(id));
+        const plan = await this.createFormalPlan({
+          normalizedUserID,
+          normalized,
         });
+        const { blocks, billableBySourceLanguage } = plan;
 
         for (const [sourceLanguageCode, entries] of billableBySourceLanguage) {
           const translations = await this.googleTranslation.translate({
@@ -239,11 +205,6 @@ class MojidasTranslationService {
           });
         }
 
-        const billableMilliseconds = calculateBillableMilliseconds(
-          normalized.segments,
-          normalized.targetLanguageCode,
-          billableTranscriptIDs
-        );
         const responseBlocks = blocks.map((block) => ({
           ...block,
           reuseToken: createReuseToken({
@@ -257,8 +218,12 @@ class MojidasTranslationService {
           sourceSessionID: normalized.sourceSessionID,
           targetLanguageCode: normalized.targetLanguageCode,
           blocks: responseBlocks,
-          billableMilliseconds,
-          noTranslationRequired: responseBlocks.every((block) => block.isPassThrough),
+          targetMilliseconds: plan.targetMilliseconds,
+          billingRate: FORMAL_TRANSLATION_BILLING_RATE,
+          billableMilliseconds: plan.billableMilliseconds,
+          noTranslationRequired: responseBlocks.every(
+            (block) => block.isPassThrough || block.isReused
+          ),
           reusedBlockCount: responseBlocks.filter((block) => block.isReused).length,
           idempotencyKey: normalized.idempotencyKey,
           // 課金台帳の冪等性照合にだけ使う内部値。API routeで応答から除外する。
@@ -266,6 +231,86 @@ class MojidasTranslationService {
         };
       },
     });
+  }
+
+  async estimateFormal({ userID, request }) {
+    const normalizedUserID = normalizeIdentifier(userID);
+    const normalized = normalizeFormalEstimateRequest(request, {
+      maxSegments: this.maxFormalSegments,
+      maxTextCharacters: this.maxFormalTextCharacters,
+    });
+    if (!normalizedUserID) throw invalidRequest('ユーザー情報を確認できませんでした。');
+    const plan = await this.createFormalPlan({ normalizedUserID, normalized });
+    return {
+      sourceSessionID: normalized.sourceSessionID,
+      targetLanguageCode: normalized.targetLanguageCode,
+      targetMilliseconds: plan.targetMilliseconds,
+      billingRate: FORMAL_TRANSLATION_BILLING_RATE,
+      billableMilliseconds: plan.billableMilliseconds,
+      totalBlockCount: plan.blocks.length,
+      translationBlockCount: plan.blocks.filter(
+        (block) => !block.isPassThrough && !block.isReused
+      ).length,
+      reusedBlockCount: plan.blocks.filter((block) => block.isReused).length,
+      passThroughBlockCount: plan.blocks.filter((block) => block.isPassThrough).length,
+      noTranslationRequired: plan.blocks.every(
+        (block) => block.isPassThrough || block.isReused
+      ),
+    };
+  }
+
+  async createFormalPlan({ normalizedUserID, normalized }) {
+    await this.assertSupportedLanguages([
+      normalized.targetLanguageCode,
+      ...new Set(normalized.segments.map((segment) => segment.sourceLanguageCode)),
+    ]);
+    const segmentBlocks = [];
+    for (const hardBoundaryGroup of partitionHardBoundaryGroups(normalized.segments)) {
+      if (areEquivalentLanguages(
+        hardBoundaryGroup[0].sourceLanguageCode,
+        normalized.targetLanguageCode
+      )) {
+        // 同一言語は翻訳も意味判定も不要。発話単位を保つことで原文を無加工で残す。
+        segmentBlocks.push(...hardBoundaryGroup.map((segment) => [segment]));
+      } else {
+        segmentBlocks.push(...await this.semanticBlockService.groupSegments(hardBoundaryGroup));
+      }
+    }
+
+    const reusableByKey = new Map(normalized.reusableBlocks.map((block) => [
+      reusableBlockKey(block),
+      block,
+    ]));
+    const blocks = segmentBlocks.map((segments) => createFormalBlock({
+      segments,
+      targetLanguageCode: normalized.targetLanguageCode,
+    })).map((block) => applyReusableBlock({
+      block,
+      userID: normalizedUserID,
+      targetLanguageCode: normalized.targetLanguageCode,
+      reusableByKey,
+      reuseSecret: this.reuseSecret,
+    }));
+    const billableBySourceLanguage = new Map();
+    const billableTranscriptIDs = new Set();
+    blocks.forEach((block, index) => {
+      if (block.isPassThrough || block.isReused) return;
+      const entries = billableBySourceLanguage.get(block.sourceLanguageCode) || [];
+      entries.push({ index, text: block.sourceText });
+      billableBySourceLanguage.set(block.sourceLanguageCode, entries);
+      block.sourceTranscriptIDs.forEach((id) => billableTranscriptIDs.add(id));
+    });
+    const targetMilliseconds = calculateBillableMilliseconds(
+      normalized.segments,
+      normalized.targetLanguageCode,
+      billableTranscriptIDs
+    );
+    return {
+      blocks,
+      billableBySourceLanguage,
+      targetMilliseconds,
+      billableMilliseconds: calculateTranslationChargeMilliseconds(targetMilliseconds),
+    };
   }
 
   async assertSupportedLanguages(languageCodes) {
@@ -440,6 +485,24 @@ function normalizeFormalRequest(request, limitOptions = {}) {
     reusableBlocks,
     idempotencyKey,
   };
+}
+
+function normalizeFormalEstimateRequest(request, limitOptions = {}) {
+  if (!hasRequiredAndAllowedKeys(request, [
+    'sourceSessionID',
+    'targetLanguageCode',
+    'segments',
+  ], ['reusableBlocks'])) throw invalidRequest();
+  const normalized = normalizeFormalRequest({
+    ...request,
+    idempotencyKey: 'formal-translation-estimate',
+  }, limitOptions);
+  delete normalized.idempotencyKey;
+  return normalized;
+}
+
+function calculateTranslationChargeMilliseconds(targetMilliseconds) {
+  return Math.ceil(Math.max(0, targetMilliseconds) * FORMAL_TRANSLATION_BILLING_RATE);
 }
 
 function normalizeReusableBlocks(value, targetLanguageCode, maxSegments) {
@@ -833,15 +896,18 @@ module.exports = {
   PASS_THROUGH_PROVIDER,
   REUSE_TOKEN_PREFIX,
   SOURCE_TEXT_FINGERPRINT_PREFIX,
+  FORMAL_TRANSLATION_BILLING_RATE,
   MemoryTranslationIdempotencyStore,
   MojidasTranslationService,
   MojidasTranslationServiceError,
   areEquivalentLanguages,
   blockSourceFingerprint,
   calculateBillableMilliseconds,
+  calculateTranslationChargeMilliseconds,
   canonicalLanguageForPassThrough,
   googleTranslationLanguageCode,
   normalizeFormalRequest,
+  normalizeFormalEstimateRequest,
   normalizeRealtimeRequest,
   textFingerprint,
   createReuseToken,
