@@ -21,6 +21,9 @@ const {
   publicServiceConfiguration,
 } = require('../../modules/mojidas_service_configuration');
 const mojidasVersionStore = require('../../modules/mojidas_version_store');
+const {
+  MojidasTranslationService,
+} = require('../../modules/translation/mojidas_translation_service');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -37,6 +40,7 @@ function createMojidasRouter({
   billingService = mojidasStripeBillingService,
   serviceConfigurationProvider = publicServiceConfiguration,
   versionStore = mojidasVersionStore,
+  translationService,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -46,6 +50,7 @@ function createMojidasRouter({
     firebaseAdmin,
   });
   const issuer = apiKeyIssuer || new ACPApiKeyIssuer();
+  const translator = translationService || new MojidasTranslationService();
   const registerRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 60 * 1000,
     max: 5,
@@ -90,6 +95,24 @@ function createMojidasRouter({
     windowMs: 60 * 60 * 1000,
     max: 20,
     keyPrefix: 'mojidas-checkout',
+  });
+  const translationLanguageRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 30,
+    keyPrefix: 'mojidas-translation-languages',
+    keyGenerator: authenticatedUserRateLimitKey,
+  });
+  const realtimeTranslationRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 120,
+    keyPrefix: 'mojidas-translation-realtime',
+    keyGenerator: authenticatedUserRateLimitKey,
+  });
+  const formalTranslationRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyPrefix: 'mojidas-translation-formal',
+    keyGenerator: authenticatedUserRateLimitKey,
   });
 
   router.use(createHostGuard({ allowedHosts, allowLocalhost }));
@@ -295,6 +318,76 @@ function createMojidasRouter({
     }
   });
 
+  router.get(
+    '/translation/languages',
+    authenticate(client),
+    translationLanguageRateLimit,
+    async function (req, res) {
+      try {
+        const result = await translator.listSupportedLanguages(req.query.displayLanguage || 'ja');
+        res.set('Cache-Control', 'private, max-age=21600, stale-while-revalidate=86400');
+        return res.json(result);
+      } catch (error) {
+        return sendTranslationError(res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/translation/realtime',
+    authenticate(client),
+    realtimeTranslationRateLimit,
+    async function (req, res) {
+      try {
+        return res.json(await translator.translateRealtime({
+          userID: req.mojidasUser.uid,
+          request: req.body,
+        }));
+      } catch (error) {
+        return sendTranslationError(res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/translation/formal',
+    authenticate(client),
+    formalTranslationRateLimit,
+    async function (req, res) {
+      try {
+        const translation = await translator.translateFormal({
+          userID: req.mojidasUser.uid,
+          request: req.body,
+        });
+        const { requestFingerprint, ...publicTranslation } = translation;
+        const usage = await creditStore.consumeTranslation({
+          userID: req.mojidasUser.uid,
+          accountCreatedAt: accountCreationTime(req.mojidasUser),
+          idempotencyKey: translation.idempotencyKey,
+          requestFingerprint,
+          milliseconds: translation.billableMilliseconds,
+          sourceSessionID: translation.sourceSessionID,
+          targetLanguageCode: translation.targetLanguageCode,
+          isUnlimited: isInvitedUnlimited(req.mojidasUser),
+        });
+        return res.json({
+          ...publicTranslation,
+          chargedMilliseconds: usage.chargedMilliseconds,
+          isUnlimited: usage.isUnlimited,
+        });
+      } catch (error) {
+        if (error && [
+          'INSUFFICIENT_CREDIT',
+          'INVALID_TRANSLATION_USAGE',
+          'IDEMPOTENCY_CONFLICT',
+        ].includes(error.code)) {
+          return sendCreditError(res, error);
+        }
+        return sendTranslationError(res, error);
+      }
+    }
+  );
+
   router.post(
     '/billing/checkout-session',
     checkoutRateLimit,
@@ -490,6 +583,12 @@ function authenticate(client) {
   };
 }
 
+function authenticatedUserRateLimitKey(req) {
+  return req && req.mojidasUser && typeof req.mojidasUser.uid === 'string'
+    ? `user:${req.mojidasUser.uid}`
+    : '';
+}
+
 function normalizeEmail(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
@@ -566,6 +665,8 @@ function sendCreditError(res, error) {
     RESERVATION_EXPIRED: [409, '利用時間の予約期限が切れています。'],
     INVALID_SEQUENCE: [409, '利用時間の更新順序が正しくありません。'],
     INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
+    INVALID_TRANSLATION_USAGE: [400, '翻訳時間の消費内容が正しくありません。'],
+    IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
   };
   const [status, message] = mapping[code] || [500, '音声認識時間を取得できませんでした。'];
   const body = { error: { code, message } };
@@ -599,6 +700,34 @@ function sendBillingError(res, error) {
     CHECKOUT_CREATE_FAILED: [502, '購入ページを作成できませんでした。'],
   };
   const [status, message] = mapping[code] || [502, '購入サービスへ接続できませんでした。'];
+  return sendError(res, status, code, message);
+}
+
+function sendTranslationError(res, error) {
+  const code = error && error.code ? error.code : 'TRANSLATION_SERVICE_ERROR';
+  const mapping = {
+    INVALID_TRANSLATION_REQUEST: [400, '翻訳リクエストが正しくありません。'],
+    UNSUPPORTED_TRANSLATION_LANGUAGE: [400, '選択された翻訳先言語は利用できません。'],
+    TRANSLATION_TEXT_TOO_LONG: [413, '翻訳する本文が長すぎます。'],
+    TRANSLATION_INPUT_TOO_LARGE: [413, '翻訳する発話または本文が上限を超えています。'],
+    SOURCE_TEXT_FINGERPRINT_MISMATCH: [409, '原文が変更されたため翻訳を実行できません。'],
+    IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
+    GOOGLE_TRANSLATION_NOT_CONFIGURED: [503, 'Google翻訳の設定が完了していません。'],
+    OPENAI_NOT_CONFIGURED: [503, '意味ブロック判定の設定が完了していません。'],
+    GOOGLE_TRANSLATION_TIMEOUT: [504, 'Google翻訳への接続がタイムアウトしました。'],
+    OPENAI_TIMEOUT: [504, '意味ブロック判定がタイムアウトしました。'],
+    GOOGLE_TRANSLATION_REQUEST_FAILED: [502, 'Google翻訳へ接続できませんでした。'],
+    GOOGLE_TRANSLATION_RATE_LIMITED: [503, 'Google翻訳が混み合っています。'],
+    OPENAI_REQUEST_FAILED: [502, '意味ブロック判定サービスへ接続できませんでした。'],
+    OPENAI_RATE_LIMITED: [503, '意味ブロック判定サービスが混み合っています。'],
+    GOOGLE_TRANSLATION_RESPONSE_TOO_LARGE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
+    GOOGLE_TRANSLATION_INVALID_RESPONSE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
+    OPENAI_INVALID_RESPONSE: [502, '意味ブロック判定サービスから有効な応答を取得できませんでした。'],
+    OPENAI_INCOMPLETE_RESPONSE: [502, '意味ブロック判定を完了できませんでした。'],
+    OPENAI_REFUSED: [502, '意味ブロック判定を実行できませんでした。'],
+    INVALID_SEMANTIC_BOUNDARIES: [502, '意味ブロック判定の応答を検証できませんでした。'],
+  };
+  const [status, message] = mapping[code] || [502, '翻訳サービスとの通信に失敗しました。'];
   return sendError(res, status, code, message);
 }
 

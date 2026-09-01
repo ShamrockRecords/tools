@@ -7,6 +7,7 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 - Base path: `/api/mojidas`
 - 本番URL: `https://app.mojidas.jp/api/mojidas`
 - Content-Type: `application/json`
+- Request body上限: 1 MiB
 - 本番環境ではHTTPS必須
 - メールで届く6桁の認証コードの確認が完了するまでログイン不可
 - IDトークンの有効期間はFirebase応答の `expiresIn` を参照
@@ -215,6 +216,76 @@ Authorization: Bearer {accessToken}
 }
 ```
 
+### 翻訳API
+
+翻訳APIはすべてFirebase IDトークンを必要とします。翻訳先はCloud Translation Basic v2のNMTモデルが返す全対応言語です。APIキーはサーバーだけが保持し、アプリへ返しません。
+
+`GET /api/mojidas/translation/languages?displayLanguage=ja`は、Googleから動的に取得してキャッシュした言語コードと表示名を返します。
+
+```json
+{
+  "schemaVersion": 1,
+  "provider": "googleCloudTranslationBasicV2",
+  "displayLanguage": "ja",
+  "languages": [{"code":"en","name":"英語"}]
+}
+```
+
+`POST /api/mojidas/translation/realtime`は、確定済みの1発話を参考翻訳します。同一言語はGoogleへ送らず原文を返します。中国語は`zh`、`zh-CN`、`zh-Hans`、`zh-SG`を簡体字、`zh-TW`、`zh-Hant`、`zh-HK`、`zh-MO`を繁体字の同一グループとして扱います。
+
+```json
+{
+  "sourceTranscriptID": "transcript-id",
+  "sourceLanguageCode": "ja",
+  "targetLanguageCode": "en",
+  "text": "こんにちは",
+  "sourceTextFingerprint": "sha256-nfc-v1:...64桁の16進数...",
+  "idempotencyKey": "request-id"
+}
+```
+
+`POST /api/mojidas/translation/formal`は発話列を意味ブロックへまとめて翻訳します。`inputID`、`recordingID`、`recognitionRunID`、`sourceLanguageCode`、`label`（話者）の境界を跨ぎません。旧セッションでは`recognitionRunID`を省略または`null`にできます。
+
+```json
+{
+  "sourceSessionID": "session-id",
+  "targetLanguageCode": "en",
+  "segments": [{
+    "id": "transcript-id",
+    "inputID": "input-id",
+    "recordingID": "recording-id",
+    "recognitionRunID": "run-id",
+    "sourceLanguageCode": "ja",
+    "sourceTextFingerprint": "sha256-nfc-v1:...64桁の16進数...",
+    "startMilliseconds": 0,
+    "endMilliseconds": 1200,
+    "text": "こんにちは",
+    "label": "話者1",
+    "colorHex": "8B5CF6",
+    "recognitionStartedAt": "2026-09-01T01:00:00.000Z"
+  }],
+  "reusableBlocks": [{
+    "sourceTranscriptIDs": ["transcript-id"],
+    "sourceTextFingerprint": "sha256-nfc-v1:...64桁の16進数...",
+    "sourceLanguageCode": "ja",
+    "targetLanguageCode": "en",
+    "translatedText": "Hello",
+    "provider": "googleCloudTranslationBasicV2",
+    "isPassThrough": false,
+    "reuseToken": "mojidas-reuse-v1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  }],
+  "idempotencyKey": "request-id"
+}
+```
+
+OpenAI Responses APIは発話IDのグループ分けだけに使用し、翻訳・本文修正は行わせません。Structured Outputsを使い、全IDが入力順のまま重複・欠落なく一度ずつ含まれることをサーバーで検証します。Googleの翻訳件数、空文字、応答形式も検証し、全翻訳が成功した場合だけ応答します。
+
+更新時は`reusableBlocks`を省略できます。指定する各候補には、以前の正式翻訳応答blockでサーバーが発行した`reuseToken`が必須です。サーバーは意味ブロック生成後に発話ID列、原文fingerprint、翻訳元・翻訳先言語が完全一致し、かつHMAC署名が現在のユーザー、provider、pass-through状態、翻訳本文に一致するblockだけを再利用します。署名不一致やsecret変更後の候補はエラーにせず通常翻訳へ戻します。再利用blockはGoogleへ再送せず、`isReused: true`で返し、課金区間にも含めません。ユーザーが編集した表示用翻訳はクライアント側で保持し、`reusableBlocks.translatedText`には保存済みのプロバイダー原文を指定します。正式翻訳の応答は各blockへ新しい`reuseToken`（署名用secret未設定時は`null`）を含めます。
+
+Google／OpenAIの429、5xx、タイムアウト等の一時エラーは同一リクエスト内で最大1回だけ再試行します。入力不備、認証失敗、検証失敗は再試行しません。
+
+正式翻訳の`billableMilliseconds`は、対象言語と異なる発話区間を`inputID + recordingID + recognitionRunID`ごとにunionしてから合計した値です。Google翻訳がすべて成功した後、この時間を既存の残時間から消費します。`chargedMilliseconds`は実際の消費量で、時間無制限ユーザーは0です。同一ユーザー・同一`idempotencyKey`の再試行はFirestore台帳で冪等に処理し、二重消費しません。台帳には正規化済み正式翻訳リクエスト全体のSHA-256も保存し、本文等が異なる同一keyは消費時間が偶然同じでも`IDEMPOTENCY_CONFLICT`として拒否します。
+
 ### 音声認識時間の購入
 
 `POST /api/mojidas/billing/checkout-session`へログイン済みユーザーが商品IDだけを送ると、Stripe Hosted Checkout URLを返します。金額、付与時間、Stripe Price IDはサーバーの商品表から決定し、アプリから受け取りません。ログイン中のメールアドレスをPaymentIntentの`receipt_email`へ設定し、支払い完了時にStripeから領収書を送信します。
@@ -251,7 +322,8 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 | 400 | 入力不備 |
 | 401 | 認証失敗・期限切れ |
 | 403 | メール未確認・利用停止 |
-| 409 | メールアドレス登録済み |
+| 409 | メールアドレス登録済み、原文／冪等キーの競合、残時間不足 |
+| 413 | リクエストまたは翻訳本文のサイズ超過 |
 | 429 | 試行回数制限 |
 | 502 / 503 / 504 | Firebaseまたはサーバー設定・接続エラー |
 
@@ -268,6 +340,9 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 | refresh | 15分に120回 |
 | password-reset | 1時間に5回 |
 | checkout-session | 1時間に20回 |
+| translation/languages | 認証ユーザーごとに1分30回 |
+| translation/realtime | 認証ユーザーごとに1分120回 |
+| translation/formal | 認証ユーザーごとに1時間20回 |
 
 Herokuを複数dynoで運用すると制限がプロセスごとになるため、その段階でRedis等の共有ストアへ移行してください。
 
@@ -291,10 +366,16 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `STRIPE_PRICE_CREDIT_10H_JPY`
 - `MOJIDAS_CHECKOUT_SUCCESS_URL`（任意）
 - `MOJIDAS_CHECKOUT_CANCEL_URL`（任意）
+- `MOJIDAS_GOOGLE_TRANSLATION_API_KEY`
+- `OPENAI_API_KEY`
+- `MOJIDAS_TRANSLATION_BOUNDARY_MODEL`（任意。既定値`gpt-4o-mini`）
+- `MOJIDAS_TRANSLATION_REUSE_SECRET`（任意。正式翻訳blockの再利用署名用。未設定時はGoogle翻訳API keyを使用）
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
 
 StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,200円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
+
+翻訳用のGoogle／OpenAIキーと再利用署名secretもHeroku Config Vars等のサーバー秘密情報として設定します。GoogleキーはCloud Translation APIだけにAPI制限し、可能なら本番サーバーの送信元IP制限も設定してください。`MOJIDAS_TRANSLATION_REUSE_SECRET`がなければGoogleキーをHMAC署名にも使用し、両方なければ再利用候補を信用せず通常翻訳へ戻します。いずれの秘密情報もURL、ログ、Webページ、Mac／Windowsアプリ、Firestoreへ含めません。
 
 通常のリアルタイム認識キーは`ACP_API_KEY_EXPIRY_MS`を使います。credit reservationの`mode`が`mediaFile`の場合は、ACP非同期HTTP v2の待機・再認証を考慮して600000 ms（10分）のキーを発行します。クライアントが送る`purpose`だけでは期限を変更せず、必ず保存済みreservationのmodeを根拠にします。
 

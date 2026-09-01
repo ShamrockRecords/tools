@@ -137,6 +137,20 @@ app.use(function (req, res, next) {
   next();
 });
 
+// Mojidas APIは認証情報と短いJSONだけを受け取る。後段の既存Web機能向け
+// 100MB parserより先に実容量を制限し、巨大JSONをparseしてから弾く状態を避ける。
+const mojidasJsonParser = express.json({ limit: '1mb' });
+const mojidasUrlencodedParser = express.urlencoded({ extended: false, limit: '1mb' });
+app.use('/api/mojidas', function (req, res, next) {
+  mojidasJsonParser(req, res, function (jsonError) {
+    if (jsonError) return sendMojidasBodyParserError(res, next, jsonError);
+    return mojidasUrlencodedParser(req, res, function (urlencodedError) {
+      if (urlencodedError) return sendMojidasBodyParserError(res, next, urlencodedError);
+      return next();
+    });
+  });
+});
+
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({ extended: false, limit: '100mb' }));
 
@@ -169,6 +183,26 @@ app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/admin', adminRouter);
 app.use('/api/mojidas', mojidasApiRouter);
+
+function sendMojidasBodyParserError(res, next, error) {
+  if (error && error.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: {
+        code: 'REQUEST_TOO_LARGE',
+        message: 'リクエストサイズが上限を超えています。',
+      },
+    });
+  }
+  if (error && error.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: {
+        code: 'INVALID_JSON',
+        message: 'JSONの形式が正しくありません。',
+      },
+    });
+  }
+  return next(error);
+}
 
 //app.use('/authDone', authDoneRouter);
 //app.use('/signin', signinRouter);

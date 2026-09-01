@@ -145,6 +145,125 @@ class MojidasCreditStore {
     return grantID;
   }
 
+  async consumeTranslation({
+    userID,
+    accountCreatedAt,
+    idempotencyKey,
+    requestFingerprint,
+    milliseconds,
+    sourceSessionID,
+    targetLanguageCode,
+    isUnlimited = false,
+  }) {
+    const normalizedUserID = normalizeLedgerIdentifier(userID);
+    const normalizedKey = normalizeLedgerIdentifier(idempotencyKey);
+    const normalizedRequestFingerprint = normalizeRequestFingerprint(requestFingerprint);
+    const normalizedSessionID = normalizeLedgerIdentifier(sourceSessionID);
+    const normalizedTargetLanguage = normalizeLanguageCode(targetLanguageCode);
+    const billableMilliseconds = Number(milliseconds);
+    if (
+      !normalizedUserID
+      || !normalizedKey
+      || !normalizedRequestFingerprint
+      || !normalizedSessionID
+      || !normalizedTargetLanguage
+      || !Number.isSafeInteger(billableMilliseconds)
+      || billableMilliseconds < 0
+      || billableMilliseconds > 7 * 24 * 60 * 60 * 1000
+    ) {
+      throw new CreditStoreError('INVALID_TRANSLATION_USAGE', '翻訳時間の消費内容が不正です。');
+    }
+
+    if (!isUnlimited) {
+      await this.ensureMonthlyGrant({ userID: normalizedUserID, accountCreatedAt });
+      await this.releaseExpiredReservations(normalizedUserID);
+    }
+
+    const now = new Date(this.now());
+    const ledgerID = deterministicID(
+      'translation-consume',
+      `${normalizedUserID}:${normalizedKey}`
+    );
+    const ledgerDocument = this.collection('usageLedger').doc(ledgerID);
+    return this.firestore.runTransaction(async (transaction) => {
+      const existing = await transaction.get(ledgerDocument);
+      if (existing.exists) {
+        const data = existing.data();
+        const metadata = data.metadata || {};
+        if (
+          data.userID !== normalizedUserID
+          || data.idempotencyKey !== `translation:${normalizedKey}`
+          || metadata.operation !== 'formalTranslation'
+          || metadata.sourceSessionID !== normalizedSessionID
+          || metadata.targetLanguageCode !== normalizedTargetLanguage
+          || metadata.requestFingerprint !== normalizedRequestFingerprint
+          || Number(metadata.billableMilliseconds) !== billableMilliseconds
+        ) {
+          throw new CreditStoreError(
+            'IDEMPOTENCY_CONFLICT',
+            '同じ冪等キーが異なる翻訳時間に使用されています。'
+          );
+        }
+        return {
+          billableMilliseconds,
+          chargedMilliseconds: Math.max(0, -(Number(data.milliseconds) || 0)),
+          isUnlimited: Boolean(metadata.unlimited),
+          alreadyConsumed: true,
+        };
+      }
+
+      let allocations = [];
+      if (!isUnlimited && billableMilliseconds > 0) {
+        const grantQuery = this.collection('creditGrants')
+          .where('userID', '==', normalizedUserID);
+        const grantSnapshot = await transaction.get(grantQuery);
+        const allocation = allocateFromGrants(
+          activeGrantDocuments(grantSnapshot.docs, now),
+          billableMilliseconds
+        );
+        if (allocation.remaining > 0) {
+          throw insufficientCreditError(billableMilliseconds, allocation.available);
+        }
+        allocations = allocation.allocations.map((item) => ({
+          grantID: item.id,
+          milliseconds: item.milliseconds,
+        }));
+        allocation.allocations.forEach((item) => {
+          transaction.update(item.document, {
+            remainingMilliseconds: item.remainingAfter,
+            updatedAt: now,
+          });
+        });
+      }
+
+      const chargedMilliseconds = isUnlimited ? 0 : billableMilliseconds;
+      transaction.set(ledgerDocument, {
+        userID: normalizedUserID,
+        grantID: null,
+        reservationID: null,
+        kind: 'consume',
+        milliseconds: chargedMilliseconds === 0 ? 0 : -chargedMilliseconds,
+        idempotencyKey: `translation:${normalizedKey}`,
+        occurredAt: now,
+        metadata: {
+          operation: 'formalTranslation',
+          sourceSessionID: normalizedSessionID,
+          targetLanguageCode: normalizedTargetLanguage,
+          requestFingerprint: normalizedRequestFingerprint,
+          billableMilliseconds,
+          unlimited: Boolean(isUnlimited),
+          allocations,
+        },
+      });
+      return {
+        billableMilliseconds,
+        chargedMilliseconds,
+        isUnlimited: Boolean(isUnlimited),
+        alreadyConsumed: false,
+      };
+    });
+  }
+
   async createReservation({
     userID,
     accountCreatedAt,
@@ -780,6 +899,29 @@ function insufficientCreditError(required, available) {
 
 function deterministicID(prefix, value) {
   return `${prefix}_${crypto.createHash('sha256').update(value).digest('hex').slice(0, 32)}`;
+}
+
+function normalizeLedgerIdentifier(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  return normalized && normalized.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function normalizeLanguageCode(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  return normalized && normalized.length <= 64
+    && /^[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function normalizeRequestFingerprint(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(normalized) ? normalized : '';
 }
 
 function asDate(value) {

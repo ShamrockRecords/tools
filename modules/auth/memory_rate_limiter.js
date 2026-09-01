@@ -1,13 +1,17 @@
 const MAX_TRACKED_KEYS = 10000;
 
-function createMemoryRateLimiter({ windowMs, max, keyPrefix, onLimit }) {
+function createMemoryRateLimiter({ windowMs, max, keyPrefix, keyGenerator, onLimit }) {
   const attempts = new Map();
 
   return function (req, res, next) {
     const now = Date.now();
     const forwarded = (req.get('X-Forwarded-For') || '').split(',')[0].trim();
     const address = forwarded || req.ip || req.socket.remoteAddress || 'unknown';
-    const key = `${keyPrefix}:${address}`;
+    const generatedKey = typeof keyGenerator === 'function' ? keyGenerator(req) : '';
+    const identity = typeof generatedKey === 'string' && generatedKey.trim()
+      ? generatedKey.trim()
+      : address;
+    const key = `${keyPrefix}:${identity}`;
     const current = attempts.get(key);
 
     if (!current || current.resetAt <= now) {

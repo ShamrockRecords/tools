@@ -531,6 +531,89 @@ async function main() {
   assert.strictEqual(balance.grants.length, 1);
   assert.strictEqual(firestore.records('Mojidas/production/creditGrants').length, 2);
 
+  const translationFirestore = new FakeFirestore();
+  const translationStore = new MojidasCreditStore({
+    firestoreProvider: () => translationFirestore,
+    now: () => Date.parse('2026-08-22T00:00:00.000Z'),
+  });
+  const translationAccount = {
+    userID: 'translation-user',
+    accountCreatedAt: new Date('2026-08-01T00:00:00.000Z'),
+  };
+  const firstTranslationCharge = await translationStore.consumeTranslation({
+    ...translationAccount,
+    idempotencyKey: 'translation-request-1',
+    requestFingerprint: '1'.repeat(64),
+    milliseconds: 120000,
+    sourceSessionID: 'source-session-1',
+    targetLanguageCode: 'en',
+  });
+  assert.deepStrictEqual(firstTranslationCharge, {
+    billableMilliseconds: 120000,
+    chargedMilliseconds: 120000,
+    isUnlimited: false,
+    alreadyConsumed: false,
+  });
+  let translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 120000
+  );
+  const translationLedgerCount = translationFirestore
+    .records('Mojidas/production/usageLedger').length;
+  const repeatedTranslationCharge = await translationStore.consumeTranslation({
+    ...translationAccount,
+    idempotencyKey: 'translation-request-1',
+    requestFingerprint: '1'.repeat(64),
+    milliseconds: 120000,
+    sourceSessionID: 'source-session-1',
+    targetLanguageCode: 'en',
+  });
+  assert.strictEqual(repeatedTranslationCharge.alreadyConsumed, true);
+  translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 120000
+  );
+  assert.strictEqual(
+    translationFirestore.records('Mojidas/production/usageLedger').length,
+    translationLedgerCount
+  );
+  await assert.rejects(
+    () => translationStore.consumeTranslation({
+      ...translationAccount,
+      idempotencyKey: 'translation-request-1',
+      requestFingerprint: '2'.repeat(64),
+      milliseconds: 120000,
+      sourceSessionID: 'source-session-1',
+      targetLanguageCode: 'en',
+    }),
+    (error) => error.code === 'IDEMPOTENCY_CONFLICT'
+  );
+  await assert.rejects(
+    () => translationStore.consumeTranslation({
+      ...translationAccount,
+      idempotencyKey: 'translation-request-1',
+      requestFingerprint: '1'.repeat(64),
+      milliseconds: 120001,
+      sourceSessionID: 'source-session-1',
+      targetLanguageCode: 'en',
+    }),
+    (error) => error.code === 'IDEMPOTENCY_CONFLICT'
+  );
+  await assert.rejects(
+    () => translationStore.consumeTranslation({
+      ...translationAccount,
+      idempotencyKey: 'translation-too-large',
+      requestFingerprint: '3'.repeat(64),
+      milliseconds: MONTHLY_FREE_MILLISECONDS,
+      sourceSessionID: 'source-session-1',
+      targetLanguageCode: 'en',
+    }),
+    (error) => error.code === 'INSUFFICIENT_CREDIT'
+      && error.details.availableMilliseconds === MONTHLY_FREE_MILLISECONDS - 120000
+  );
+
   const unlimitedFirestore = new FakeFirestore();
   const unlimitedStore = new MojidasCreditStore({
     firestoreProvider: () => unlimitedFirestore,
@@ -594,6 +677,25 @@ async function main() {
       .filter((record) => record.data.kind === 'release').length,
     0
   );
+
+  const unlimitedTranslationCharge = await unlimitedStore.consumeTranslation({
+    ...unlimitedAccount,
+    idempotencyKey: 'unlimited-translation',
+    requestFingerprint: '4'.repeat(64),
+    milliseconds: 45000,
+    sourceSessionID: 'unlimited-source-session',
+    targetLanguageCode: 'en',
+  });
+  assert.deepStrictEqual(unlimitedTranslationCharge, {
+    billableMilliseconds: 45000,
+    chargedMilliseconds: 0,
+    isUnlimited: true,
+    alreadyConsumed: false,
+  });
+  const unlimitedTranslationLedger = unlimitedFirestore
+    .records('Mojidas/production/usageLedger')
+    .find((record) => record.data.metadata.operation === 'formalTranslation');
+  assert.strictEqual(unlimitedTranslationLedger.data.milliseconds, 0);
 
   console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }
