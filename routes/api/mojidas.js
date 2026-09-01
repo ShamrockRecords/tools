@@ -1,5 +1,6 @@
 const express = require('express');
 const firebaseAdmin = require('firebase-admin');
+const crypto = require('crypto');
 
 const {
   FirebaseAuthError,
@@ -24,6 +25,9 @@ const mojidasVersionStore = require('../../modules/mojidas_version_store');
 const {
   MojidasTranslationService,
 } = require('../../modules/translation/mojidas_translation_service');
+const {
+  MemoryFormalTranslationJobStore,
+} = require('../../modules/translation/formal_translation_job_store');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -41,6 +45,7 @@ function createMojidasRouter({
   serviceConfigurationProvider = publicServiceConfiguration,
   versionStore = mojidasVersionStore,
   translationService,
+  formalTranslationJobStore,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -51,6 +56,7 @@ function createMojidasRouter({
   });
   const issuer = apiKeyIssuer || new ACPApiKeyIssuer();
   const translator = translationService || new MojidasTranslationService();
+  const formalJobs = formalTranslationJobStore || new MemoryFormalTranslationJobStore();
   const registerRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 60 * 1000,
     max: 5,
@@ -112,6 +118,12 @@ function createMojidasRouter({
     windowMs: 60 * 60 * 1000,
     max: 20,
     keyPrefix: 'mojidas-translation-formal',
+    keyGenerator: authenticatedUserRateLimitKey,
+  });
+  const formalTranslationPollingRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 1000,
+    max: 180,
+    keyPrefix: 'mojidas-translation-formal-poll',
     keyGenerator: authenticatedUserRateLimitKey,
   });
 
@@ -355,36 +367,47 @@ function createMojidasRouter({
     formalTranslationRateLimit,
     async function (req, res) {
       try {
-        const translation = await translator.translateFormal({
-          userID: req.mojidasUser.uid,
-          request: req.body,
-        });
-        const { requestFingerprint, ...publicTranslation } = translation;
-        const usage = await creditStore.consumeTranslation({
-          userID: req.mojidasUser.uid,
-          accountCreatedAt: accountCreationTime(req.mojidasUser),
-          idempotencyKey: translation.idempotencyKey,
-          requestFingerprint,
-          milliseconds: translation.billableMilliseconds,
-          sourceSessionID: translation.sourceSessionID,
-          targetLanguageCode: translation.targetLanguageCode,
-          isUnlimited: isInvitedUnlimited(req.mojidasUser),
-        });
-        return res.json({
-          ...publicTranslation,
-          chargedMilliseconds: usage.chargedMilliseconds,
-          isUnlimited: usage.isUnlimited,
-        });
-      } catch (error) {
-        if (error && [
-          'INSUFFICIENT_CREDIT',
-          'INVALID_TRANSLATION_USAGE',
-          'IDEMPOTENCY_CONFLICT',
-        ].includes(error.code)) {
-          return sendCreditError(res, error);
+        const idempotencyKey = normalizeFormalJobIdentifier(req.body && req.body.idempotencyKey);
+        if (!idempotencyKey) {
+          return sendTranslationError(res, { code: 'INVALID_TRANSLATION_REQUEST' });
         }
-        return sendTranslationError(res, error);
+        const requestFingerprint = fingerprintFormalJobRequest(req.body);
+        const job = formalJobs.start({
+          userID: req.mojidasUser.uid,
+          idempotencyKey,
+          requestFingerprint,
+          operation: () => executeFormalTranslation({
+            translator,
+            creditStore,
+            user: req.mojidasUser,
+            request: req.body,
+          }),
+        });
+        return sendFormalTranslationJob(res, job);
+      } catch (error) {
+        return sendFormalTranslationJobError(res, error);
       }
+    }
+  );
+
+  router.get(
+    '/translation/formal/jobs/:jobID',
+    authenticate(client),
+    formalTranslationPollingRateLimit,
+    function (req, res) {
+      const job = formalJobs.get({
+        jobID: req.params.jobID,
+        userID: req.mojidasUser.uid,
+      });
+      if (!job) {
+        return sendError(
+          res,
+          404,
+          'TRANSLATION_JOB_NOT_FOUND',
+          '翻訳処理が見つかりませんでした。もう一度翻訳を実行してください。'
+        );
+      }
+      return sendFormalTranslationJob(res, job);
     }
   );
 
@@ -729,6 +752,71 @@ function sendTranslationError(res, error) {
   };
   const [status, message] = mapping[code] || [502, '翻訳サービスとの通信に失敗しました。'];
   return sendError(res, status, code, message);
+}
+
+async function executeFormalTranslation({ translator, creditStore, user, request }) {
+  const translation = await translator.translateFormal({
+    userID: user.uid,
+    request,
+  });
+  const { requestFingerprint, ...publicTranslation } = translation;
+  const usage = await creditStore.consumeTranslation({
+    userID: user.uid,
+    accountCreatedAt: accountCreationTime(user),
+    idempotencyKey: translation.idempotencyKey,
+    requestFingerprint,
+    milliseconds: translation.billableMilliseconds,
+    sourceSessionID: translation.sourceSessionID,
+    targetLanguageCode: translation.targetLanguageCode,
+    isUnlimited: isInvitedUnlimited(user),
+  });
+  return {
+    ...publicTranslation,
+    chargedMilliseconds: usage.chargedMilliseconds,
+    isUnlimited: usage.isUnlimited,
+  };
+}
+
+function sendFormalTranslationJob(res, job) {
+  if (job.status === 'completed') return res.json(job.result);
+  if (job.status === 'failed') return sendFormalTranslationJobError(res, job.error);
+  return res.status(202).json({
+    jobID: job.jobID,
+    status: 'processing',
+  });
+}
+
+function sendFormalTranslationJobError(res, error) {
+  if (error && [
+    'INSUFFICIENT_CREDIT',
+    'INVALID_TRANSLATION_USAGE',
+    'IDEMPOTENCY_CONFLICT',
+  ].includes(error.code)) {
+    return sendCreditError(res, error);
+  }
+  return sendTranslationError(res, error);
+}
+
+function normalizeFormalJobIdentifier(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  return normalized && normalized.length <= 128 && /^[A-Za-z0-9_.:-]+$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function fingerprintFormalJobRequest(value) {
+  return crypto.createHash('sha256').update(stableJSONStringify(value)).digest('hex');
+}
+
+function stableJSONStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJSONStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${stableJSONStringify(value[key])}`
+    )).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function checkoutResultPage({ status, title, message }) {

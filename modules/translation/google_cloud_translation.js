@@ -8,6 +8,7 @@ const REQUEST_TIMEOUT_MILLISECONDS = 10000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_TEXTS_PER_REQUEST = 128;
 const MAX_CODE_POINTS_PER_REQUEST = 5000;
+const MAX_CONCURRENT_TRANSLATION_REQUESTS = 4;
 const DEFAULT_LANGUAGE_CACHE_TTL_MILLISECONDS = 24 * 60 * 60 * 1000;
 const DEFAULT_LANGUAGE_CACHE_STALE_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
@@ -98,24 +99,26 @@ class GoogleCloudTranslation {
     }
 
     const batches = buildTranslationBatches(texts);
-    const translations = [];
-    for (const batch of batches) {
-      const payload = await this._requestJSON({
-        method: 'POST',
-        url: new URL(TRANSLATE_PATH, this.baseURL).toString(),
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-        },
-        body: JSON.stringify({
-          q: batch,
-          source: normalizedSourceLanguageCode,
-          target: normalizedTargetLanguageCode,
-          format: 'text',
-        }),
-      });
-      translations.push(...parseTranslations(payload, batch.length));
-    }
-    return translations;
+    const batchTranslations = await executeWithConcurrency(
+      batches.map((batch) => async () => {
+        const payload = await this._requestJSON({
+          method: 'POST',
+          url: new URL(TRANSLATE_PATH, this.baseURL).toString(),
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+          body: JSON.stringify({
+            q: batch,
+            source: normalizedSourceLanguageCode,
+            target: normalizedTargetLanguageCode,
+            format: 'text',
+          }),
+        });
+        return parseTranslations(payload, batch.length);
+      }),
+      MAX_CONCURRENT_TRANSLATION_REQUESTS
+    );
+    return batchTranslations.flat();
   }
 
   async _requestJSON({ method, url, headers = {}, body }) {
@@ -195,6 +198,21 @@ class GoogleCloudTranslation {
     const value = Number(this.now());
     return Number.isFinite(value) ? value : Date.now();
   }
+}
+
+async function executeWithConcurrency(operations, maximumConcurrency) {
+  const results = new Array(operations.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < operations.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await operations[index]();
+    }
+  }
+  const workerCount = Math.min(maximumConcurrency, operations.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }
 
 function buildTranslationBatches(texts) {

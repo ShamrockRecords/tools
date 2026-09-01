@@ -36,6 +36,24 @@ function request(server, method, path, body, token) {
   });
 }
 
+async function waitForFormalTranslation(server, response, token) {
+  if (response.status !== 202) return response;
+  assert.strictEqual(response.body.status, 'processing');
+  assert.ok(response.body.jobID);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const polled = await request(
+      server,
+      'GET',
+      `/api/mojidas/translation/formal/jobs/${encodeURIComponent(response.body.jobID)}`,
+      undefined,
+      token
+    );
+    if (polled.status !== 202) return polled;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error('formal translation job did not complete');
+}
+
 async function main() {
   const calls = [];
   const creditCalls = [];
@@ -169,6 +187,7 @@ async function main() {
       formalBody,
       'user-one-token'
     );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.sourceSessionID, 'session-1');
     assert.strictEqual(response.body.billableMilliseconds, 1200);
@@ -202,6 +221,7 @@ async function main() {
       { ...formalBody, idempotencyKey: 'formal-insufficient' },
       'user-one-token'
     );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
     assert.strictEqual(response.status, 409);
     assert.strictEqual(response.body.error.code, 'INSUFFICIENT_CREDIT');
     nextCreditError = null;
@@ -216,6 +236,7 @@ async function main() {
       { ...formalBody, idempotencyKey: 'formal-invalid-usage' },
       'user-one-token'
     );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
     assert.strictEqual(response.status, 400);
     assert.strictEqual(response.body.error.code, 'INVALID_TRANSLATION_USAGE');
 
@@ -229,6 +250,7 @@ async function main() {
       { ...formalBody, idempotencyKey: 'formal-conflicting-key' },
       'user-one-token'
     );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
     assert.strictEqual(response.status, 409);
     assert.strictEqual(response.body.error.code, 'IDEMPOTENCY_CONFLICT');
     nextCreditError = null;

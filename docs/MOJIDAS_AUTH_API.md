@@ -343,8 +343,15 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 | translation/languages | 認証ユーザーごとに1分30回 |
 | translation/realtime | 認証ユーザーごとに1分120回 |
 | translation/formal | 認証ユーザーごとに1時間20回 |
+| translation/formal/jobs/:jobID | 認証ユーザーごとに1分180回 |
 
 Herokuを複数dynoで運用すると制限がプロセスごとになるため、その段階でRedis等の共有ストアへ移行してください。
+
+正式翻訳はHeroku routerの30秒制限を超える場合があるため、`POST /translation/formal`は
+`202 Accepted`と`jobID`を返す。クライアントは同じaccess tokenで
+`GET /translation/formal/jobs/:jobID`をpollし、処理中の`202`、完了時の`200`、
+失敗時のMojidas error envelopeを処理する。jobは現在Expressプロセスのメモリ上で
+30分保持するため、複数dynoへ拡張する際はrate limitと合わせて共有ストアへ移行する。
 
 ## 必須設定
 

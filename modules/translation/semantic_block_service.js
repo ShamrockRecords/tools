@@ -9,6 +9,7 @@ const MAX_SEGMENTS = 500;
 const MAX_TOTAL_TEXT_CHARACTERS = 100 * 1000;
 // Google Cloud Translation Basic v2への後続リクエストが推奨上限を超えないようにする。
 const MAX_PROMPT_WINDOW_CHARACTERS = 5000;
+const MAX_CONCURRENT_BOUNDARY_REQUESTS = 4;
 const LEGACY_RECOGNITION_RUN_SENTINEL = '__legacy_recognition_run__';
 
 class SemanticBlockServiceError extends Error {
@@ -40,21 +41,27 @@ class SemanticBlockService {
     if (normalizedSegments.length === 0) return [];
 
     const hardBoundaryGroups = partitionHardBoundaryGroups(normalizedSegments);
-    const blocks = [];
+    const windowOperations = [];
     for (const hardBoundaryGroup of hardBoundaryGroups) {
       for (const window of partitionPromptWindows(hardBoundaryGroup)) {
         if (window.length === 1) {
-          blocks.push(window);
+          windowOperations.push(async () => [window]);
           continue;
         }
-        const sourceTranscriptIDGroups = await this.requestBoundaries(window);
-        const byID = new Map(window.map((segment) => [segment.id, segment]));
-        for (const sourceTranscriptIDs of sourceTranscriptIDGroups) {
-          blocks.push(sourceTranscriptIDs.map((id) => byID.get(id)));
-        }
+        windowOperations.push(async () => {
+          const sourceTranscriptIDGroups = await this.requestBoundaries(window);
+          const byID = new Map(window.map((segment) => [segment.id, segment]));
+          return sourceTranscriptIDGroups.map((sourceTranscriptIDs) => (
+            sourceTranscriptIDs.map((id) => byID.get(id))
+          ));
+        });
       }
     }
-    return blocks;
+    const windowBlocks = await executeWithConcurrency(
+      windowOperations,
+      MAX_CONCURRENT_BOUNDARY_REQUESTS
+    );
+    return windowBlocks.flat();
   }
 
   async requestBoundaries(segments) {
@@ -103,6 +110,22 @@ class SemanticBlockService {
       output
     );
   }
+}
+
+async function executeWithConcurrency(operations, maximumConcurrency) {
+  if (operations.length === 0) return [];
+  const results = new Array(operations.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < operations.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await operations[index]();
+    }
+  }
+  const workerCount = Math.min(maximumConcurrency, operations.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }
 
 function normalizeSegments(segments) {
