@@ -2,7 +2,8 @@ const https = require('https');
 
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-4o-mini';
-const DEFAULT_SOFT_TARGET_CHARACTERS = 300;
+const DEFAULT_SOFT_TARGET_CHARACTERS = 160;
+const MAXIMUM_BLOCK_TARGET_MULTIPLIER = 1.5;
 const DEFAULT_TIMEOUT_MILLISECONDS = 30 * 1000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_SEGMENTS = 500;
@@ -27,13 +28,17 @@ class SemanticBlockService {
     model = process.env.MOJIDAS_TRANSLATION_BOUNDARY_MODEL || DEFAULT_MODEL,
     endpoint = DEFAULT_ENDPOINT,
     requester = postJSON,
-    softTargetCharacters = DEFAULT_SOFT_TARGET_CHARACTERS,
+    softTargetCharacters = process.env.MOJIDAS_TRANSLATION_BLOCK_TARGET_CHARACTERS
+      || DEFAULT_SOFT_TARGET_CHARACTERS,
   } = {}) {
     this.apiKey = normalizeSecret(apiKey);
     this.model = normalizeModel(model);
     this.endpoint = endpoint;
     this.requester = requester;
     this.softTargetCharacters = normalizeSoftTarget(softTargetCharacters);
+    this.maximumBlockCharacters = Math.ceil(
+      this.softTargetCharacters * MAXIMUM_BLOCK_TARGET_MULTIPLIER
+    );
   }
 
   async groupSegments(segments) {
@@ -86,6 +91,7 @@ class SemanticBlockService {
       model: this.model,
       segments: providerSegments,
       softTargetCharacters: this.softTargetCharacters,
+      maximumBlockCharacters: this.maximumBlockCharacters,
     });
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
@@ -104,7 +110,12 @@ class SemanticBlockService {
           providerIDs,
           parseStructuredOutput(response)
         );
-        return groups.map((group) => group.map((id) => originalIDByProviderID.get(id)));
+        return constrainBoundaryGroups(
+          groups,
+          providerSegments,
+          this.softTargetCharacters,
+          this.maximumBlockCharacters
+        ).map((group) => group.map((id) => originalIDByProviderID.get(id)));
       } catch (error) {
         const normalized = error instanceof SemanticBlockServiceError
           ? error
@@ -258,6 +269,34 @@ function deterministicBoundaryGroups(segments, targetCharacters) {
   return groups;
 }
 
+function constrainBoundaryGroups(
+  groups,
+  segments,
+  targetCharacters,
+  maximumBlockCharacters
+) {
+  const byID = new Map(segments.map((segment) => [segment.id, segment]));
+  const constrained = [];
+  for (const group of groups) {
+    const groupSegments = group.map((id) => byID.get(id));
+    if (joinedCharacterCount(groupSegments) <= maximumBlockCharacters) {
+      constrained.push(group);
+      continue;
+    }
+    constrained.push(...deterministicBoundaryGroups(
+      groupSegments,
+      targetCharacters
+    ).map((split) => split.map((segment) => segment.id)));
+  }
+  return constrained;
+}
+
+function joinedCharacterCount(segments) {
+  return segments.reduce((total, segment, index) => (
+    total + (index > 0 ? 1 : 0) + Array.from(segment.text).length
+  ), 0);
+}
+
 function hardBoundaryKey(segment) {
   return JSON.stringify([
     segment.inputID,
@@ -270,9 +309,17 @@ function hardBoundaryKey(segment) {
   ]);
 }
 
-function createResponsesRequest({ model, segments, softTargetCharacters }) {
+function createResponsesRequest({
+  model,
+  segments,
+  softTargetCharacters,
+  maximumBlockCharacters = Math.ceil(
+    softTargetCharacters * MAXIMUM_BLOCK_TARGET_MULTIPLIER
+  ),
+}) {
   const input = {
     softTargetCharacters,
+    maximumBlockCharacters,
     segments: segments.map((segment) => ({
       id: segment.id,
       text: segment.text,
@@ -292,6 +339,7 @@ function createResponsesRequest({ model, segments, softTargetCharacters }) {
             'IDは短い数字文字列です。文字列を変更せず完全一致で返してください。',
             '全IDを入力順のまま重複・欠落なく一度ずつ返してください。',
             '文や意味のまとまりを優先し、各ブロックはsoftTargetCharacters付近を目安にしてください。',
+            '単一の入力発話だけで上限を超える場合を除き、各ブロックはmaximumBlockCharacters以下にしてください。',
           ].join(''),
         }],
       },
@@ -559,6 +607,7 @@ module.exports = {
   SemanticBlockService,
   SemanticBlockServiceError,
   createResponsesRequest,
+  constrainBoundaryGroups,
   deterministicBoundaryGroups,
   hardBoundaryKey,
   normalizeLanguageCode,

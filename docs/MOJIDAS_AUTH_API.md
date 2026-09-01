@@ -356,7 +356,8 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 意味ブロック判定では端末由来のUUIDをOpenAIへ復唱させず、request内だけで有効な
 数字の連番へ置き換える。応答が欠落・重複・順序違反などで検証に失敗した場合は1回だけ
 再試行し、再度失敗した場合は発話順とhard boundaryを維持した固定文字数blockへ
-フォールバックして、本文翻訳を継続する。
+フォールバックして、本文翻訳を継続する。編集しやすさのため通常は約160文字を目安とし、
+単一発話だけで上限を超える場合を除いて240文字を超えた判定blockはサーバーで再分割する。
 
 ## 必須設定
 
@@ -381,6 +382,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `MOJIDAS_GOOGLE_TRANSLATION_API_KEY`
 - `OPENAI_API_KEY`
 - `MOJIDAS_TRANSLATION_BOUNDARY_MODEL`（任意。既定値`gpt-4o-mini`）
+- `MOJIDAS_TRANSLATION_BLOCK_TARGET_CHARACTERS`（任意。意味blockの目安文字数。既定値`160`、上限は指定値の1.5倍）
 - `MOJIDAS_TRANSLATION_REUSE_SECRET`（任意。正式翻訳blockの再利用署名用。未設定時はGoogle翻訳API keyを使用）
 
 `ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。

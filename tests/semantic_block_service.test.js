@@ -80,6 +80,9 @@ async function main() {
       .segments.map((item) => item.id),
     ['0', '1', '2']
   );
+  const firstBoundaryInput = JSON.parse(calls[0].body.input[1].content[0].text);
+  assert.strictEqual(firstBoundaryInput.softTargetCharacters, 160);
+  assert.strictEqual(firstBoundaryInput.maximumBlockCharacters, 240);
 
   const hardGroups = partitionHardBoundaryGroups([
     segment('a'),
@@ -263,6 +266,24 @@ async function main() {
   );
   assert.strictEqual(fallbackCalls, 2);
 
+  let oversizedBoundaryCalls = 0;
+  const oversizedBoundaryService = new SemanticBlockService({
+    apiKey: 'test-openai-key',
+    requester: async () => {
+      oversizedBoundaryCalls += 1;
+      return structuredResponse([['0', '1', '2']]);
+    },
+  });
+  assert.deepStrictEqual(
+    (await oversizedBoundaryService.groupSegments([
+      segment('oversized-1', { text: 'a'.repeat(100) }),
+      segment('oversized-2', { text: 'b'.repeat(100) }),
+      segment('oversized-3', { text: 'c'.repeat(100) }),
+    ])).map((block) => block.map((item) => item.id)),
+    [['oversized-1'], ['oversized-2'], ['oversized-3']]
+  );
+  assert.strictEqual(oversizedBoundaryCalls, 1);
+
   let exhaustedRetryCalls = 0;
   const exhaustedRetryService = new SemanticBlockService({
     apiKey: 'test-openai-key',
@@ -308,6 +329,8 @@ async function main() {
   });
   assert.strictEqual(structuredRequest.store, false);
   assert.strictEqual(structuredRequest.text.format.schema.additionalProperties, false);
+  const structuredInput = JSON.parse(structuredRequest.input[1].content[0].text);
+  assert.strictEqual(structuredInput.maximumBlockCharacters, 450);
 }
 
 main()
