@@ -376,6 +376,8 @@ Herokuを複数dynoで運用すると制限がプロセスごとになるため�
 失敗時のMojidas error envelopeを処理する。jobは現在Expressプロセスのメモリ上で
 30分保持するため、複数dynoへ拡張する際はrate limitと合わせて共有ストアへ移行する。
 
+従量課金保護のため、Google Cloud Translationへの翻訳POSTはtimeout、429、5xxを含めて自動再送しない。対応言語一覧GETだけを1回まで再試行する。正式翻訳jobは2分で未完了requestを中断し、音声認識時間の消費へ進ませずfailedへ遷移するため、無期限に`processing`を返さない。Mac／Windowsは1〜5秒のbackoffで最大3分だけpollし、server再起動などでjobが見つからなくなっても正式翻訳POSTを自動再送しない。polling GET自体はGoogle翻訳を呼ばず、翻訳料金を消費しない。
+
 意味ブロックはLLMへ依存せず、`。`、`！`、`？`と半角の`.!?`を分割候補にする。
 既定60文字へ達した後の最初の文末記号でblockを閉じ、文末記号が現れない場合は
 既定160文字を上限として分割する。1発話内に複数の文がある場合も文単位へ分ける。

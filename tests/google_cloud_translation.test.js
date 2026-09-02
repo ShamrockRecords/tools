@@ -241,6 +241,28 @@ async function testValidationAndProviderFailures() {
   );
   assert.strictEqual(rateLimitedCalls, 2);
 
+  let translationRateLimitedCalls = 0;
+  const translationRateLimited = new GoogleCloudTranslation({
+    apiKey: 'test-google-key',
+    requester: async () => {
+      translationRateLimitedCalls += 1;
+      return response({ error: { message: 'rate limited' } }, 429);
+    },
+  });
+  await assert.rejects(
+    () => translationRateLimited.translate({
+      texts: ['課金対象の翻訳'],
+      sourceLanguageCode: 'ja',
+      targetLanguageCode: 'en',
+    }),
+    (error) => error.code === 'GOOGLE_TRANSLATION_RATE_LIMITED'
+  );
+  assert.strictEqual(
+    translationRateLimitedCalls,
+    1,
+    '従量課金の翻訳POSTは429でも自動再送しない'
+  );
+
   let retryRequestCount = 0;
   const retrying = new GoogleCloudTranslation({
     apiKey: 'test-google-key',
@@ -280,6 +302,31 @@ async function testValidationAndProviderFailures() {
     (error) => error.code === 'GOOGLE_TRANSLATION_TIMEOUT'
   );
   assert.strictEqual(timeoutRequestCount, 2);
+
+  let translationTimeoutCalls = 0;
+  const translationTimeout = new GoogleCloudTranslation({
+    apiKey: 'test-google-key',
+    requester: async () => {
+      translationTimeoutCalls += 1;
+      throw new GoogleCloudTranslationError(
+        'GOOGLE_TRANSLATION_TIMEOUT',
+        'timeout'
+      );
+    },
+  });
+  await assert.rejects(
+    () => translationTimeout.translate({
+      texts: ['応答が失われた可能性がある翻訳'],
+      sourceLanguageCode: 'ja',
+      targetLanguageCode: 'en',
+    }),
+    (error) => error.code === 'GOOGLE_TRANSLATION_TIMEOUT'
+  );
+  assert.strictEqual(
+    translationTimeoutCalls,
+    1,
+    '従量課金の翻訳POSTはtimeoutでも自動再送しない'
+  );
 
   let missingKeyRequestCount = 0;
   const missingKey = new GoogleCloudTranslation({

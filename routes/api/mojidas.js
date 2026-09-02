@@ -399,11 +399,12 @@ function createMojidasRouter({
           userID: req.mojidasUser.uid,
           idempotencyKey,
           requestFingerprint,
-          operation: () => executeFormalTranslation({
+          operation: (signal) => executeFormalTranslation({
             translator,
             creditStore,
             user: req.mojidasUser,
             request: req.body,
+            signal,
           }),
         });
         return sendFormalTranslationJob(res, job);
@@ -713,6 +714,7 @@ function sendCreditError(res, error) {
     INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
     INVALID_TRANSLATION_USAGE: [400, '翻訳時間の消費内容が正しくありません。'],
     IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
+    TRANSLATION_JOB_TIMEOUT: [504, '翻訳処理が制限時間を超えました。自動再送は行っていません。'],
   };
   const [status, message] = mapping[code] || [500, '音声認識時間を取得できませんでした。'];
   const body = { error: { code, message } };
@@ -758,6 +760,7 @@ function sendTranslationError(res, error) {
     TRANSLATION_INPUT_TOO_LARGE: [413, '翻訳する発話または本文が上限を超えています。'],
     SOURCE_TEXT_FINGERPRINT_MISMATCH: [409, '原文が変更されたため翻訳を実行できません。'],
     IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
+    TRANSLATION_JOB_TIMEOUT: [504, '翻訳処理が制限時間を超えました。自動再送は行っていません。'],
     GOOGLE_TRANSLATION_NOT_CONFIGURED: [503, 'Google翻訳の設定が完了していません。'],
     GOOGLE_TRANSLATION_TIMEOUT: [504, 'Google翻訳への接続がタイムアウトしました。'],
     GOOGLE_TRANSLATION_REQUEST_FAILED: [502, 'Google翻訳へ接続できませんでした。'],
@@ -769,11 +772,17 @@ function sendTranslationError(res, error) {
   return sendError(res, status, code, message);
 }
 
-async function executeFormalTranslation({ translator, creditStore, user, request }) {
+async function executeFormalTranslation({ translator, creditStore, user, request, signal }) {
   const translation = await translator.translateFormal({
     userID: user.uid,
     request,
+    signal,
   });
+  if (signal?.aborted) {
+    throw Object.assign(new Error('Formal translation job timed out.'), {
+      code: 'TRANSLATION_JOB_TIMEOUT',
+    });
+  }
   const { requestFingerprint, ...publicTranslation } = translation;
   const usage = await creditStore.consumeTranslation({
     userID: user.uid,

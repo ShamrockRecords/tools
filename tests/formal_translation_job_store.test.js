@@ -61,6 +61,28 @@ async function main() {
   const failedResult = store.get({ jobID: failed.jobID, userID: 'user-1' });
   assert.strictEqual(failedResult.status, 'failed');
   assert.strictEqual(failedResult.error.code, 'OPENAI_TIMEOUT');
+
+  const timedOutStore = new MemoryFormalTranslationJobStore({
+    operationTimeoutMilliseconds: 10,
+  });
+  let timedOutSignal;
+  const timedOut = timedOutStore.start({
+    userID: 'user-1',
+    idempotencyKey: 'key-timeout',
+    requestFingerprint: 'fingerprint-timeout',
+    operation: async (signal) => {
+      timedOutSignal = signal;
+      return new Promise(() => {});
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  const timedOutResult = timedOutStore.get({
+    jobID: timedOut.jobID,
+    userID: 'user-1',
+  });
+  assert.strictEqual(timedOutResult.status, 'failed');
+  assert.strictEqual(timedOutResult.error.code, 'TRANSLATION_JOB_TIMEOUT');
+  assert.strictEqual(timedOutSignal.aborted, true);
 }
 
 main()

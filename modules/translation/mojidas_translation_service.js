@@ -166,7 +166,7 @@ class MojidasTranslationService {
     });
   }
 
-  async translateFormal({ userID, request }) {
+  async translateFormal({ userID, request, signal }) {
     const normalizedUserID = normalizeIdentifier(userID);
     const normalized = normalizeFormalRequest(request, {
       maxSegments: this.maxFormalSegments,
@@ -180,17 +180,21 @@ class MojidasTranslationService {
       key: operationKey,
       requestFingerprint,
       operation: async () => {
+        throwIfAborted(signal);
         const plan = await this.createFormalPlan({
           normalizedUserID,
           normalized,
+          signal,
         });
         const { blocks, billableBySourceLanguage } = plan;
 
         for (const [sourceLanguageCode, entries] of billableBySourceLanguage) {
+          throwIfAborted(signal);
           const translations = await this.googleTranslation.translate({
             texts: entries.map((entry) => entry.text),
             sourceLanguageCode: googleTranslationLanguageCode(sourceLanguageCode),
             targetLanguageCode: googleTranslationLanguageCode(normalized.targetLanguageCode),
+            signal,
           });
           if (
             !Array.isArray(translations)
@@ -259,11 +263,12 @@ class MojidasTranslationService {
     };
   }
 
-  async createFormalPlan({ normalizedUserID, normalized }) {
+  async createFormalPlan({ normalizedUserID, normalized, signal }) {
+    throwIfAborted(signal);
     await this.assertSupportedLanguages([
       normalized.targetLanguageCode,
       ...new Set(normalized.segments.map((segment) => segment.sourceLanguageCode)),
-    ]);
+    ], { signal });
     const segmentBlocks = [];
     for (const hardBoundaryGroup of partitionHardBoundaryGroups(normalized.segments)) {
       if (areEquivalentLanguages(
@@ -313,8 +318,8 @@ class MojidasTranslationService {
     };
   }
 
-  async assertSupportedLanguages(languageCodes) {
-    const languages = await this.googleTranslation.listSupportedLanguages('en');
+  async assertSupportedLanguages(languageCodes, { signal } = {}) {
+    const languages = await this.googleTranslation.listSupportedLanguages('en', { signal });
     if (!Array.isArray(languages)) throw invalidGoogleResponse();
     for (const languageCode of new Set(languageCodes)) {
       const supported = languages.some((language) => (
@@ -329,6 +334,16 @@ class MojidasTranslationService {
         );
       }
     }
+  }
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) {
+    throw new MojidasTranslationServiceError(
+      'TRANSLATION_JOB_TIMEOUT',
+      '翻訳処理が制限時間を超えました。自動再送は行っていません。',
+      504
+    );
   }
 }
 

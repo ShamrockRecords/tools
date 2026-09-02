@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 const DEFAULT_TTL_MILLISECONDS = 30 * 60 * 1000;
 const DEFAULT_MAX_ENTRIES = 1000;
+const DEFAULT_OPERATION_TIMEOUT_MILLISECONDS = 2 * 60 * 1000;
 
 class FormalTranslationJobStoreError extends Error {
   constructor(code, message) {
@@ -16,10 +17,12 @@ class MemoryFormalTranslationJobStore {
     now = () => Date.now(),
     ttlMilliseconds = DEFAULT_TTL_MILLISECONDS,
     maxEntries = DEFAULT_MAX_ENTRIES,
+    operationTimeoutMilliseconds = DEFAULT_OPERATION_TIMEOUT_MILLISECONDS,
   } = {}) {
     this.now = now;
     this.ttlMilliseconds = ttlMilliseconds;
     this.maxEntries = maxEntries;
+    this.operationTimeoutMilliseconds = operationTimeoutMilliseconds;
     this.entriesByID = new Map();
     this.jobIDByOperationKey = new Map();
   }
@@ -59,8 +62,13 @@ class MemoryFormalTranslationJobStore {
     this.jobIDByOperationKey.set(operationKey, entry.jobID);
 
     // HTTPリクエストの寿命と切り離し、Herokuの30秒router timeoutを回避する。
-    entry.promise = Promise.resolve()
-      .then(operation)
+    const abortController = new AbortController();
+    const operationPromise = Promise.resolve().then(() => operation(abortController.signal));
+    entry.promise = withTimeout(
+      operationPromise,
+      this.operationTimeoutMilliseconds,
+      abortController
+    )
       .then((result) => {
         entry.status = 'completed';
         entry.result = result;
@@ -101,6 +109,20 @@ class MemoryFormalTranslationJobStore {
       this.jobIDByOperationKey.delete(entry.operationKey);
     }
   }
+}
+
+function withTimeout(operation, timeoutMilliseconds, abortController) {
+  let timeoutID;
+  const timeout = new Promise((resolve, reject) => {
+    timeoutID = setTimeout(() => {
+      reject(new FormalTranslationJobStoreError(
+        'TRANSLATION_JOB_TIMEOUT',
+        '翻訳処理が制限時間を超えました。自動再送は行っていません。'
+      ));
+      abortController.abort();
+    }, timeoutMilliseconds);
+  });
+  return Promise.race([operation, timeout]).finally(() => clearTimeout(timeoutID));
 }
 
 function publicJob(entry) {

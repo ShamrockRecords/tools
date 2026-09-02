@@ -294,6 +294,21 @@ async function main() {
     assert.strictEqual(response.body.error.code, 'IDEMPOTENCY_CONFLICT');
     nextCreditError = null;
 
+    nextError = Object.assign(new Error('formal translation timeout'), {
+      code: 'TRANSLATION_JOB_TIMEOUT',
+    });
+    response = await request(
+      server,
+      'POST',
+      '/api/mojidas/translation/formal',
+      { ...formalBody, idempotencyKey: 'formal-timeout' },
+      'user-one-token'
+    );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
+    assert.strictEqual(response.status, 504);
+    assert.strictEqual(response.body.error.code, 'TRANSLATION_JOB_TIMEOUT');
+    nextError = null;
+
     nextError = Object.assign(new Error('not configured'), {
       code: 'GOOGLE_TRANSLATION_NOT_CONFIGURED',
     });

@@ -53,7 +53,7 @@ class GoogleCloudTranslation {
     this.languageCache = new Map();
   }
 
-  async listSupportedLanguages(displayLanguageCode = 'ja') {
+  async listSupportedLanguages(displayLanguageCode = 'ja', { signal } = {}) {
     const normalizedDisplayLanguageCode = normalizeLanguageCode(displayLanguageCode);
     if (!normalizedDisplayLanguageCode) {
       throw invalidRequest('表示言語コードが正しくありません。');
@@ -74,6 +74,8 @@ class GoogleCloudTranslation {
       const payload = await this._requestJSON({
         method: 'GET',
         url: url.toString(),
+        allowRetry: true,
+        signal,
       });
       const languages = parseLanguages(payload);
       this.languageCache.set(cacheKey, {
@@ -91,7 +93,7 @@ class GoogleCloudTranslation {
     }
   }
 
-  async translate({ texts, sourceLanguageCode, targetLanguageCode } = {}) {
+  async translate({ texts, sourceLanguageCode, targetLanguageCode, signal } = {}) {
     const normalizedSourceLanguageCode = normalizeLanguageCode(sourceLanguageCode);
     const normalizedTargetLanguageCode = normalizeLanguageCode(targetLanguageCode);
     if (!normalizedSourceLanguageCode || !normalizedTargetLanguageCode) {
@@ -101,6 +103,7 @@ class GoogleCloudTranslation {
     const batches = buildTranslationBatches(texts);
     const batchTranslations = await executeWithConcurrency(
       batches.map((batch) => async () => {
+        throwIfAborted(signal);
         const payload = await this._requestJSON({
           method: 'POST',
           url: new URL(TRANSLATE_PATH, this.baseURL).toString(),
@@ -113,6 +116,7 @@ class GoogleCloudTranslation {
             target: normalizedTargetLanguageCode,
             format: 'text',
           }),
+          signal,
         });
         return parseTranslations(payload, batch.length);
       }),
@@ -121,7 +125,7 @@ class GoogleCloudTranslation {
     return batchTranslations.flat();
   }
 
-  async _requestJSON({ method, url, headers = {}, body }) {
+  async _requestJSON({ method, url, headers = {}, body, allowRetry = false, signal }) {
     if (!this.apiKey) {
       throw new GoogleCloudTranslationError(
         'GOOGLE_TRANSLATION_NOT_CONFIGURED',
@@ -131,6 +135,7 @@ class GoogleCloudTranslation {
 
     let response;
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      throwIfAborted(signal);
       try {
         response = await this.requester({
           method,
@@ -143,10 +148,11 @@ class GoogleCloudTranslation {
           body,
           timeoutMilliseconds: this.requestTimeoutMilliseconds,
           maxResponseBytes: this.maxResponseBytes,
+          signal,
         });
       } catch (error) {
         const normalized = normalizeRequestError(error);
-        if (attempt === 0 && isRetryableGoogleError(normalized)) continue;
+        if (allowRetry && attempt === 0 && isRetryableGoogleError(normalized)) continue;
         throw normalized;
       }
 
@@ -161,7 +167,7 @@ class GoogleCloudTranslation {
           'Google Cloud Translationへのリクエストに失敗しました。',
           { statusCode: response.statusCode }
         );
-        if (attempt === 0 && isRetryableGoogleError(requestError)) continue;
+        if (allowRetry && attempt === 0 && isRetryableGoogleError(requestError)) continue;
         throw requestError;
       }
       break;
@@ -336,20 +342,31 @@ function requestJson({
   body,
   timeoutMilliseconds = REQUEST_TIMEOUT_MILLISECONDS,
   maxResponseBytes = MAX_RESPONSE_BYTES,
+  signal,
 }) {
   return new Promise((resolve, reject) => {
     let settled = false;
+    let request;
+    const abort = () => {
+      fail(jobTimeoutError());
+      request?.destroy();
+    };
     const fail = (error) => {
       if (settled) return;
       settled = true;
+      signal?.removeEventListener('abort', abort);
       reject(error);
     };
+    if (signal?.aborted) {
+      fail(jobTimeoutError());
+      return;
+    }
     const requestHeaders = { ...headers };
     if (body !== undefined) {
       requestHeaders['Content-Length'] = Buffer.byteLength(body);
     }
 
-    const request = https.request(url, {
+    request = https.request(url, {
       method,
       headers: requestHeaders,
     }, (response) => {
@@ -381,6 +398,7 @@ function requestJson({
       response.on('end', () => {
         if (settled) return;
         settled = true;
+        signal?.removeEventListener('abort', abort);
         resolve({
           statusCode: response.statusCode || 0,
           body: Buffer.concat(chunks),
@@ -405,9 +423,21 @@ function requestJson({
       'Google Cloud Translationへ接続できませんでした。',
       { cause: error }
     )));
+    signal?.addEventListener('abort', abort, { once: true });
     if (body !== undefined) request.write(body);
     request.end();
   });
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw jobTimeoutError();
+}
+
+function jobTimeoutError() {
+  return new GoogleCloudTranslationError(
+    'TRANSLATION_JOB_TIMEOUT',
+    '翻訳処理が制限時間を超えました。自動再送は行っていません。'
+  );
 }
 
 function normalizeRequestError(error) {
