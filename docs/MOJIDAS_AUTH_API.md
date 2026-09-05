@@ -326,6 +326,12 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 
 購読イベントは`checkout.session.completed`と`checkout.session.async_payment_succeeded`です。署名検証後にStripeからSession明細を再取得し、支払済み・Price ID一致を確認してから有効期限なしの購入時間を付与します。Checkout Session IDを冪等キーとするため、Webhookが再送されても二重付与されません。
 
+### アカウント削除
+
+`DELETE /api/mojidas/me`へログイン中のBearer tokenを送ると、購入済み時間を含むクレジット、利用予約、利用履歴、同期済み単語、認証コード、ユーザー記録、Firebase Authenticationユーザーを削除します。削除後は同じメールアドレスで再登録できません。
+
+再登録拒否には、正規化したメールアドレスを`MOJIDAS_ACCOUNT_DELETION_SECRET`でHMAC-SHA256化した値だけを保存し、メールアドレスの平文は保存しません。このsecretを変更または消失すると過去の削除済みメールを照合できなくなるため、本番では固定値として安全に保管します。
+
 ## エラー形式
 
 ```json
@@ -398,6 +404,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
 - `SENDGRID_API_KEY`（Mail Send権限が必要）
 - `MOJIDAS_AUTH_FROM_EMAIL`（任意。既定値`no-reply@mojidas.jp`）
+- `MOJIDAS_ACCOUNT_DELETION_SECRET`（32文字以上。削除済みメールの再登録拒否用HMAC secret）
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_CREDIT_60M_JPY`
