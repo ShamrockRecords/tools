@@ -57,10 +57,10 @@ async function waitForFormalTranslation(server, response, token) {
 async function main() {
   const calls = [];
   const creditCalls = [];
-  const chargedKeys = new Set();
   let chargedTotal = 0;
   let nextCreditError = null;
   let nextError = null;
+  let nextFormalError = null;
   const translationService = {
     async listSupportedLanguages(displayLanguage) {
       calls.push(['languages', displayLanguage]);
@@ -95,6 +95,7 @@ async function main() {
     },
     async translateFormal(value) {
       calls.push(['formal', value]);
+      if (nextFormalError) throw nextFormalError;
       if (nextError) throw nextError;
       return {
         sourceSessionID: value.request.sourceSessionID,
@@ -107,21 +108,20 @@ async function main() {
     },
   };
   const creditStore = {
-    async consumeTranslation(value) {
-      creditCalls.push(value);
+    async createReservation(value) {
+      creditCalls.push(['reserve', value]);
       if (nextCreditError) throw nextCreditError;
-      const key = `${value.userID}:${value.idempotencyKey}`;
-      const alreadyConsumed = chargedKeys.has(key);
-      if (!alreadyConsumed) {
-        chargedKeys.add(key);
-        chargedTotal += value.milliseconds;
-      }
       return {
-        billableMilliseconds: value.milliseconds,
-        chargedMilliseconds: value.isUnlimited ? 0 : value.milliseconds,
+        id: `reservation-${creditCalls.length}`,
         isUnlimited: value.isUnlimited,
-        alreadyConsumed,
+        requestedMilliseconds: value.requestedMilliseconds,
+        leaseExpiresAt: new Date(Date.now() + 60_000),
       };
+    },
+    async completeReservation(value) {
+      creditCalls.push(['complete', value]);
+      if (!value.cancelled) chargedTotal += value.consumedMilliseconds;
+      return {};
     },
   };
   const authClient = {
@@ -233,10 +233,14 @@ async function main() {
     assert.strictEqual(response.body.chargedMilliseconds, 1200);
     assert.strictEqual(response.body.isUnlimited, false);
     assert.strictEqual(calls.at(-1)[1].userID, 'user-1');
-    assert.strictEqual(creditCalls.at(-1).idempotencyKey, 'formal-1');
-    assert.strictEqual(creditCalls.at(-1).requestFingerprint, 'a'.repeat(64));
+    const reservationCall = creditCalls.find((item) => item[0] === 'reserve');
+    assert.strictEqual(reservationCall[1].recognitionRunID, 'formal-1');
+    assert.strictEqual(reservationCall[1].operation, 'formalTranslation');
     assert.strictEqual(response.body.requestFingerprint, undefined);
-    assert.strictEqual(creditCalls.at(-1).milliseconds, 1200);
+    assert.strictEqual(reservationCall[1].requestedMilliseconds, 1200);
+    assert.strictEqual(creditCalls.at(-1)[0], 'complete');
+    assert.strictEqual(creditCalls.at(-1)[1].consumedMilliseconds, 1200);
+    assert.strictEqual(creditCalls.at(-1)[1].cancelled, false);
     assert.strictEqual(chargedTotal, 1200);
 
     response = await request(
@@ -253,6 +257,7 @@ async function main() {
       code: 'INSUFFICIENT_CREDIT',
       details: { requiredMilliseconds: 1200, availableMilliseconds: 100 },
     });
+    const translationCallCountBeforeInsufficient = calls.filter((item) => item[0] === 'formal').length;
     response = await request(
       server,
       'POST',
@@ -263,7 +268,30 @@ async function main() {
     response = await waitForFormalTranslation(server, response, 'user-one-token');
     assert.strictEqual(response.status, 409);
     assert.strictEqual(response.body.error.code, 'INSUFFICIENT_CREDIT');
+    assert.strictEqual(
+      calls.filter((item) => item[0] === 'formal').length,
+      translationCallCountBeforeInsufficient
+    );
     nextCreditError = null;
+
+    nextFormalError = Object.assign(new Error('provider failed'), {
+      code: 'GOOGLE_TRANSLATION_REQUEST_FAILED',
+    });
+    response = await request(
+      server,
+      'POST',
+      '/api/mojidas/translation/formal',
+      { ...formalBody, idempotencyKey: 'formal-provider-failed' },
+      'user-one-token'
+    );
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
+    assert.strictEqual(response.status, 502);
+    assert.strictEqual(response.body.error.code, 'GOOGLE_TRANSLATION_REQUEST_FAILED');
+    assert.strictEqual(creditCalls.at(-1)[0], 'complete');
+    assert.strictEqual(creditCalls.at(-1)[1].consumedMilliseconds, 0);
+    assert.strictEqual(creditCalls.at(-1)[1].cancelled, true);
+    assert.strictEqual(chargedTotal, 1200);
+    nextFormalError = null;
 
     nextCreditError = Object.assign(new Error('invalid translation usage'), {
       code: 'INVALID_TRANSLATION_USAGE',

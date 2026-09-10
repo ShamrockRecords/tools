@@ -115,6 +115,8 @@ async function main() {
   const creditCalls = [];
   const checkoutCalls = [];
   const dictionaryCalls = [];
+  const accountDeletionCalls = [];
+  let previouslyDeletedEmail = null;
   let reservationMode = 'realtime';
   const userStore = {
     async recordLogin(user) {
@@ -186,6 +188,16 @@ async function main() {
       return { revision: 4, acceptedThroughSequence: 1 };
     },
   };
+  const accountDeletionService = {
+    async isEmailDeleted(email) {
+      accountDeletionCalls.push(['check', email]);
+      return email === previouslyDeletedEmail;
+    },
+    async deleteAccount(value) {
+      accountDeletionCalls.push(['delete', value]);
+      return { deleted: true };
+    },
+  };
   const serviceConfiguration = {
     schemaVersion: 1,
     monthlyFreeAllowanceMilliseconds: 1_800_000,
@@ -212,6 +224,7 @@ async function main() {
   app.use('/api/mojidas', createMojidasRouter({
     authClient,
     userStore,
+    accountDeletionService,
     apiKeyIssuer,
     creditStore,
     dictionaryStore,
@@ -268,6 +281,15 @@ async function main() {
     assert.strictEqual(response.status, 201);
     assert.strictEqual(response.body.user.email, 'user@example.com');
     assert.strictEqual(response.body.verificationRequired, true);
+
+    previouslyDeletedEmail = 'deleted@example.com';
+    response = await request(server, 'POST', '/api/mojidas/auth/register', {
+      email: 'Deleted@Example.com',
+      password: 'password123',
+    });
+    assert.strictEqual(response.status, 409);
+    assert.strictEqual(response.body.error.code, 'ACCOUNT_PREVIOUSLY_DELETED');
+    previouslyDeletedEmail = null;
 
     response = await request(server, 'POST', '/api/mojidas/auth/register', {
       email: 'user@example.com',
@@ -326,6 +348,19 @@ async function main() {
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.user.id, 'user-1');
+
+    response = await request(server, 'DELETE', '/api/mojidas/me');
+    assert.strictEqual(response.status, 401);
+
+    response = await request(server, 'DELETE', '/api/mojidas/me', undefined, {
+      Authorization: 'Bearer access-token',
+    });
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(response.body, { deleted: true });
+    assert.deepStrictEqual(accountDeletionCalls.at(-1), ['delete', {
+      userID: 'user-1',
+      email: 'user@example.com',
+    }]);
 
     response = await request(server, 'GET', '/api/mojidas/credits/balance', undefined, {
       Authorization: 'Bearer access-token',

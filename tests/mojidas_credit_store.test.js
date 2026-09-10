@@ -564,14 +564,14 @@ async function main() {
   await mediaStore.completeReservation({
     reservationID: completedMediaReservation.id,
     userID: mediaAccount.userID,
-    consumedMilliseconds: 0,
+    consumedMilliseconds: 240000,
   });
   mediaReservationRecord = mediaFirestore
     .records('Mojidas/production/creditReservations')
     .find((record) => record.id === completedMediaReservation.id);
-  assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 600000);
+  assert.strictEqual(mediaReservationRecord.data.consumedMilliseconds, 240000);
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 840000);
 
   const expiredMediaReservation = await mediaStore.createReservation({
     ...mediaAccount,
@@ -590,7 +590,7 @@ async function main() {
   });
   mediaNow += 600000 + MEDIA_RESERVATION_GRACE_MILLISECONDS + 1;
   mediaBalance = await mediaStore.getBalance(mediaAccount);
-  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 1200000);
+  assert.strictEqual(mediaBalance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS - 840000);
   mediaReservationRecord = mediaFirestore
     .records('Mojidas/production/creditReservations')
     .find((record) => record.id === expiredMediaReservation.id);
@@ -702,6 +702,76 @@ async function main() {
     }),
     (error) => error.code === 'INSUFFICIENT_CREDIT'
       && error.details.availableMilliseconds === MONTHLY_FREE_MILLISECONDS - 120000
+  );
+
+  const cancelledTranslationReservation = await translationStore.createReservation({
+    ...translationAccount,
+    operation: 'formalTranslation',
+    clientSessionID: 'translation-source-session-1',
+    recognitionRunID: 'translation-reservation-1',
+    requestedMilliseconds: 90000,
+    trackCount: 1,
+  });
+  translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 210000
+  );
+  const repeatedTranslationReservation = await translationStore.createReservation({
+    ...translationAccount,
+    operation: 'formalTranslation',
+    clientSessionID: 'translation-source-session-1',
+    recognitionRunID: 'translation-reservation-1',
+    requestedMilliseconds: 90000,
+    trackCount: 1,
+  });
+  assert.strictEqual(repeatedTranslationReservation.alreadyReserved, true);
+  translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 210000
+  );
+  await assert.rejects(
+    () => translationStore.createReservation({
+      ...translationAccount,
+      operation: 'formalTranslation',
+      clientSessionID: 'translation-source-session-1',
+      recognitionRunID: 'translation-reservation-1',
+      requestedMilliseconds: 90001,
+      trackCount: 1,
+    }),
+    (error) => error.code === 'IDEMPOTENCY_CONFLICT'
+  );
+  await translationStore.completeReservation({
+    reservationID: cancelledTranslationReservation.id,
+    userID: translationAccount.userID,
+    consumedMilliseconds: 0,
+    cancelled: true,
+  });
+  translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 120000
+  );
+
+  const completedTranslationReservation = await translationStore.createReservation({
+    ...translationAccount,
+    operation: 'formalTranslation',
+    clientSessionID: 'translation-source-session-1',
+    recognitionRunID: 'translation-reservation-2',
+    requestedMilliseconds: 90000,
+    trackCount: 1,
+  });
+  await translationStore.completeReservation({
+    reservationID: completedTranslationReservation.id,
+    userID: translationAccount.userID,
+    consumedMilliseconds: 90000,
+    cancelled: false,
+  });
+  translationBalance = await translationStore.getBalance(translationAccount);
+  assert.strictEqual(
+    translationBalance.availableMilliseconds,
+    MONTHLY_FREE_MILLISECONDS - 210000
   );
 
   const unlimitedFirestore = new FakeFirestore();

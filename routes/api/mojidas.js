@@ -7,6 +7,9 @@ const {
   FirebaseAuthRestClient,
 } = require('../../modules/auth/firebase_auth_rest');
 const mojidasUserStore = require('../../modules/auth/mojidas_user_store');
+const {
+  mojidasAccountDeletionService,
+} = require('../../modules/auth/mojidas_account_deletion');
 const { isInvitedUnlimited } = require('../../modules/auth/mojidas_access_policy');
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
 const {
@@ -38,6 +41,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 function createMojidasRouter({
   authClient,
   userStore = mojidasUserStore,
+  accountDeletionService = mojidasAccountDeletionService,
   apiKeyIssuer,
   creditStore = mojidasCreditStore,
   dictionaryStore = mojidasDictionaryStore,
@@ -87,6 +91,12 @@ function createMojidasRouter({
     windowMs: 60 * 60 * 1000,
     max: 5,
     keyPrefix: 'mojidas-resend-verification',
+  });
+  const accountDeletionRateLimit = createMemoryRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    keyPrefix: 'mojidas-account-deletion',
+    keyGenerator: authenticatedUserRateLimitKey,
   });
   const trialAppKeyRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 1000,
@@ -173,6 +183,14 @@ function createMojidasRouter({
     }
 
     try {
+      if (await accountDeletionService.isEmailDeleted(email)) {
+        return sendError(
+          res,
+          409,
+          'ACCOUNT_PREVIOUSLY_DELETED',
+          'このメールアドレスでは再度アカウントを作成できません。'
+        );
+      }
       const user = await client.register(email, password);
       return res.status(201).json({
         user,
@@ -296,6 +314,33 @@ function createMojidasRouter({
       user: client.publicUser(req.mojidasUser),
     });
   });
+
+  router.delete(
+    '/me',
+    authenticate(client),
+    accountDeletionRateLimit,
+    async function (req, res) {
+      try {
+        const result = await accountDeletionService.deleteAccount({
+          userID: req.mojidasUser.uid,
+          email: req.mojidasUser.email,
+        });
+        return res.json(result);
+      } catch (error) {
+        const code = error && error.code ? error.code : 'ACCOUNT_DELETION_FAILED';
+        const status = code === 'ACCOUNT_DELETION_NOT_CONFIGURED' ? 503 : 500;
+        console.error('[Mojidas] account deletion failed:', error);
+        return sendError(
+          res,
+          status,
+          code,
+          status === 503
+            ? 'アカウント削除機能の設定が完了していません。'
+            : 'アカウントを削除できませんでした。時間をおいてもう一度お試しください。'
+        );
+      }
+    }
+  );
 
   router.get('/credits/balance', authenticate(client), async function (req, res) {
     try {
@@ -767,38 +812,89 @@ function sendTranslationError(res, error) {
     GOOGLE_TRANSLATION_RATE_LIMITED: [503, 'Google翻訳が混み合っています。'],
     GOOGLE_TRANSLATION_RESPONSE_TOO_LARGE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
     GOOGLE_TRANSLATION_INVALID_RESPONSE: [502, 'Google翻訳から有効な応答を取得できませんでした。'],
+    TRANSLATION_ALREADY_PROCESSING: [409, '同じ翻訳処理がすでに実行中です。'],
   };
   const [status, message] = mapping[code] || [502, '翻訳サービスとの通信に失敗しました。'];
   return sendError(res, status, code, message);
 }
 
-async function executeFormalTranslation({ translator, creditStore, user, request, signal }) {
-  const translation = await translator.translateFormal({
+async function executeFormalTranslation({
+  translator,
+  creditStore,
+  user,
+  request,
+  signal,
+}) {
+  // 正式翻訳は外部翻訳APIを呼ぶ前に、見積もった全時間を予約する。
+  // これにより、確認画面の後に別の音声認識で残時間が減っていても、
+  // 残時間不足のまま従量課金の翻訳処理へ進まない。
+  const { idempotencyKey, ...estimateRequest } = request;
+  const estimate = await translator.estimateFormal({
     userID: user.uid,
-    request,
-    signal,
+    request: estimateRequest,
   });
-  if (signal?.aborted) {
-    throw Object.assign(new Error('Formal translation job timed out.'), {
-      code: 'TRANSLATION_JOB_TIMEOUT',
-    });
-  }
-  const { requestFingerprint, ...publicTranslation } = translation;
-  const usage = await creditStore.consumeTranslation({
+  const reservation = await creditStore.createReservation({
     userID: user.uid,
     accountCreatedAt: accountCreationTime(user),
-    idempotencyKey: translation.idempotencyKey,
-    requestFingerprint,
-    milliseconds: translation.billableMilliseconds,
-    sourceSessionID: translation.sourceSessionID,
-    targetLanguageCode: translation.targetLanguageCode,
+    operation: 'formalTranslation',
+    clientSessionID: request.sourceSessionID,
+    recognitionRunID: idempotencyKey,
+    requestedMilliseconds: estimate.billableMilliseconds,
+    trackCount: 1,
     isUnlimited: isInvitedUnlimited(user),
   });
-  return {
-    ...publicTranslation,
-    chargedMilliseconds: usage.chargedMilliseconds,
-    isUnlimited: usage.isUnlimited,
-  };
+  if (reservation.alreadyReserved) {
+    throw Object.assign(new Error('Formal translation is already processing.'), {
+      code: 'TRANSLATION_ALREADY_PROCESSING',
+    });
+  }
+  let completed = false;
+  try {
+    const translation = await translator.translateFormal({
+      userID: user.uid,
+      request,
+      signal,
+    });
+    if (signal?.aborted) {
+      throw Object.assign(new Error('Formal translation job timed out.'), {
+        code: 'TRANSLATION_JOB_TIMEOUT',
+      });
+    }
+    if (translation.billableMilliseconds !== estimate.billableMilliseconds) {
+      throw Object.assign(new Error('Formal translation estimate changed.'), {
+        code: 'INVALID_TRANSLATION_USAGE',
+      });
+    }
+    await creditStore.completeReservation({
+      reservationID: reservation.id,
+      userID: user.uid,
+      consumedMilliseconds: translation.billableMilliseconds,
+      cancelled: false,
+    });
+    completed = true;
+    const publicTranslation = { ...translation };
+    delete publicTranslation.requestFingerprint;
+    return {
+      ...publicTranslation,
+      chargedMilliseconds: reservation.isUnlimited
+        ? 0
+        : translation.billableMilliseconds,
+      isUnlimited: reservation.isUnlimited,
+    };
+  } finally {
+    if (!completed) {
+      try {
+        await creditStore.completeReservation({
+          reservationID: reservation.id,
+          userID: user.uid,
+          consumedMilliseconds: 0,
+          cancelled: true,
+        });
+      } catch (_) {
+        // 元の翻訳エラーを優先する。予約はlease切れでも自動返却される。
+      }
+    }
+  }
 }
 
 function sendFormalTranslationJob(res, job) {
@@ -956,6 +1052,7 @@ function sendAuthError(res, error) {
     EXPIRED_VERIFICATION_CODE: [410, '認証コードの有効期限が切れています。新しいコードを送信してください。'],
     VERIFICATION_ATTEMPTS_EXCEEDED: [429, '認証コードの入力回数が上限に達しました。新しいコードを送信してください。'],
     USER_DISABLED: [403, 'このアカウントは利用できません。'],
+    ACCOUNT_DELETION_NOT_CONFIGURED: [503, 'アカウント削除機能の設定が完了していません。'],
     TOO_MANY_ATTEMPTS_TRY_LATER: [429, '試行回数が多すぎます。しばらく待ってからお試しください。'],
     INVALID_REFRESH_TOKEN: [401, 'ログインの有効期限が切れました。もう一度ログインしてください。'],
     TOKEN_EXPIRED: [401, 'ログインの有効期限が切れました。もう一度ログインしてください。'],

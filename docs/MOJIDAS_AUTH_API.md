@@ -183,7 +183,7 @@ Authorization: Bearer {accessToken}
 - `POST /api/mojidas/usage/{id}/complete`: ライブの最終発話時間を確定、ファイルの未使用予約を返却
 - `POST /api/mojidas/usage/{id}/cancel`: ライブの最終発話時間を確定、ファイルの未使用予約を返却
 
-同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムは開始時に時間を予約せず、無音区間を消費しません。2チャンネルは各チャンネルの確定発話区間を個別に合算し、heartbeatと終了時に増加分だけを消費します。ファイル認識は開始時に全時間を退避し、正常完了時だけ全時間を消費します。処理エラーまたはlease期限切れでは全量を返却し、利用者が明示的に途中停止した場合はファイル全時間を消費します。毎月無料枠を含む期限付き時間を先に使い、その後に期限なし購入分を使用します。残高・利用セッション・ファイル予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
+同じ認識ID、heartbeat sequence、終了処理は冪等に扱います。リアルタイムは開始時に時間を予約せず、無音区間を消費しません。2チャンネルは各チャンネルの確定発話区間を個別に合算し、heartbeatと終了時に増加分だけを消費します。ファイル認識は開始時にファイル全時間を退避し、正常完了時はACP確定発話区間だけを消費して差額を返却します。処理エラーまたはlease期限切れでは全量を返却し、利用者が明示的に途中停止した場合はファイル全時間を消費します。毎月無料枠を含む期限付き時間を先に使い、その後に期限なし購入分を使用します。残高・利用セッション・ファイル予約・台帳はFirestore transactionで同時更新します。`grants`はこの消費順で返し、キャンペーン等は任意の`label`を設定できます。
 
 招待ユーザーの予約は`isUnlimited: true`を返し、クレジット付与を予約・消費しません。予約、heartbeat、終了の冪等性と監査用台帳は通常ユーザーと同じ経路を使い、予約台帳の増減時間は0として記録します。
 
@@ -326,6 +326,12 @@ https://app.mojidas.jp/api/mojidas/billing/stripe/webhook
 
 購読イベントは`checkout.session.completed`と`checkout.session.async_payment_succeeded`です。署名検証後にStripeからSession明細を再取得し、支払済み・Price ID一致を確認してから有効期限なしの購入時間を付与します。Checkout Session IDを冪等キーとするため、Webhookが再送されても二重付与されません。
 
+### アカウント削除
+
+`DELETE /api/mojidas/me`へログイン中のBearer tokenを送ると、購入済み時間を含むクレジット、利用予約、利用履歴、同期済み単語、認証コード、ユーザー記録、Firebase Authenticationユーザーを削除します。削除後は同じメールアドレスで再登録できません。
+
+再登録拒否には、正規化したメールアドレスを`MOJIDAS_ACCOUNT_DELETION_SECRET`でHMAC-SHA256化した値だけを保存し、メールアドレスの平文は保存しません。このsecretを変更または消失すると過去の削除済みメールを照合できなくなるため、本番では固定値として安全に保管します。
+
 ## エラー形式
 
 ```json
@@ -398,6 +404,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
 - `SENDGRID_API_KEY`（Mail Send権限が必要）
 - `MOJIDAS_AUTH_FROM_EMAIL`（任意。既定値`no-reply@mojidas.jp`）
+- `MOJIDAS_ACCOUNT_DELETION_SECRET`（32文字以上。削除済みメールの再登録拒否用HMAC secret）
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_CREDIT_60M_JPY`

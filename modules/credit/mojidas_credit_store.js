@@ -288,12 +288,26 @@ class MojidasCreditStore {
       const existing = await transaction.get(reservationDocument);
       if (existing.exists) {
         const reservation = existing.data();
-        if (
+        const sameActiveReservation = (
           reservation.userID === userID
           && reservation.recognitionRunID === recognitionRunID
           && ['held', 'consuming'].includes(reservation.status)
-        ) {
-          return publicReservation(reservationID, reservation);
+        );
+        const sameReservationIdentity = reservation.operation === operation
+          && reservation.clientSessionID === clientSessionID;
+        const sameRequestedTime = operation !== 'formalTranslation'
+          || Number(reservation.requestedMilliseconds) === Number(requestedMilliseconds);
+        if (sameActiveReservation && sameReservationIdentity && sameRequestedTime) {
+          return {
+            ...publicReservation(reservationID, reservation),
+            alreadyReserved: true,
+          };
+        }
+        if (sameActiveReservation) {
+          throw new CreditStoreError(
+            'IDEMPOTENCY_CONFLICT',
+            '同じ翻訳操作IDが異なる予約内容に使用されています。'
+          );
         }
         throw new CreditStoreError(
           'RESERVATION_EXPIRED',
@@ -598,8 +612,10 @@ class MojidasCreditStore {
 
       let requested = Math.max(0, Number(reservation.requestedMilliseconds) || 0);
       let allocations = reservation.allocations || [];
-      const isMediaFile = reservation.operation === 'mediaFile';
-      const reported = isMediaFile
+      const isFixedReservation = ['mediaFile', 'formalTranslation'].includes(
+        reservation.operation
+      );
+      const reported = isFixedReservation
         ? Math.max(0, Number(consumedMilliseconds) || 0)
         : Math.max(
           Number(reservation.consumedMilliseconds) || 0,
@@ -610,7 +626,7 @@ class MojidasCreditStore {
 
       // リアルタイム認識は開始時に時間を予約しない。停止直前など、最後の
       // heartbeat以降に確定した発話時間だけをここで追加消費する。
-      if (!isMediaFile && !reservation.unlimited && reported > requested) {
+      if (!isFixedReservation && !reservation.unlimited && reported > requested) {
         const requiredConsumption = reported - requested;
         const grantQuery = this.collection('creditGrants')
           .where('userID', '==', userID);
@@ -631,10 +647,14 @@ class MojidasCreditStore {
       }
 
       let consumed;
-      if (isMediaFile && status === 'completed') {
-        // ファイル認識は正常完了した場合だけ、予約した全時間を消費する。
+      if (reservation.operation === 'formalTranslation' && status === 'completed') {
+        // 正式翻訳はserverが算出した課金対象時間を全量予約している。
         consumed = requested;
-      } else if (isMediaFile && status === 'expired') {
+      } else if (reservation.operation === 'mediaFile' && status === 'completed') {
+        // ファイル長を上限として予約し、正常完了後はクライアントが
+        // 確定結果から算出した実発話時間だけを消費し、差額を返却する。
+        consumed = Math.min(requested, reported);
+      } else if (isFixedReservation && status === 'expired') {
         // 完了通知がないまま期限切れになった予約は、サービス側の失敗として全返却する。
         consumed = 0;
       } else if (reservation.unlimited) {

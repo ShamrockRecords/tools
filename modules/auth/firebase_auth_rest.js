@@ -224,6 +224,14 @@ class FirebaseAuthRestClient {
     const decoded = await this.firebaseAdmin.auth().verifyIdToken(idToken, true);
     const user = await this.firebaseAdmin.auth().getUser(decoded.uid);
 
+    if (user.disabled) {
+      throw new FirebaseAuthError(
+        'USER_DISABLED',
+        'このアカウントは利用できません。',
+        403
+      );
+    }
+
     if (!user.emailVerified) {
       throw new FirebaseAuthError(
         'EMAIL_NOT_VERIFIED',
