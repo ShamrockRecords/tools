@@ -587,6 +587,14 @@ class MojidasCreditStore {
       if (['completed', 'cancelled', 'expired'].includes(reservation.status)) {
         return publicReservation(reservationID, reservation);
       }
+      if (status === 'expired') {
+        // 候補検索後にheartbeatが期限を延長することがあるため、
+        // 終了を書き込むtransaction内で最新の期限を再確認する。
+        const leaseExpiresAt = asDate(reservation.leaseExpiresAt);
+        if (leaseExpiresAt && leaseExpiresAt.getTime() > now.getTime()) {
+          return publicReservation(reservationID, reservation);
+        }
+      }
 
       let requested = Math.max(0, Number(reservation.requestedMilliseconds) || 0);
       let allocations = reservation.allocations || [];

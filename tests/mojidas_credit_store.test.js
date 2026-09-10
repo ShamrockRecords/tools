@@ -110,7 +110,97 @@ function snapshot(reference, value) {
   };
 }
 
+function deferred() {
+  let resolve;
+  const promise = new Promise((complete) => { resolve = complete; });
+  return { promise, resolve };
+}
+
+async function testRenewalDuringExpiration(isUnlimited) {
+  let now = Date.parse('2026-09-10T00:00:00Z');
+  const startedAt = now;
+  const firestore = new FakeFirestore();
+  const store = new MojidasCreditStore({
+    firestoreProvider: () => firestore,
+    now: () => now,
+  });
+  const account = {
+    userID: 'expiration-race-user',
+    accountCreatedAt: new Date(now),
+    isUnlimited,
+  };
+  const reservation = await store.createReservation({
+    ...account,
+    operation: 'realtime',
+    clientSessionID: 'expiration-race-session',
+    recognitionRunID: 'expiration-race-run',
+    requestedMilliseconds: 0,
+    trackCount: 1,
+  });
+  const heartbeatEntered = deferred();
+  const heartbeatGate = deferred();
+  const expirationEntered = deferred();
+  const expirationGate = deferred();
+  const originalTransaction = firestore.runTransaction.bind(firestore);
+  let transactionCount = 0;
+  firestore.runTransaction = async (callback) => {
+    transactionCount++;
+    // 月次付与の確認後、期限内に開始したheartbeatの更新を待機させる。
+    if (transactionCount === 2) {
+      heartbeatEntered.resolve();
+      await heartbeatGate.promise;
+    }
+    return originalTransaction(callback);
+  };
+  const originalFinalize = store.finalizeReservation.bind(store);
+  store.finalizeReservation = async (args) => {
+    if (args.status === 'expired') {
+      expirationEntered.resolve();
+      await expirationGate.promise;
+    }
+    return originalFinalize(args);
+  };
+
+  now = startedAt + 599000;
+  const heartbeat = store.heartbeat({
+    reservationID: reservation.id,
+    userID: account.userID,
+    accountCreatedAt: account.accountCreatedAt,
+    sequence: 1,
+    consumedMilliseconds: 1000,
+  });
+  await heartbeatEntered.promise;
+  now = startedAt + 600001;
+  const expiration = store.releaseExpiredReservations(account.userID);
+  await expirationEntered.promise;
+  heartbeatGate.resolve();
+  await heartbeat;
+  const persistedAfterRenewal = structuredClone(firestore.collections);
+  expirationGate.resolve();
+  await expiration;
+
+  // 古い期限切れ候補によって、予約・残高・台帳のどれも変更されない。
+  assert.deepStrictEqual(firestore.collections, persistedAfterRenewal);
+  const active = await store.assertActiveReservation({
+    reservationID: reservation.id,
+    userID: account.userID,
+  });
+  assert.strictEqual(Boolean(active.unlimited), isUnlimited);
+  assert.strictEqual(active.status, 'consuming');
+
+  // 更新後の期限を過ぎれば通常どおり終了し、再実行しても二重処理しない。
+  now = active.leaseExpiresAt.getTime() + 1;
+  await store.releaseExpiredReservations(account.userID);
+  const expired = firestore.records('Mojidas/production/creditReservations')[0];
+  assert.strictEqual(expired.data.status, 'expired');
+  const persistedAfterExpiration = structuredClone(firestore.collections);
+  await store.releaseExpiredReservations(account.userID);
+  assert.deepStrictEqual(firestore.collections, persistedAfterExpiration);
+}
+
 async function main() {
+  await testRenewalDuringExpiration(false);
+  await testRenewalDuringExpiration(true);
   const januaryAnchor = new Date('2026-01-31T10:15:00.000Z');
   let period = monthlyPeriod(januaryAnchor, new Date('2026-02-15T00:00:00.000Z'));
   assert.strictEqual(period.startsAt.toISOString(), '2026-01-31T10:15:00.000Z');
