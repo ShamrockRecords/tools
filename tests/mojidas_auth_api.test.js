@@ -32,6 +32,7 @@ async function request(server, method, path, body, headers = {}) {
         const contentType = String(response.headers['content-type'] || '');
         resolve({
           status: response.statusCode,
+          headers: response.headers,
           body: responseBody
             ? (contentType.includes('application/json') ? JSON.parse(responseBody) : responseBody)
             : null,
@@ -485,15 +486,15 @@ async function main() {
     response = await request(server, 'POST', '/api/mojidas/acp/trial-appkey', {
       recognitionRunID: '550e8400-e29b-41d4-a716-446655440000',
     });
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.appKey, 'test-instant-appkey-0123456789abcdef');
-    assert.strictEqual(response.body.expiresAt, '2026-08-14T01:02:00.000Z');
+    assert.strictEqual(response.status, 404);
+    assert.strictEqual(response.body.appKey, undefined);
+    assert.strictEqual(appKeyCalls.length, 0);
 
     response = await request(server, 'POST', '/api/mojidas/acp/trial-appkey', {
       recognitionRunID: 'invalid',
     });
-    assert.strictEqual(response.status, 400);
-    assert.strictEqual(response.body.error.code, 'INVALID_RECOGNITION_RUN_ID');
+    assert.strictEqual(response.status, 404);
+    assert.strictEqual(appKeyCalls.length, 0);
 
     response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
       reservationID: 'reservation-1',
@@ -511,8 +512,8 @@ async function main() {
       reservationID: 'reservation-1',
       userID: 'user-1',
     }]);
-    assert.strictEqual(appKeyCalls.length, 2);
-    assert.strictEqual(appKeyCalls[1], undefined);
+    assert.strictEqual(appKeyCalls.length, 1);
+    assert.strictEqual(appKeyCalls[0], undefined);
 
     reservationMode = 'mediaFile';
     response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
@@ -522,7 +523,40 @@ async function main() {
       Authorization: 'Bearer access-token',
     });
     assert.strictEqual(response.status, 200);
-    assert.deepStrictEqual(appKeyCalls[2], { expiryMilliseconds: 600000 });
+    assert.strictEqual(appKeyCalls[1], undefined);
+
+    apiKeyIssuer.issue = async () => ({ appKey: 'fixed-test-key-0123456789abcdef0123456789abcdef', expiresAt: null });
+    response = await request(server, 'POST', '/api/mojidas/acp/trial-appkey', {
+      recognitionRunID: '550e8400-e29b-41d4-a716-446655440000',
+    });
+    assert.strictEqual(response.status, 404);
+    assert.strictEqual(response.body.appKey, undefined);
+    response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+      reservationID: 'reservation-1',
+    });
+    assert.strictEqual(response.status, 401);
+    for (const mode of ['realtime', 'mediaFile']) {
+      reservationMode = mode;
+      response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+        reservationID: 'reservation-1',
+      }, { Authorization: 'Bearer access-token' });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.appKey, 'fixed-test-key-0123456789abcdef0123456789abcdef');
+      assert.strictEqual(response.body.expiresAt, null);
+      assert.strictEqual(response.headers['cache-control'], 'no-store');
+      assert.deepStrictEqual(reservationChecks.at(-1), { reservationID: 'reservation-1', userID: 'user-1' });
+    }
+    const assertReservation = creditStore.assertActiveReservation;
+    creditStore.assertActiveReservation = async () => { throw new Error('予約確認失敗'); };
+    let leakedIssueCalls = 0;
+    apiKeyIssuer.issue = async () => { leakedIssueCalls += 1; return { appKey: 'must-not-return' }; };
+    response = await request(server, 'POST', '/api/mojidas/acp/instant-appkey', {
+      reservationID: 'other-owner-or-inactive',
+    }, { Authorization: 'Bearer access-token' });
+    assert.notStrictEqual(response.status, 200);
+    assert.strictEqual(response.body.appKey, undefined);
+    assert.strictEqual(leakedIssueCalls, 0);
+    creditStore.assertActiveReservation = assertReservation;
 
     assert.deepStrictEqual(calls[0], ['register', 'user@example.com']);
   } finally {

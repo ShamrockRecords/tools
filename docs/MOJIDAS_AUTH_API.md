@@ -187,17 +187,11 @@ Authorization: Bearer {accessToken}
 
 招待ユーザーの予約は`isUnlimited: true`を返し、クレジット付与を予約・消費しません。予約、heartbeat、終了の冪等性と監査用台帳は通常ユーザーと同じ経路を使い、予約台帳の増減時間は0として記録します。
 
-### `POST /api/mojidas/acp/trial-appkey`
-
-未ログインの60秒体験用に、ACPの短期APIキーを発行します。Firebase認証は不要ですが、接続元IPごとに1分8回までに制限します。
-
-```json
-{"recognitionRunID":"550e8400-e29b-41d4-a716-446655440000"}
-```
+旧未ログイン体験APIは削除済みです。`POST /api/mojidas/acp/trial-appkey`は設定にかかわらず404となり、キーを返しません。
 
 ### `POST /api/mojidas/acp/instant-appkey`
 
-Firebase IDトークンとFirestore上の有効な`creditReservations`を確認してから、ACPの短期APIキーを発行します。
+Firebase IDトークンとFirestore上の有効な`creditReservations`を確認してから、設定済みの長期APIキーを返します。
 
 ```http
 Authorization: Bearer {accessToken}
@@ -207,7 +201,7 @@ Authorization: Bearer {accessToken}
 {"reservationID":"reservation-id"}
 ```
 
-両endpointの成功応答は同じです。
+成功応答は次の形式です（長期キー使用時は`expiresAt: null`）。
 
 ```json
 {
@@ -399,9 +393,7 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `FIREBASE_PROJECT_ID`（推奨）
 - `MOJIDAS_ALLOWED_HOSTS`（任意。既定値は`app.mojidas.jp`、複数指定はカンマ区切り）
 - `MOJIDAS_MONTHLY_FREE_MINUTES`（任意。毎月の無料枠を分単位で指定、既定値`30`）
-- `ACP_SERVICE_ID`
-- `ACP_SERVICE_PASSWORD`
-- `ACP_API_KEY_EXPIRY_MS`（任意。既定値120000、30000〜600000に制限）
+- `ACP_LONG_TERM_APPKEY`（必須。ACPで発行した無期限の認識用キー）
 - `SENDGRID_API_KEY`（Mail Send権限が必要）
 - `MOJIDAS_AUTH_FROM_EMAIL`（任意。既定値`no-reply@mojidas.jp`）
 - `MOJIDAS_ACCOUNT_DELETION_SECRET`（32文字以上。削除済みメールの再登録拒否用HMAC secret）
@@ -419,13 +411,21 @@ Mojidas専用のFirebase Authentication設定を利用します。`/admin`の管
 - `MOJIDAS_TRANSLATION_BLOCK_MAX_CHARACTERS`（任意。文末記号がない意味blockの上限。既定値`160`）
 - `MOJIDAS_TRANSLATION_REUSE_SECRET`（任意。正式翻訳blockの再利用署名用。未設定時はGoogle翻訳API keyを使用）
 
-`ACP_SERVICE_ID`と`ACP_SERVICE_PASSWORD`はHeroku Config Vars等のサーバー秘密情報として設定し、Git、Webページ、Mac/Windowsアプリへ含めません。サーバーはACP公式の`POST https://acp-api.amivoice.com/issue_service_authorization`へ`application/x-www-form-urlencoded`で送信します。
+`ACP_SERVICE_ID`・`ACP_SERVICE_PASSWORD`・`ACP_API_KEY_EXPIRY_MS`・`ACP_API_KEY_ISSUER_URL`は使用しません。ACPへの短期キー発行通信は削除済みです。旧環境変数が残っていても読み取りません。
 
 StripeのSecret KeyとWebhook signing secretもHeroku Config Varsだけに設定します。2つのPriceは税込支払額330円／2,200円のone-time PriceとしてStripe側で作成し、各Price IDを上記環境変数へ設定します。test modeとlive modeのKey・Price・Webhook secretを混在させないでください。
 
 翻訳用のGoogleキーと再利用署名secretもHeroku Config Vars等のサーバー秘密情報として設定します。GoogleキーはCloud Translation APIだけにAPI制限し、可能なら本番サーバーの送信元IP制限も設定してください。`MOJIDAS_TRANSLATION_REUSE_SECRET`がなければGoogleキーをHMAC署名にも使用し、両方なければ再利用候補を信用せず通常翻訳へ戻します。いずれの秘密情報もURL、ログ、Webページ、Mac／Windowsアプリ、Firestoreへ含めません。
 
-通常のリアルタイム認識キーは`ACP_API_KEY_EXPIRY_MS`を使います。credit reservationの`mode`が`mediaFile`の場合は、ACP非同期HTTP v2の待機・再認証を考慮して600000 ms（10分）のキーを発行します。クライアントが送る`purpose`だけでは期限を変更せず、必ず保存済みreservationのmodeを根拠にします。
+### 長期APPKEYへの切り替え（2026-09-10）
+
+`ACP_LONG_TERM_APPKEY`へACPで発行した無期限の認識用キーを設定すると、認証済みの`POST acp/instant-appkey`はリアルタイム・ファイルとも常にそのキーと`expiresAt: null`を返します。URL・要求JSON・応答フィールドは維持します。認証と予約の有効性・所有者確認は省略せず、応答は`Cache-Control: no-store`とします。旧`acp/trial-appkey`は全面削除済みで、長期キー設定の有無にかかわらず404となります。ログイン必須の既存アプリが対象であり、廃止済み未ログイン体験との互換性は保証しません。
+
+`ACP_LONG_TERM_APPKEY`が未設定・空・形式不正の場合は`ACP_NOT_CONFIGURED`を返します。短期キー発行へのフォールバックはありません。キーの実際の有効性はACP側で確認が必要です。
+
+旧アプリはnullableの期限を受け取れますが、辞書・言語変更時のAPI取得要求は従来どおり残ります。今回削減するのはサーバーからACPへのキー発行通信です。メモリ上のキー再利用によるアプリ側の単純化は別対応です。課金・予約・ファイル送信方式は変更しません。
+
+設定はサーバープロセス作成時に読みます。ローテーションは新キーを設定してプロセスを更新し、新しい取得要求での利用を確認してからACP側で旧キーを失効させます。環境変数の変更だけでは旧キーは失効しません。稼働中アプリや待機中ファイルjobは旧キーを保持し得るため、旧キー失効には移行猶予が必要です。キーをGit・ログ・URLへ残さず、アプリではファイル保存せずメモリで保持します。今回は本番設定・デプロイ・旧キー失効を実行していません。
 
 確認メールはSendGrid v3 Mail Send APIから送り、アプリへ入力する6桁の認証コードを記載します。コードの平文は保存せず、ランダムsaltを付けてscryptでハッシュ化し、Firestoreの`Mojidas/production/emailVerificationChallenges/{uid}`へ有効期限・失敗回数とともに保存します。`mojidas.jp`はSendGrid側でDomain Authenticationが完了している必要があります。
 

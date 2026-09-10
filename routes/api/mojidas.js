@@ -14,7 +14,6 @@ const { isInvitedUnlimited } = require('../../modules/auth/mojidas_access_policy
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
 const {
   ACPApiKeyIssuer,
-  MEDIA_ASYNC_EXPIRY_MILLISECONDS,
 } = require('../../modules/acp/api_key_issuer');
 const mojidasCreditStore = require('../../modules/credit/mojidas_credit_store');
 const mojidasDictionaryStore = require('../../modules/dictionary/mojidas_dictionary_store');
@@ -97,11 +96,6 @@ function createMojidasRouter({
     max: 5,
     keyPrefix: 'mojidas-account-deletion',
     keyGenerator: authenticatedUserRateLimitKey,
-  });
-  const trialAppKeyRateLimit = createMemoryRateLimiter({
-    windowMs: 60 * 1000,
-    max: 8,
-    keyPrefix: 'mojidas-trial-appkey',
   });
   const authenticatedAppKeyRateLimit = createMemoryRateLimiter({
     windowMs: 60 * 1000,
@@ -587,18 +581,6 @@ function createMojidasRouter({
     return finalizeCreditReservation(req, res, creditStore, true);
   });
 
-  router.post('/acp/trial-appkey', trialAppKeyRateLimit, async function (req, res) {
-    const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
-    if (!recognitionRunID) {
-      return sendError(res, 400, 'INVALID_RECOGNITION_RUN_ID', 'recognitionRunIDは必須です。');
-    }
-
-    try {
-      return res.json(await issuer.issue());
-    } catch (error) {
-      return sendAppKeyError(res, error);
-    }
-  });
 
   router.post(
     '/acp/instant-appkey',
@@ -611,14 +593,12 @@ function createMojidasRouter({
       }
 
       try {
-        const reservation = await creditStore.assertActiveReservation({
+        await creditStore.assertActiveReservation({
           reservationID,
           userID: req.mojidasUser.uid,
         });
-        const issueOptions = reservation?.mode === 'mediaFile'
-          ? { expiryMilliseconds: MEDIA_ASYNC_EXPIRY_MILLISECONDS }
-          : undefined;
-        return res.json(await issuer.issue(issueOptions));
+        res.set('Cache-Control', 'no-store');
+        return res.json(await issuer.issue());
       } catch (error) {
         return sendAppKeyError(res, error);
       }
