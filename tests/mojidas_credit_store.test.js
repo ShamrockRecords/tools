@@ -788,12 +788,12 @@ async function main() {
   assert.strictEqual(unlimitedBalance.isUnlimited, true);
   assert.strictEqual(
     unlimitedBalance.availableMilliseconds,
-    UNLIMITED_AVAILABLE_MILLISECONDS
+    UNLIMITED_AVAILABLE_MILLISECONDS + MONTHLY_FREE_MILLISECONDS
   );
-  assert.strictEqual(unlimitedBalance.grants.length, 0);
+  assert.strictEqual(unlimitedBalance.grants.length, 2);
   assert.strictEqual(
     unlimitedFirestore.records('Mojidas/production/creditGrants').length,
-    0
+    2
   );
 
   const unlimitedReservation = await unlimitedStore.createReservation({
@@ -848,19 +848,20 @@ async function main() {
   });
   assert.deepStrictEqual(unlimitedTranslationCharge, {
     billableMilliseconds: 45000,
-    chargedMilliseconds: 0,
+    chargedMilliseconds: 45000,
     isUnlimited: true,
     alreadyConsumed: false,
   });
   const unlimitedTranslationLedger = unlimitedFirestore
     .records('Mojidas/production/usageLedger')
     .find((record) => record.data.metadata.operation === 'formalTranslation');
-  assert.strictEqual(unlimitedTranslationLedger.data.milliseconds, 0);
+  assert.strictEqual(unlimitedTranslationLedger.data.milliseconds, -45000);
 
   console.log('Mojidasクレジットストア: 複数期限を含むすべてのテストに成功しました。');
 }
 
-main().catch((error) => {
+module.exports = { FakeFirestore };
+if (require.main === module) main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

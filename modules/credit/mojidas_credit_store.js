@@ -6,7 +6,7 @@ const { monthlyFreeMilliseconds } = require('../mojidas_service_configuration');
 const MONTHLY_FREE_MILLISECONDS = monthlyFreeMilliseconds();
 const RESERVATION_LEASE_MILLISECONDS = 10 * 60 * 1000;
 const MEDIA_RESERVATION_GRACE_MILLISECONDS = 30 * 60 * 1000;
-const UNLIMITED_AVAILABLE_MILLISECONDS = Number.MAX_SAFE_INTEGER;
+const UNLIMITED_AVAILABLE_MILLISECONDS = 100 * 365 * 24 * 60 * 60 * 1000;
 
 class CreditStoreError extends Error {
   constructor(code, message, details) {
@@ -29,23 +29,30 @@ class MojidasCreditStore {
   }
 
   async getBalance({ userID, accountCreatedAt, isUnlimited = false }) {
-    if (isUnlimited) {
-      await this.releaseExpiredReservations(userID);
-      return {
-        isUnlimited: true,
-        availableMilliseconds: UNLIMITED_AVAILABLE_MILLISECONDS,
-        expiringMilliseconds: 0,
-        purchasedMilliseconds: 0,
-        grants: [],
-        serverTime: new Date(this.now()),
-      };
-    }
-    await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    await this.ensureAccountGrants({ userID, accountCreatedAt, isUnlimited });
     await this.releaseExpiredReservations(userID);
     const snapshot = await this.collection('creditGrants')
       .where('userID', '==', userID)
       .get();
-    return summarizeGrants(snapshot.docs, new Date(this.now()));
+    return {
+      ...summarizeGrants(eligibleGrantDocuments(snapshot.docs, isUnlimited), new Date(this.now())),
+      isUnlimited,
+    };
+  }
+
+  async ensureAccountGrants({ userID, accountCreatedAt, isUnlimited = false }) {
+    await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    if (isUnlimited) {
+      // テスト残高も通常と同じgrantの予約・消費・返却を通す。売上には含めない。
+      await this.grantCredit({
+        userID,
+        type: 'testCredit',
+        label: 'テスト用時間',
+        milliseconds: UNLIMITED_AVAILABLE_MILLISECONDS,
+        idempotencyKey: 'invited-test-credit-v1',
+        metadata: { testOnly: true },
+      });
+    }
   }
 
   async ensureMonthlyGrant({ userID, accountCreatedAt }) {
@@ -100,7 +107,7 @@ class MojidasCreditStore {
     const normalizedKey = String(idempotencyKey || '').trim();
     const startDate = startsAt ? asDate(startsAt) : new Date(this.now());
     const expiryDate = expiresAt ? asDate(expiresAt) : null;
-    if (!userID || !normalizedType || !normalizedKey || !startDate || amount <= 0) {
+    if (!userID || !normalizedType || !normalizedKey || !startDate || !Number.isSafeInteger(amount) || amount <= 0) {
       throw new CreditStoreError('INVALID_GRANT', '利用時間の付与内容が不正です。');
     }
     if (expiresAt && !expiryDate) {
@@ -174,10 +181,8 @@ class MojidasCreditStore {
       throw new CreditStoreError('INVALID_TRANSLATION_USAGE', '翻訳時間の消費内容が不正です。');
     }
 
-    if (!isUnlimited) {
-      await this.ensureMonthlyGrant({ userID: normalizedUserID, accountCreatedAt });
-      await this.releaseExpiredReservations(normalizedUserID);
-    }
+    await this.ensureAccountGrants({ userID: normalizedUserID, accountCreatedAt, isUnlimited });
+    await this.releaseExpiredReservations(normalizedUserID);
 
     const now = new Date(this.now());
     const ledgerID = deterministicID(
@@ -213,12 +218,12 @@ class MojidasCreditStore {
       }
 
       let allocations = [];
-      if (!isUnlimited && billableMilliseconds > 0) {
+      if (billableMilliseconds > 0) {
         const grantQuery = this.collection('creditGrants')
           .where('userID', '==', normalizedUserID);
         const grantSnapshot = await transaction.get(grantQuery);
         const allocation = allocateFromGrants(
-          activeGrantDocuments(grantSnapshot.docs, now),
+          activeGrantDocuments(eligibleGrantDocuments(grantSnapshot.docs, isUnlimited), now),
           billableMilliseconds
         );
         if (allocation.remaining > 0) {
@@ -236,7 +241,7 @@ class MojidasCreditStore {
         });
       }
 
-      const chargedMilliseconds = isUnlimited ? 0 : billableMilliseconds;
+      const chargedMilliseconds = billableMilliseconds;
       transaction.set(ledgerDocument, {
         userID: normalizedUserID,
         grantID: null,
@@ -274,9 +279,7 @@ class MojidasCreditStore {
     trackCount,
     isUnlimited = false,
   }) {
-    if (!isUnlimited) {
-      await this.ensureMonthlyGrant({ userID, accountCreatedAt });
-    }
+    await this.ensureAccountGrants({ userID, accountCreatedAt, isUnlimited });
     await this.releaseExpiredReservations(userID);
 
     const now = new Date(this.now());
@@ -315,55 +318,11 @@ class MojidasCreditStore {
         );
       }
 
-      if (isUnlimited) {
-        const allocatedMilliseconds = operation === 'realtime' ? 0 : requestedMilliseconds;
-        const ledgerKind = operation === 'realtime' ? 'start' : 'reserve';
-        const reservation = {
-          userID,
-          operation,
-          clientSessionID,
-          recognitionRunID,
-          requestedMilliseconds: allocatedMilliseconds,
-          trackCount,
-          unlimited: true,
-          allocations: [],
-          consumedMilliseconds: 0,
-          status: 'held',
-          leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
-            operation,
-            allocatedMilliseconds
-          )),
-          lastHeartbeatSequence: 0,
-          createdAt: now,
-          updatedAt: now,
-        };
-        transaction.set(reservationDocument, reservation);
-        transaction.set(
-          this.collection('usageLedger').doc(deterministicID(ledgerKind, reservationID)),
-          {
-            userID,
-            grantID: null,
-            reservationID,
-            kind: ledgerKind,
-            milliseconds: 0,
-            idempotencyKey: `${ledgerKind}:${reservationID}`,
-            occurredAt: now,
-            metadata: {
-              operation,
-              trackCount,
-              unlimited: true,
-              requestedMilliseconds: allocatedMilliseconds,
-            },
-          }
-        );
-        return publicReservation(reservationID, reservation);
-      }
-
       const grantQuery = this.collection('creditGrants')
         .where('userID', '==', userID);
       const grantSnapshot = await transaction.get(grantQuery);
 
-      const grants = activeGrantDocuments(grantSnapshot.docs, now);
+      const grants = activeGrantDocuments(eligibleGrantDocuments(grantSnapshot.docs, isUnlimited), now);
       const isRealtime = operation === 'realtime';
       const allocation = allocateFromGrants(
         grants,
@@ -394,6 +353,9 @@ class MojidasCreditStore {
         recognitionRunID,
         requestedMilliseconds: allocatedMilliseconds,
         trackCount,
+        unlimited: Boolean(isUnlimited),
+        accountingVersion: 2,
+        accountCreatedAt: asDate(accountCreatedAt) || new Date(0),
         allocations: allocation.allocations.map((item) => ({
           grantID: item.id,
           milliseconds: item.milliseconds,
@@ -416,10 +378,10 @@ class MojidasCreditStore {
           grantID: null,
           reservationID,
           kind: ledgerKind,
-          milliseconds: -allocatedMilliseconds,
+          milliseconds: allocatedMilliseconds === 0 ? 0 : -allocatedMilliseconds,
           idempotencyKey: `${ledgerKind}:${reservationID}`,
           occurredAt: now,
-          metadata: { operation, trackCount },
+          metadata: { operation, trackCount, unlimited: Boolean(isUnlimited) },
         }
       );
       return publicReservation(reservationID, reservation);
@@ -432,27 +394,34 @@ class MojidasCreditStore {
     accountCreatedAt,
     sequence,
     consumedMilliseconds,
+    isUnlimited = false,
+    clientRequest = false,
   }) {
-    await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    await this.ensureAccountGrants({ userID, accountCreatedAt, isUnlimited });
     const now = new Date(this.now());
     const document = this.collection('creditReservations').doc(reservationID);
 
     const outcome = await this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
-      const reservation = requireActiveReservation(snapshot, userID, now);
+      const reservation = requireOwnedReservation(snapshot, userID);
+      assertClientReservation(reservation, clientRequest);
+      if (reservation.operation === 'formalTranslation') requireActiveReservation(snapshot, userID, now);
+      else if (!['held', 'consuming', 'expired'].includes(reservation.status)) {
+        throw new CreditStoreError('RESERVATION_CLOSED', 'この認識処理は既に終了しています。');
+      }
       const previousSequence = Number(reservation.lastHeartbeatSequence) || 0;
       const previousConsumed = Number(reservation.consumedMilliseconds) || 0;
       if (sequence <= previousSequence) {
         return {
           reservation: publicReservation(reservationID, reservation),
-          insufficient: false,
-          requiredMilliseconds: previousConsumed,
+          insufficient: Boolean(reservation.lastHeartbeatInsufficient),
+          requiredMilliseconds: Number(reservation.reportedMilliseconds) || previousConsumed,
           availableMilliseconds: Number(reservation.requestedMilliseconds) || 0,
         };
       }
       const isMediaFile = reservation.operation === 'mediaFile';
       const reportedConsumed = isMediaFile ? 0 : consumedMilliseconds;
-      if (reportedConsumed < previousConsumed) {
+      if (!isMediaFile && reportedConsumed < Math.max(previousConsumed, Number(reservation.reportedMilliseconds) || 0)) {
         throw new CreditStoreError(
           'INVALID_SEQUENCE',
           '音声認識時間が前回の報告より小さくなっています。'
@@ -462,16 +431,33 @@ class MojidasCreditStore {
       let requestedMilliseconds = Number(reservation.requestedMilliseconds) || 0;
       let allocations = reservation.allocations || [];
       let insufficient = false;
-      if (reservation.operation === 'realtime' && reservation.unlimited) {
-        requestedMilliseconds = Math.max(requestedMilliseconds, reportedConsumed);
-      } else if (reservation.operation === 'realtime') {
+      const needsMediaBacking = isMediaFile && (reservation.status === 'expired'
+        || (reservation.unlimited && !reservation.accountingVersion));
+      if (needsMediaBacking) {
+        const grants = await transaction.get(this.collection('creditGrants').where('userID', '==', userID));
+        const reacquired = allocateFromGrants(
+          activeGrantDocuments(eligibleGrantDocuments(grants.docs, isUnlimited), now), requestedMilliseconds
+        );
+        if (reacquired.remaining > 0) throw insufficientCreditError(requestedMilliseconds, reacquired.available);
+        allocations = reacquired.allocations.map((item) => ({ grantID: item.id, milliseconds: item.milliseconds }));
+        reacquired.allocations.forEach((item) => transaction.update(item.document, {
+          remainingMilliseconds: item.remainingAfter, updatedAt: now,
+        }));
+        transaction.set(this.collection('usageLedger').doc(deterministicID('recover', `${reservationID}:${sequence}`)), {
+          userID, reservationID, grantID: null, kind: 'reserve',
+          milliseconds: requestedMilliseconds === 0 ? 0 : -requestedMilliseconds,
+          idempotencyKey: `recover:${reservationID}:${sequence}`, occurredAt: now,
+          metadata: { operation: reservation.operation, unlimited: Boolean(reservation.unlimited) },
+        });
+      }
+      if (reservation.operation === 'realtime') {
         const requiredConsumption = Math.max(0, reportedConsumed - requestedMilliseconds);
         if (requiredConsumption > 0) {
           const grantQuery = this.collection('creditGrants')
             .where('userID', '==', userID);
           const grantSnapshot = await transaction.get(grantQuery);
           const extension = allocateFromGrants(
-            activeGrantDocuments(grantSnapshot.docs, now),
+            activeGrantDocuments(eligibleGrantDocuments(grantSnapshot.docs, isUnlimited), now),
             requiredConsumption
           );
           const allocated = requiredConsumption - extension.remaining;
@@ -520,6 +506,11 @@ class MojidasCreditStore {
         allocations,
         consumedMilliseconds: chargedConsumedMilliseconds,
         lastHeartbeatSequence: sequence,
+        lastHeartbeatInsufficient: insufficient,
+        reportedMilliseconds: reportedConsumed,
+        accountingVersion: 2,
+        leaseGeneration: (Number(reservation.leaseGeneration) || 0)
+          + (isMediaFile && reservation.status === 'expired' ? 1 : 0),
         status: 'consuming',
         leaseExpiresAt: new Date(now.getTime() + reservationLeaseMilliseconds(
           reservation.operation,
@@ -532,6 +523,10 @@ class MojidasCreditStore {
         allocations: updated.allocations,
         consumedMilliseconds: updated.consumedMilliseconds,
         lastHeartbeatSequence: updated.lastHeartbeatSequence,
+        lastHeartbeatInsufficient: updated.lastHeartbeatInsufficient,
+        reportedMilliseconds: updated.reportedMilliseconds,
+        accountingVersion: updated.accountingVersion,
+        leaseGeneration: updated.leaseGeneration,
         status: updated.status,
         leaseExpiresAt: updated.leaseExpiresAt,
         updatedAt: now,
@@ -552,12 +547,16 @@ class MojidasCreditStore {
     return outcome.reservation;
   }
 
-  async completeReservation({ reservationID, userID, consumedMilliseconds, cancelled = false }) {
+  async completeReservation({ reservationID, userID, accountCreatedAt, isUnlimited, consumedMilliseconds, cancelled = false, clientRequest = false }) {
+    // 長い切断中に月が変わっていても、確定前に当月の無料枠を用意する。
+    if (accountCreatedAt) await this.ensureAccountGrants({ userID, accountCreatedAt, isUnlimited });
     return this.finalizeReservation({
       reservationID,
       userID,
       consumedMilliseconds,
       status: cancelled ? 'cancelled' : 'completed',
+      clientRequest,
+      isUnlimited,
     });
   }
 
@@ -587,7 +586,7 @@ class MojidasCreditStore {
     })));
   }
 
-  async finalizeReservation({ reservationID, userID, consumedMilliseconds, status }) {
+  async finalizeReservation({ reservationID, userID, consumedMilliseconds, status, clientRequest = false, isUnlimited }) {
     const now = new Date(this.now());
     const reservationDocument = this.collection('creditReservations')
       .doc(reservationID);
@@ -598,7 +597,10 @@ class MojidasCreditStore {
         throw new CreditStoreError('RESERVATION_NOT_FOUND', '利用時間の予約が見つかりません。');
       }
       const reservation = snapshot.data();
-      if (['completed', 'cancelled', 'expired'].includes(reservation.status)) {
+      const mayUseTestCredit = isUnlimited === undefined ? reservation.unlimited : isUnlimited;
+      assertClientReservation(reservation, clientRequest);
+      if (['completed', 'cancelled'].includes(reservation.status)
+        || (reservation.status === 'expired' && status === 'expired')) {
         return publicReservation(reservationID, reservation);
       }
       if (status === 'expired') {
@@ -626,13 +628,13 @@ class MojidasCreditStore {
 
       // リアルタイム認識は開始時に時間を予約しない。停止直前など、最後の
       // heartbeat以降に確定した発話時間だけをここで追加消費する。
-      if (!isFixedReservation && !reservation.unlimited && reported > requested) {
+      if (!isFixedReservation && reported > requested) {
         const requiredConsumption = reported - requested;
         const grantQuery = this.collection('creditGrants')
           .where('userID', '==', userID);
         const grantSnapshot = await transaction.get(grantQuery);
         additionalAllocation = allocateFromGrants(
-          activeGrantDocuments(grantSnapshot.docs, now),
+          activeGrantDocuments(eligibleGrantDocuments(grantSnapshot.docs, mayUseTestCredit), now),
           requiredConsumption
         );
         additionalMilliseconds = requiredConsumption - additionalAllocation.remaining;
@@ -646,6 +648,25 @@ class MojidasCreditStore {
         );
       }
 
+      // ファイル予約は期限切れで返却済みの場合、確定分を改めて確保する。
+      // 不足時はtransaction全体を中止し、アプリ側の未送信確定として保持する。
+      if (isFixedReservation && (reservation.status === 'expired'
+        || (status !== 'expired' && reservation.unlimited && !reservation.accountingVersion))) {
+        if (reservation.operation === 'formalTranslation' && reservation.status === 'expired') {
+          throw new CreditStoreError('RESERVATION_EXPIRED', '翻訳用の予約期限が切れています。');
+        }
+        const amount = Math.min(requested, reported);
+        const grants = await transaction.get(this.collection('creditGrants').where('userID', '==', userID));
+        additionalAllocation = allocateFromGrants(
+          activeGrantDocuments(eligibleGrantDocuments(grants.docs, mayUseTestCredit), now), amount
+        );
+        if (additionalAllocation.remaining > 0) {
+          throw insufficientCreditError(amount, additionalAllocation.available);
+        }
+        requested = amount;
+        allocations = additionalAllocation.allocations.map((item) => ({ grantID: item.id, milliseconds: item.milliseconds }));
+        additionalMilliseconds = amount;
+      }
       let consumed;
       if (reservation.operation === 'formalTranslation' && status === 'completed') {
         // 正式翻訳はserverが算出した課金対象時間を全量予約している。
@@ -657,8 +678,6 @@ class MojidasCreditStore {
       } else if (isFixedReservation && status === 'expired') {
         // 完了通知がないまま期限切れになった予約は、サービス側の失敗として全返却する。
         consumed = 0;
-      } else if (reservation.unlimited) {
-        consumed = reported;
       } else {
         consumed = Math.min(requested, reported);
       }
@@ -697,9 +716,7 @@ class MojidasCreditStore {
         });
       });
 
-      const releasedMilliseconds = reservation.unlimited
-        ? 0
-        : Math.max(0, requested - consumed);
+      const releasedMilliseconds = releases.reduce((total, release) => total + release.milliseconds, 0);
       const updated = {
         ...reservation,
         requestedMilliseconds: requested,
@@ -733,15 +750,17 @@ class MojidasCreditStore {
         );
       }
       if (releasedMilliseconds > 0) {
+        const releaseKey = reservation.leaseGeneration
+          ? `${reservationID}:${reservation.leaseGeneration}` : reservationID;
         transaction.set(
-          this.collection('usageLedger').doc(deterministicID('release', reservationID)),
+          this.collection('usageLedger').doc(deterministicID('release', releaseKey)),
           {
             userID,
             grantID: null,
             reservationID,
             kind: 'release',
             milliseconds: releasedMilliseconds,
-            idempotencyKey: `release:${reservationID}`,
+            idempotencyKey: `release:${releaseKey}`,
             occurredAt: now,
             metadata: { status },
           }
@@ -840,8 +859,8 @@ function activeGrantDocuments(documents, now) {
     .sort((left, right) => {
       // 無料・キャンペーン枠をすべて使い切ってから購入分を消費する。
       // purchasedに将来有効期限が付いても、この商品仕様を優先する。
-      const leftPurchased = left.data.type === 'purchased' ? 1 : 0;
-      const rightPurchased = right.data.type === 'purchased' ? 1 : 0;
+      const leftPurchased = left.data.type === 'testCredit' ? 2 : left.data.type === 'purchased' ? 1 : 0;
+      const rightPurchased = right.data.type === 'testCredit' ? 2 : right.data.type === 'purchased' ? 1 : 0;
       if (leftPurchased !== rightPurchased) return leftPurchased - rightPurchased;
       const leftExpiry = left.expiresAt ? left.expiresAt.getTime() : Number.MAX_SAFE_INTEGER;
       const rightExpiry = right.expiresAt ? right.expiresAt.getTime() : Number.MAX_SAFE_INTEGER;
@@ -881,6 +900,23 @@ function mergeAllocations(existing, additions) {
   return order.map((grantID) => ({ grantID, milliseconds: totals.get(grantID) }));
 }
 
+function eligibleGrantDocuments(documents, isUnlimited) {
+  return documents.filter((document) => isUnlimited || document.data().type !== 'testCredit');
+}
+
+function assertClientReservation(reservation, clientRequest) {
+  if (clientRequest && reservation.operation === 'formalTranslation') {
+    throw new CreditStoreError('RESERVATION_SERVER_MANAGED', '正式翻訳の利用時間はサーバーが確定します。');
+  }
+}
+
+function requireOwnedReservation(snapshot, userID) {
+  if (!snapshot.exists || snapshot.data().userID !== userID) {
+    throw new CreditStoreError('RESERVATION_NOT_FOUND', '利用時間の予約が見つかりません。');
+  }
+  return snapshot.data();
+}
+
 function requireActiveReservation(snapshot, userID, now) {
   if (!snapshot.exists || snapshot.data().userID !== userID) {
     throw new CreditStoreError('RESERVATION_NOT_FOUND', '利用時間の予約が見つかりません。');
@@ -910,6 +946,8 @@ function publicReservation(id, reservation) {
     isUnlimited: Boolean(reservation.unlimited),
     requestedMilliseconds: Number(reservation.requestedMilliseconds) || 0,
     leaseExpiresAt: asDate(reservation.leaseExpiresAt),
+    status: reservation.status,
+    consumedMilliseconds: Number(reservation.consumedMilliseconds) || 0,
   };
 }
 

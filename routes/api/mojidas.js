@@ -570,6 +570,8 @@ function createMojidasRouter({
         accountCreatedAt: accountCreationTime(req.mojidasUser),
         sequence,
         consumedMilliseconds,
+        isUnlimited: isInvitedUnlimited(req.mojidasUser),
+        clientRequest: true,
       });
       return res.json({});
     } catch (error) {
@@ -742,6 +744,9 @@ async function finalizeCreditReservation(req, res, creditStore, cancelled) {
       userID: req.mojidasUser.uid,
       consumedMilliseconds,
       cancelled,
+      clientRequest: true,
+      accountCreatedAt: accountCreationTime(req.mojidasUser),
+      isUnlimited: isInvitedUnlimited(req.mojidasUser),
     });
     return res.json({});
   } catch (error) {
@@ -755,6 +760,8 @@ function sendCreditError(res, error) {
     INSUFFICIENT_CREDIT: [409, '音声認識時間が不足しています。'],
     RESERVATION_NOT_FOUND: [404, '利用時間の予約が見つかりません。'],
     RESERVATION_EXPIRED: [409, '利用時間の予約期限が切れています。'],
+    RESERVATION_CLOSED: [409, 'この認識処理は既に終了しています。'],
+    RESERVATION_SERVER_MANAGED: [403, '正式翻訳の利用時間はサーバーが確定します。'],
     INVALID_SEQUENCE: [409, '利用時間の更新順序が正しくありません。'],
     INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
     INVALID_TRANSLATION_USAGE: [400, '翻訳時間の消費内容が正しくありません。'],
@@ -799,6 +806,8 @@ function sendBillingError(res, error) {
 function sendTranslationError(res, error) {
   const code = error && error.code ? error.code : 'TRANSLATION_SERVICE_ERROR';
   const mapping = {
+    RESERVATION_CLOSED: [409, '翻訳の利用時間を確定できませんでした。'],
+    RESERVATION_EXPIRED: [409, '翻訳の利用時間予約が期限切れになりました。'],
     INVALID_TRANSLATION_REQUEST: [400, '翻訳リクエストが正しくありません。'],
     UNSUPPORTED_TRANSLATION_LANGUAGE: [400, '選択された翻訳先言語は利用できません。'],
     TRANSLATION_TEXT_TOO_LONG: [413, '翻訳する本文が長すぎます。'],
@@ -865,20 +874,24 @@ async function executeFormalTranslation({
         code: 'INVALID_TRANSLATION_USAGE',
       });
     }
-    await creditStore.completeReservation({
+    const settlement = await creditStore.completeReservation({
       reservationID: reservation.id,
       userID: user.uid,
       consumedMilliseconds: translation.billableMilliseconds,
       cancelled: false,
     });
+    if (settlement.status !== 'completed'
+      || settlement.consumedMilliseconds !== translation.billableMilliseconds) {
+      throw Object.assign(new Error('Translation reservation was not settled.'), {
+        code: 'RESERVATION_CLOSED',
+      });
+    }
     completed = true;
     const publicTranslation = { ...translation };
     delete publicTranslation.requestFingerprint;
     return {
       ...publicTranslation,
-      chargedMilliseconds: reservation.isUnlimited
-        ? 0
-        : translation.billableMilliseconds,
+      chargedMilliseconds: settlement.consumedMilliseconds,
       isUnlimited: reservation.isUnlimited,
     };
   } finally {
@@ -1024,6 +1037,8 @@ function sendAppKeyError(res, error) {
   const mapping = {
     RESERVATION_NOT_FOUND: [404, '利用時間の予約が見つかりません。'],
     RESERVATION_EXPIRED: [409, '利用時間の予約期限が切れています。'],
+    RESERVATION_CLOSED: [409, 'この認識処理は既に終了しています。'],
+    RESERVATION_SERVER_MANAGED: [403, '正式翻訳の利用時間はサーバーが確定します。'],
     ACP_NOT_CONFIGURED: [503, '音声認識サーバーの設定が完了していません。'],
     ACP_TIMEOUT: [504, '音声認識サーバーへの接続がタイムアウトしました。'],
     ACP_REQUEST_FAILED: [502, '音声認識サーバーへ接続できませんでした。'],

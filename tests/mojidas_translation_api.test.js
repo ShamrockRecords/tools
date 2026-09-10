@@ -61,6 +61,7 @@ async function main() {
   let nextCreditError = null;
   let nextError = null;
   let nextFormalError = null;
+  let nextSettlement = null;
   const translationService = {
     async listSupportedLanguages(displayLanguage) {
       calls.push(['languages', displayLanguage]);
@@ -120,8 +121,9 @@ async function main() {
     },
     async completeReservation(value) {
       creditCalls.push(['complete', value]);
+      if (nextSettlement && !value.cancelled) return nextSettlement;
       if (!value.cancelled) chargedTotal += value.consumedMilliseconds;
-      return {};
+      return { status: value.cancelled ? 'cancelled' : 'completed', consumedMilliseconds: value.consumedMilliseconds };
     },
   };
   const authClient = {
@@ -336,6 +338,16 @@ async function main() {
     assert.strictEqual(response.status, 504);
     assert.strictEqual(response.body.error.code, 'TRANSLATION_JOB_TIMEOUT');
     nextError = null;
+
+    // 予約が消費確定できていない場合、翻訳結果を成功として返さない。
+    nextSettlement = { status: 'cancelled', consumedMilliseconds: 0 };
+    response = await request(server, 'POST', '/api/mojidas/translation/formal',
+      { ...formalBody, idempotencyKey: 'formal-unsettled' }, 'user-one-token');
+    response = await waitForFormalTranslation(server, response, 'user-one-token');
+    assert.strictEqual(response.status, 409);
+    assert.strictEqual(response.body.error.code, 'RESERVATION_CLOSED');
+    assert.strictEqual(response.body.blocks, undefined);
+    nextSettlement = null;
 
     nextError = Object.assign(new Error('not configured'), {
       code: 'GOOGLE_TRANSLATION_NOT_CONFIGURED',
