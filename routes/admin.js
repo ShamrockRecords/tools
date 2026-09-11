@@ -9,6 +9,7 @@ const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter
 const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
 const mojidasPaidBalanceStore = require('../modules/billing/mojidas_paid_balance_store');
 const mojidasVersionStore = require('../modules/mojidas_version_store');
+const mojidasBroadcastService = require('../modules/email/mojidas_broadcast_service');
 
 var router = express.Router();
 
@@ -231,6 +232,67 @@ router.get('/', async function (req, res, next) {
       user: userRecord,
     });
   } catch (error) {
+    return next(error);
+  }
+});
+
+const broadcastStatusLabels = {
+  preparing: '宛先を準備中', preparation_failed: '宛先取得失敗', draft: '送信前の確認待ち',
+  expired: '確認期限切れ', sending: '送信処理中', completed: '送信処理完了', attention: '送信結果の確認が必要',
+};
+function getBroadcastService(req) { return req.app.locals.mojidasBroadcastService || mojidasBroadcastService; }
+async function renderBroadcast(req, res, { job = null, form = {}, error = null, status = 200 } = {}) {
+  return res.status(status).render('admin/mojidas-mail', {
+    job, form, error, user: await resolveUserRecord(req.adminUser),
+    history: job ? [] : await getBroadcastService(req).listRecent(),
+    csrfToken: ensureAdminCSRFToken(req), flash: consumeAdminFlash(req),
+    formatDate: formatAdminDate, statusLabels: broadcastStatusLabels,
+  });
+}
+router.get('/mojidas-mail', ensureAdmin, async (req, res, next) => {
+  try { return await renderBroadcast(req, res); } catch (error) { return next(error); }
+});
+router.post('/mojidas-mail/prepare', ensureAdmin, async (req, res, next) => {
+  if (!hasValidAdminCSRFToken(req)) return res.status(403).send('画面の有効期限が切れました。再読込してください。');
+  const form = { subject: typeof req.body.subject === 'string' ? req.body.subject : '',
+    body: typeof req.body.body === 'string' ? req.body.body : '' };
+  try {
+    const job = await getBroadcastService(req).prepare({ ...form, adminEmail: req.adminUser.email });
+    return res.redirect(303, `/admin/mojidas-mail/${job.id}`);
+  } catch (error) {
+    try {
+      return await renderBroadcast(req, res, { form, status: 400,
+        error: ['INVALID_BROADCAST', 'ACCOUNT_DELETION_NOT_CONFIGURED'].includes(error.code) ? error.message : '宛先の取得に失敗しました。まだ送信していません。件名と本文を保持しています。' });
+    } catch (renderError) { return next(renderError); }
+  }
+});
+router.get('/mojidas-mail/:id/edit', ensureAdmin, async (req, res, next) => {
+  try {
+    const job = await getBroadcastService(req).get(req.params.id);
+    return await renderBroadcast(req, res, { form: { subject: job.subject, body: job.body } });
+  } catch (error) {
+    if (error.code === 'BROADCAST_NOT_FOUND') return res.status(404).send(error.message);
+    return next(error);
+  }
+});
+router.get('/mojidas-mail/:id', ensureAdmin, async (req, res, next) => {
+  try { return await renderBroadcast(req, res, { job: await getBroadcastService(req).get(req.params.id) }); }
+  catch (error) {
+    if (error.code === 'BROADCAST_NOT_FOUND') return res.status(404).send(error.message);
+    return next(error);
+  }
+});
+router.post('/mojidas-mail/:id/send', ensureAdmin, async (req, res, next) => {
+  if (!hasValidAdminCSRFToken(req)) return res.status(403).send('画面の有効期限が切れました。再読込してください。');
+  try {
+    await getBroadcastService(req).start(req.params.id, req.adminUser.email);
+    return res.redirect(303, `/admin/mojidas-mail/${req.params.id}`);
+  } catch (error) {
+    if (['SENDGRID_NOT_CONFIGURED', 'BROADCAST_EXPIRED'].includes(error.code)) {
+      req.session.adminFlash = { type: 'danger', message: error.message };
+      return res.redirect(303, `/admin/mojidas-mail/${req.params.id}`);
+    }
+    if (error.code === 'BROADCAST_NOT_FOUND') return res.status(404).send(error.message);
     return next(error);
   }
 });

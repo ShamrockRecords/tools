@@ -50,6 +50,23 @@ function sessionCookie(response) {
 }
 
 async function main() {
+  const broadcastCalls = [];
+  const broadcastID = '00000000-0000-4000-8000-000000000001';
+  let broadcastJob;
+  app.locals.mojidasBroadcastService = {
+    async listRecent() { return broadcastJob ? [broadcastJob] : []; },
+    async prepare(value) {
+      broadcastCalls.push(['prepare', value]);
+      broadcastJob = { ...value, id: broadcastID, status: 'draft', recipientCount: 1234,
+        acceptedCount: 0, excludedCount: 0, skippedCount: 1, duplicateCount: 2, createdAt: new Date() };
+      return broadcastJob;
+    },
+    async get(id) {
+      if (id !== broadcastID || !broadcastJob) throw Object.assign(new Error('not found'), { code: 'BROADCAST_NOT_FOUND' });
+      return broadcastJob;
+    },
+    async start(id, email) { broadcastCalls.push(['start', id, email]); broadcastJob.status = 'sending'; return broadcastJob; },
+  };
   const adminUserCalls = [];
   app.locals.mojidasAdminUserStore = {
     async listUsers(value) {
@@ -221,6 +238,37 @@ async function main() {
       'set',
       { uid: 'user-1', enabled: true },
     ]);
+
+    response = await request(server, 'GET', '/admin/mojidas-mail', { cookie });
+    assert.equal(response.status, 200);
+    assert.match(response.body, /Mojidas全ユーザーへメール/);
+    assert.match(response.body, /削除済みアカウントは除外/);
+    response = await request(server, 'POST', '/admin/mojidas-mail/prepare', { cookie, body: { subject: '件名', body: '本文' } });
+    assert.equal(response.status, 403);
+    assert.equal(broadcastCalls.length, 0);
+    response = await request(server, 'POST', '/admin/mojidas-mail/prepare', { cookie,
+      body: { csrfToken: csrfMatch[1], subject: '<b>お知らせ</b>', body: '本文\n次の行' } });
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.location, `/admin/mojidas-mail/${broadcastID}`);
+    assert.equal(broadcastCalls[0][0], 'prepare');
+    response = await request(server, 'GET', `/admin/mojidas-mail/${broadcastID}`, { cookie });
+    assert.match(response.body, /全1234件へ送信/);
+    assert.match(response.body, /&lt;b&gt;お知らせ&lt;\/b&gt;/);
+    assert.equal(broadcastCalls.length, 1, '確認画面では送信しない');
+    response = await request(server, 'GET', `/admin/mojidas-mail/${broadcastID}/edit`, { cookie });
+    assert.equal(response.status, 200);
+    assert.match(response.body, /本文\n次の行/);
+    response = await request(server, 'POST', `/admin/mojidas-mail/${broadcastID}/send`, { cookie, body: {} });
+    assert.equal(response.status, 403);
+    response = await request(server, 'POST', `/admin/mojidas-mail/${broadcastID}/send`, { body: { csrfToken: csrfMatch[1] } });
+    assert.equal(response.status, 302);
+    assert.equal(broadcastCalls.length, 1);
+    response = await request(server, 'POST', `/admin/mojidas-mail/${broadcastID}/send`, { cookie, body: { csrfToken: csrfMatch[1] } });
+    assert.equal(response.status, 303);
+    assert.deepStrictEqual(broadcastCalls[1], ['start', broadcastID, 'admin@example.com']);
+    response = await request(server, 'GET', `/admin/mojidas-mail/${broadcastID}`, { cookie });
+    assert.match(response.body, /http-equiv="refresh"/);
+    assert(!response.body.includes('class="btn btn-danger"'), '処理中の画面には送信ボタンを出さない');
 
     response = await request(server, 'GET', '/admin/bulk-mail', { cookie });
     assert.strictEqual(response.status, 200);

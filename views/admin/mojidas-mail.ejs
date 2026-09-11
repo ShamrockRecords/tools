@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <%- include('../parts/head', {title: 'Mojidas全ユーザーへメール'}) %>
+  <% if (job && ['sending', 'preparing'].includes(job.status)) { %><meta http-equiv="refresh" content="5"><% } %>
+  <style>body{background:#f8f9fa}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit}.subject{overflow-wrap:anywhere}</style>
+</head>
+<body>
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div><a href="/admin">管理者ページへ戻る</a><h1 class="h3 fw-bold mt-2">Mojidas全ユーザーへメール</h1></div>
+    <span class="small text-muted"><%= user.email %></span>
+  </div>
+  <% if (error) { %><div class="alert alert-danger" role="alert"><%= error %></div><% } %>
+  <% if (flash) { %><div class="alert alert-<%= flash.type %>" role="alert"><%= flash.message %></div><% } %>
+  <% if (!job) { %>
+    <p class="text-muted">メールアドレスが登録されている全ユーザーが対象です。削除済みアカウントは除外します。重複アドレスは1件にまとめ、宛先同士に他のユーザーのアドレスは表示しません。</p>
+    <form method="post" action="/admin/mojidas-mail/prepare" class="card shadow-sm mb-4">
+      <div class="card-body p-4">
+        <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+        <label for="subject" class="form-label">件名</label>
+        <input id="subject" name="subject" class="form-control mb-3" maxlength="200" required value="<%= form.subject || '' %>">
+        <label for="body" class="form-label">本文</label>
+        <textarea id="body" name="body" class="form-control mb-2" rows="12" maxlength="50000" required><%= form.body || '' %></textarea>
+        <p class="small text-muted">テキストのみ。改行はそのまま送信します。</p>
+        <button class="btn btn-primary" type="submit">宛先を取得して送信内容を確認</button>
+        <span class="small text-muted ms-2">この段階では送信しません。</span>
+      </div>
+    </form>
+    <h2 class="h5">配信履歴（最新20件）</h2>
+    <div class="table-responsive"><table class="table bg-white"><thead><tr><th>作成日時</th><th>件名</th><th>状態</th><th>受付／対象</th></tr></thead><tbody>
+      <% history.forEach(item => { %><tr><td><%= formatDate(item.createdAt) %></td><td class="subject"><a href="/admin/mojidas-mail/<%= item.id %>"><%= item.subject %></a></td><td><%= statusLabels[item.status] || item.status %></td><td><%= item.acceptedCount %>／<%= item.recipientCount %>件</td></tr><% }) %>
+      <% if (!history.length) { %><tr><td colspan="4" class="text-muted">配信履歴はありません。</td></tr><% } %>
+    </tbody></table></div>
+  <% } else { %>
+    <a href="/admin/mojidas-mail">作成画面・配信履歴へ戻る</a>
+    <div class="alert alert-<%= job.status === 'completed' ? 'success' : job.status === 'attention' ? 'warning' : 'info' %> mt-3" role="status">
+      <strong><%= statusLabels[job.status] || job.status %></strong>
+      <div>対象 <%= job.recipientCount %>件 ／ SendGrid受付済み <%= job.acceptedCount %>件 ／ 送信前除外 <%= job.excludedCount || 0 %>件</div>
+      <% if (job.status === 'sending') { %><div>この画面は自動更新されます。画面を閉じても処理は続きます。</div><% } %>
+      <% if (job.status === 'completed') { %><div>受付完了はメールの到着を保証するものではありません。到達状況はSendGridで確認できます。</div><% } %>
+      <% if (job.status === 'attention') { %><div>結果不明 <%= job.uncertainCount || 0 %>件 ／ 受付拒否 <%= job.rejectedCount || 0 %>件。処理が中断した可能性があります。重複を防ぐため自動再送は行いません。再配信の前にSendGridの記録を確認してください。</div><% } %>
+      <% if (job.status === 'expired') { %><div>確認画面は30分で期限切れになります。作成画面で宛先を再取得してください。</div><% } %>
+    </div>
+    <div class="card shadow-sm mb-4"><div class="card-body p-4">
+      <h2 class="h5 subject"><%= job.subject %></h2>
+      <hr><div class="message-preview"><%= job.body %></div>
+    </div></div>
+    <div class="small text-muted mb-3">作成：<%= formatDate(job.createdAt) %> ／ 作成者：<%= job.adminEmail %><br>配信ID：<%= job.id %><br>重複除外：<%= job.duplicateCount %>件 ／ 削除済み・アドレス未登録・形式不正：<%= job.skippedCount %>件</div>
+    <% if (job.status === 'draft') { %>
+      <form method="post" action="/admin/mojidas-mail/<%= job.id %>/send">
+        <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+        <p>上記の件名・本文を、取得時点の対象ユーザーへ送信します。取得後に削除されたアカウントやアドレスが変更されたアカウントは、送信直前に再確認して除外します。</p>
+        <a class="btn btn-outline-secondary me-2" href="/admin/mojidas-mail/<%= job.id %>/edit">内容を修正</a>
+        <button type="submit" class="btn btn-danger">確認した内容を全<%= job.recipientCount %>件へ送信</button>
+      </form>
+    <% } %>
+  <% } %>
+</div>
+</body>
+</html>
