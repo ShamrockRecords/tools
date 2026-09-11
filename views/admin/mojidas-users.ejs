@@ -5,7 +5,6 @@
 	<style>
 		body { background-color: #f8f9fa; min-height: 100vh; }
 		.user-email { min-width: 15rem; }
-		.account-date { min-width: 10rem; white-space: nowrap; }
 	</style>
 </head>
 <body>
@@ -14,7 +13,7 @@
 			<div>
 				<a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
 				<h1 class="h3 fw-bold mt-2 mb-1">Mojidasユーザー管理</h1>
-				<p class="text-muted mb-0">20件ずつ表示します。招待ユーザーは音声認識時間を消費しません。</p>
+				<p class="text-muted mb-0">20件ずつ表示します。残時間の確認と無償時間の追加ができます。</p>
 			</div>
 			<div class="text-muted small"><%= user.email || '管理者' %></div>
 		</div>
@@ -25,9 +24,10 @@
 
 		<div class="alert alert-info d-flex gap-2 align-items-start" role="status">
 			<i class="bi bi-info-circle mt-1"></i>
-			<div>招待ユーザーに設定すると、アプリには「招待ユーザー・時間無制限」と表示され、時間追加の案内は表示されません。</div>
+			<div>招待ユーザーに設定すると、アプリには「招待ユーザー・時間無制限」と表示され、時間追加の案内は表示されません。残時間の合計にはテスト用時間も含みます。</div>
 		</div>
 
+		<p class="small text-muted">残時間はアプリと同じ利用可能時間です（ファイル認識などで予約中の時間は除きます）。追加は決済を行わず、無償提供枠へ加算します。</p>
 		<div class="card shadow-sm overflow-hidden">
 			<div class="table-responsive">
 				<table class="table table-hover align-middle mb-0">
@@ -35,8 +35,8 @@
 						<tr>
 							<th scope="col">アカウント</th>
 							<th scope="col">状態</th>
-							<th scope="col">作成日時</th>
-							<th scope="col">最終ログイン</th>
+							<th scope="col">残時間</th>
+							<th scope="col">無償時間を追加</th>
 							<th scope="col" class="text-end">招待ユーザー</th>
 						</tr>
 					</thead>
@@ -49,6 +49,8 @@
 								<td class="user-email">
 									<div class="fw-semibold text-break"><%= account.email || 'メールアドレス未設定' %></div>
 									<div class="small text-muted text-break"><%= account.uid %></div>
+                                    <div class="small text-muted">作成：<%= formatDate(account.createdAt) %></div>
+                                    <div class="small text-muted">最終ログイン：<%= formatDate(account.lastSignInAt) %></div>
 								</td>
 								<td>
 									<% if (account.disabled) { %>
@@ -60,8 +62,32 @@
 										<span class="badge bg-light text-dark border">メール確認済み</span>
 									<% } %>
 								</td>
-								<td class="account-date"><%= formatDate(account.createdAt) %></td>
-								<td class="account-date"><%= formatDate(account.lastSignInAt) %></td>
+                                <td class="text-nowrap">
+                                    <% if (account.credit) { %>
+                                        <div>毎月の無料：<%= formatCreditTime(account.credit.monthlyFreeMilliseconds) %></div>
+                                        <div>有償購入：<%= formatCreditTime(account.credit.purchasedMilliseconds) %></div>
+                                        <div>無償提供：<%= formatCreditTime(account.credit.promotionalMilliseconds || 0) %></div>
+                                        <% if (account.credit.otherMilliseconds > 0) { %>
+                                            <div class="small text-muted">その他（テスト等）：<%= formatCreditTime(account.credit.otherMilliseconds) %></div>
+                                        <% } %>
+                                        <div class="fw-semibold">合計：<%= formatCreditTime(account.credit.totalMilliseconds) %></div>
+                                    <% } else { %>
+                                        <span class="text-danger">残時間を取得できませんでした</span>
+                                    <% } %>
+                                </td>
+                                <td style="min-width: 12rem">
+                                    <form method="post" action="/admin/mojidas-users/<%= encodeURIComponent(account.uid) %>/promotional-hours">
+                                        <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+                                        <input type="hidden" name="page" value="<%= page %>">
+                                        <input type="hidden" name="operationID" value="<%= createOperationID() %>">
+                                        <input type="text" name="reason" maxlength="200" class="form-control form-control-sm mb-1" placeholder="用途（例：プロモーション）" aria-label="無償提供の用途">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" name="hours" min="1" max="100000" step="1" required class="form-control" aria-label="<%= account.email || account.uid %>に無償で追加する時間">
+                                            <span class="input-group-text">時間</span>
+                                            <button type="submit" class="btn btn-primary">追加</button>
+                                        </div>
+                                    </form>
+                                </td>
 								<td class="text-end">
 									<form method="post" action="/admin/mojidas-users/<%= encodeURIComponent(account.uid) %>/invited-unlimited">
 										<input type="hidden" name="csrfToken" value="<%= csrfToken %>">

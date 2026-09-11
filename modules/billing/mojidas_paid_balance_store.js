@@ -10,15 +10,17 @@ class MojidasPaidBalanceStore {
   }
 
   async getReport() {
-    const [grantSnapshot, ledgerSnapshot, heldSnapshot, consumingSnapshot] = await Promise.all([
+    const [grantSnapshot, ledgerSnapshot, heldSnapshot, consumingSnapshot, promotionalSnapshot] = await Promise.all([
       this.collection('creditGrants').where('type', '==', 'purchased').get(),
       this.collection('usageLedger').where('kind', '==', 'grant').get(),
       this.collection('creditReservations').where('status', '==', 'held').get(),
       this.collection('creditReservations').where('status', '==', 'consuming').get(),
+      this.collection('creditGrants').where('type', '==', 'promotional').get(),
     ]);
 
     return summarizePaidBalance({
       grantDocuments: grantSnapshot.docs,
+      promotionalDocuments: promotionalSnapshot.docs,
       ledgerDocuments: ledgerSnapshot.docs,
       reservationDocuments: [...heldSnapshot.docs, ...consumingSnapshot.docs],
       now: new Date(this.now()),
@@ -36,6 +38,7 @@ class MojidasPaidBalanceStore {
 
 function summarizePaidBalance({
   grantDocuments,
+  promotionalDocuments = [],
   ledgerDocuments,
   reservationDocuments = [],
   now,
@@ -52,6 +55,7 @@ function summarizePaidBalance({
     reservationDocuments
   );
   const activeGrants = grantDocuments
+    .filter((document) => document.data().type === 'purchased')
     .map((document) => {
       const data = document.data();
       return {
@@ -110,6 +114,7 @@ function summarizePaidBalance({
 
   return {
     asOf: now,
+    promotional: summarizePromotionalCredits(promotionalDocuments, reservedMillisecondsByGrantID, now),
     isComplete,
     unusedPaidBalanceJPY,
     knownUnusedPaidBalanceJPY: Math.ceil(knownAmountJPY),
@@ -126,6 +131,32 @@ function summarizePaidBalance({
     breakdown: Array.from(breakdownByProduct.values())
       .sort((left, right) => right.amountJPY - left.amountJPY),
   };
+}
+
+function summarizePromotionalCredits(documents, reserved, now) {
+  const summary = { grantCount: 0, grantedMilliseconds: 0, consumedMilliseconds: 0,
+    remainingMilliseconds: 0, expiredMilliseconds: 0, breakdown: [] };
+  const byReason = new Map();
+  for (const document of documents) {
+    const grant = document.data();
+    if (grant.type !== 'promotional' || (asDate(grant.startsAt) && asDate(grant.startsAt) > now)) continue;
+    const total = positiveNumber(grant.totalMilliseconds);
+    const unconsumed = Math.min(total, positiveNumber(grant.remainingMilliseconds) + (reserved.get(document.id) || 0));
+    const expired = asDate(grant.expiresAt) && asDate(grant.expiresAt) <= now;
+    const reason = grant.metadata?.reason || '用途未登録';
+    const row = byReason.get(reason) || { reason, grantCount: 0, grantedMilliseconds: 0,
+      consumedMilliseconds: 0, remainingMilliseconds: 0, expiredMilliseconds: 0 };
+    for (const target of [summary, row]) {
+      target.grantCount += 1;
+      target.grantedMilliseconds += total;
+      target.consumedMilliseconds += total - unconsumed;
+      target.remainingMilliseconds += expired ? 0 : unconsumed;
+      target.expiredMilliseconds += expired ? unconsumed : 0;
+    }
+    byReason.set(reason, row);
+  }
+  summary.breakdown = [...byReason.values()].sort((a, b) => b.grantedMilliseconds - a.grantedMilliseconds);
+  return summary;
 }
 
 function unconsumedReservationsByGrant(documents) {

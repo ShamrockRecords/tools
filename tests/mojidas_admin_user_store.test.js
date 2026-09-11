@@ -39,7 +39,7 @@ async function main() {
       calls.push(['set', uid, claims]);
     },
   };
-  const store = new MojidasAdminUserStore({ authProvider: () => auth });
+  const store = new MojidasAdminUserStore({ authProvider: () => auth, credits: { async getBalance() { return { availableMilliseconds: 0, grants: [] }; } } });
 
   const result = await store.listUsers({ pageToken: 'current-token', pageSize: 20 });
   assert.deepStrictEqual(calls[0], ['list', 20, 'current-token']);

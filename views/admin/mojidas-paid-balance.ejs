@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-	<%- include('../parts/head', {title: 'Mojidas未使用有償残高'}) %>
+	<%- include('../parts/head', {title: 'Mojidas有償・無償時間集計'}) %>
 	<style>
 		body { background-color: #f8f9fa; min-height: 100vh; }
 		.balance-amount { font-size: clamp(2rem, 7vw, 4rem); letter-spacing: -0.04em; }
@@ -12,7 +12,7 @@
 		<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
 			<div>
 				<a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
-				<h1 class="h3 fw-bold mt-2 mb-1">Mojidas未使用有償残高</h1>
+				<h1 class="h3 fw-bold mt-2 mb-1">Mojidas有償・無償時間集計</h1>
 				<p class="text-muted mb-0"><%= formatDate(report.asOf) %> 現在</p>
 			</div>
 			<div class="text-muted small"><%= user.email || '管理者' %></div>
@@ -75,6 +75,29 @@
 				</table>
 			</div>
 		</div>
+
+        <% if (report.promotional) { const promotion = report.promotional; %>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-bold py-3">無償提供（プロモーション等）</div>
+            <div class="card-body">
+                <p class="small text-muted">有償残高・購入金額には含めません。月次無料枠と無制限テスト枠もこの集計には含めません。</p>
+                <div class="d-flex flex-wrap gap-4">
+                    <div>累計付与：<strong><%= formatDuration(promotion.grantedMilliseconds) %></strong></div>
+                    <div>消費済み：<strong><%= formatDuration(promotion.consumedMilliseconds) %></strong></div>
+                    <div>未使用：<strong><%= formatDuration(promotion.remainingMilliseconds) %></strong></div>
+                    <div>期限失効：<strong><%= formatDuration(promotion.expiredMilliseconds) %></strong></div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0"><thead><tr><th>用途</th><th>付与件数</th><th>累計付与</th><th>消費済み</th><th>未使用</th><th>期限失効</th></tr></thead><tbody>
+                <% promotion.breakdown.forEach(item => { %>
+                    <tr><td><%= item.reason %></td><td><%= item.grantCount %></td><td><%= formatDuration(item.grantedMilliseconds) %></td><td><%= formatDuration(item.consumedMilliseconds) %></td><td><%= formatDuration(item.remainingMilliseconds) %></td><td><%= formatDuration(item.expiredMilliseconds) %></td></tr>
+                <% }) %>
+                <% if (!promotion.breakdown.length) { %><tr><td colspan="6" class="text-muted">無償提供の記録はありません。</td></tr><% } %>
+                </tbody></table>
+            </div>
+        </div>
+        <% } %>
 
 		<div class="alert alert-secondary small mb-0" role="note">
 			購入時の税込金額を、その購入枠の未使用時間の割合で按分しています。処理中のファイル認識などで一時予約されている未消費時間も含み、合計は過少表示を避けるため1円未満を切り上げています。これは日々の管理用参考値であり、資金決済法上の基準日残高や会計上の確定額は専門家へ確認してください。Stripe上の返金だけではMojidasの時間残高に自動反映されません。

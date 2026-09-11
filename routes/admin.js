@@ -277,6 +277,8 @@ router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
     return res.render('admin/mojidas-users', {
       user: await resolveUserRecord(req.adminUser),
       users: result.users,
+      createOperationID: () => crypto.randomUUID(),
+      formatCreditTime: formatAdminCreditTime,
       page,
       hasNext: Boolean(result.nextPageToken),
       csrfToken: ensureAdminCSRFToken(req),
@@ -363,6 +365,33 @@ router.post('/mojidas-versions', ensureAdmin, async function (req, res, next) {
       req.session.mojidasVersionForm = form;
       req.session.adminFlash = { type: 'danger', message: error.message };
       return res.redirect(303, '/admin/mojidas-versions');
+    }
+    return next(error);
+  }
+});
+
+function formatAdminCreditTime(milliseconds) {
+  const seconds = Math.floor(Math.max(0, milliseconds) / 1000);
+  return `${Math.floor(seconds / 3600).toLocaleString('ja-JP')}時間${Math.floor(seconds / 60) % 60}分${seconds % 60}秒`;
+}
+
+router.post('/mojidas-users/:uid/promotional-hours', ensureAdmin, async function (req, res, next) {
+  const redirectPath = `/admin/mojidas-users?page=${normalizeAdminPage(req.body.page)}`;
+  if (!hasValidAdminCSRFToken(req)) {
+    req.session.adminFlash = { type: 'danger', message: '画面の有効期限が切れました。もう一度操作してください。' };
+    return res.redirect(303, redirectPath);
+  }
+  try {
+    await getMojidasAdminUserStore(req).addPromotionalHours({
+      uid: req.params.uid, hours: req.body.hours, operationID: req.body.operationID,
+      adminEmail: req.adminUser.email, reason: req.body.reason,
+    });
+    req.session.adminFlash = { type: 'success', message: `無償提供時間に${Number(req.body.hours).toLocaleString('ja-JP')}時間を追加しました。` };
+    return res.redirect(303, redirectPath);
+  } catch (error) {
+    if (['INVALID_ADMIN_CREDIT', 'IDEMPOTENCY_CONFLICT', 'auth/user-not-found'].includes(error.code)) {
+      req.session.adminFlash = { type: 'danger', message: error.code === 'auth/user-not-found' ? '対象のユーザーが見つかりません。' : error.message };
+      return res.redirect(303, redirectPath);
     }
     return next(error);
   }

@@ -101,6 +101,7 @@ class MojidasCreditStore {
     sourceReference = null,
     idempotencyKey,
     metadata = {},
+    rejectConflictingRetry = false,
   }) {
     const amount = Math.floor(Number(milliseconds));
     const normalizedType = String(type || '').trim();
@@ -122,7 +123,13 @@ class MojidasCreditStore {
     const document = this.collection('creditGrants').doc(grantID);
     await this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(document);
-      if (snapshot.exists) return;
+      if (snapshot.exists) {
+        if (rejectConflictingRetry && (snapshot.data().type !== normalizedType
+          || snapshot.data().totalMilliseconds !== amount)) {
+          throw new CreditStoreError('IDEMPOTENCY_CONFLICT', 'この追加操作は既に別の時間で処理されています。画面を再読込してください。');
+        }
+        return;
+      }
       transaction.set(document, {
         userID,
         type: normalizedType,

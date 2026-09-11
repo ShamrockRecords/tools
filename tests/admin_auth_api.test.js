@@ -63,9 +63,13 @@ async function main() {
           createdAt: '2026-08-01T00:00:00.000Z',
           lastSignInAt: '2026-08-22T00:00:00.000Z',
           invitedUnlimited: false,
+          credit: { monthlyFreeMilliseconds: 1800000, purchasedMilliseconds: 7200000, promotionalMilliseconds: 3600000, totalMilliseconds: 12600000, otherMilliseconds: 0 },
         }],
         nextPageToken: 'page-2-token',
       };
+    },
+    async addPromotionalHours(value) {
+      adminUserCalls.push(['add', value]);
     },
     async setInvitedUnlimited(value) {
       adminUserCalls.push(['set', value]);
@@ -75,6 +79,7 @@ async function main() {
     async getReport() {
       return {
         asOf: new Date('2026-08-26T00:00:00.000Z'),
+        promotional: { grantedMilliseconds: 3600000, consumedMilliseconds: 0, remainingMilliseconds: 3600000, expiredMilliseconds: 0, breakdown: [] },
         isComplete: true,
         unusedPaidBalanceJPY: 165,
         knownUnusedPaidBalanceJPY: 165,
@@ -145,7 +150,7 @@ async function main() {
     assert.match(response.body, /admin@example\.com/);
     assert.match(response.body, /サーバー管理者アカウント/);
     assert.match(response.body, /Mojidasユーザー管理/);
-    assert.match(response.body, /Mojidas未使用有償残高/);
+    assert.match(response.body, /Mojidas有償・無償時間集計/);
     assert.match(response.body, /Mojidasバージョン管理/);
 
     response = await request(server, 'GET', '/admin/mojidas-versions', { cookie });
@@ -173,6 +178,8 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /現在の参考残高/);
     assert.match(response.body, /￥165/);
+    assert.match(response.body, /無償提供（プロモーション等）/);
+    assert.match(response.body, /累計付与/);
     assert.match(response.body, /credit_60m_jpy/);
 
     response = await request(server, 'GET', '/admin/mojidas-users', { cookie });
@@ -181,6 +188,29 @@ async function main() {
     assert.match(response.body, /招待に設定/);
     const csrfMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
     assert.ok(csrfMatch);
+
+    assert.match(response.body, /毎月の無料：0時間30分0秒/);
+    assert.match(response.body, /有償購入：2時間0分0秒/);
+    assert.match(response.body, /無償提供：1時間0分0秒/);
+    assert.match(response.body, /合計：3時間30分0秒/);
+    const operationID = response.body.match(/name="operationID" value="([a-f0-9-]+)"/)[1];
+    response = await request(server, 'POST', '/admin/mojidas-users/user-1/promotional-hours', {
+      cookie, body: { hours: '2', operationID },
+    });
+    assert.strictEqual(response.status, 303);
+    assert.strictEqual(adminUserCalls.filter(call => call[0] === 'add').length, 0, 'CSRFなしでは付与しない');
+    response = await request(server, 'POST', '/admin/mojidas-users/user-1/promotional-hours', {
+      body: { csrfToken: csrfMatch[1], hours: '2', operationID },
+    });
+    assert.strictEqual(response.status, 302);
+    assert.strictEqual(adminUserCalls.filter(call => call[0] === 'add').length, 0, '未ログインでは付与しない');
+    response = await request(server, 'POST', '/admin/mojidas-users/user-1/promotional-hours', {
+      cookie, body: { csrfToken: csrfMatch[1], hours: '2', operationID, page: '1' },
+    });
+    assert.strictEqual(response.status, 303);
+    assert.deepStrictEqual(adminUserCalls.find(call => call[0] === 'add'), ['add', {
+      uid: 'user-1', hours: '2', operationID, adminEmail: 'admin@example.com', reason: undefined,
+    }]);
 
     response = await request(server, 'POST', '/admin/mojidas-users/user-1/invited-unlimited', {
       cookie,
