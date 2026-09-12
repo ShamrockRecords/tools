@@ -21,7 +21,8 @@
 | `ADMIN_PASSWORD_HASH` | `npm run admin:hash-password`で生成したscryptハッシュ |
 | `SESSION_SECRET` | Expressセッション署名用の十分に長いランダム値 |
 | `SENDGRID_API_KEY` | SendGrid REST API Key（一斉メール送信用） |
-| `SENDGRID_FROM_EMAIL` | SendGridで認証済みの送信元メールアドレス |
+| `SENDGRID_FROM_EMAIL` | 通常メール用のSendGridで認証済みの送信元メールアドレス |
+| `MOJIDAS_BROADCAST_FROM_EMAIL` | Mojidas一斉メール専用のSendGridで認証済みの送信元メールアドレス。差出人名は`Mojidas`固定。未設定時は送信不可（通常メール用Fromへのフォールバックなし） |
 
 `SESSION_SECRET`が未設定でも起動はできますが、起動ごとにランダム値となり、サーバー再起動時に全セッションが失効します。本番では必ず固定のランダム値を設定してください。
 
@@ -111,7 +112,7 @@ npm test
 
 - Firebase Authの全ページを1,000ユーザーずつ取得し、メールアドレスの重複を除外する。削除済みアカウントは対象外。削除途中でAuthに残る場合も`deletedAccountEmails`のtombstoneで除外する。登録アドレスがない・形式不正のユーザーも除外する。招待設定・メール確認状態による対象制限はしない。
 - 送信先を準備した後も、各送信バッチの直前にAuthのユーザー存在と現在のアドレス、削除tombstoneを照合する。削除・アドレス変更があれば除外件数に計上する。照合に失敗した場合は送信せず停止する。照合後やSendGrid受付後に行われた削除について、既に受付済みのメールを取り消す機能はない。
-- `SENDGRID_API_KEY`、`SENDGRID_FROM_EMAIL`と、既存の削除判定に使う`MOJIDAS_ACCOUNT_DELETION_SECRET`が必要。APIキーや送信先一覧はブラウザーへ渡さない。本文は`text/plain`のみで改行を保持する。500件ずつ、宛先1件ごとのpersonalizationで送るため、他ユーザーのアドレスを受信者へ公開しない。
+- `SENDGRID_API_KEY`、`MOJIDAS_BROADCAST_FROM_EMAIL`と、既存の削除判定に使う`MOJIDAS_ACCOUNT_DELETION_SECRET`が必要。APIキーや送信先一覧はブラウザーへ渡さない。本文は`text/plain`のみで改行を保持する。500件ずつ、宛先1件ごとのpersonalizationで送るため、他ユーザーのアドレスを受信者へ公開しない。
 - 管理者セッション・CSRF保護を使用する。確認と送信は別POST。Firestore transactionで配信の開始権を1回だけ取得し、二重クリック・同じPOSTの再送・複数サーバーからの重複実行を防ぐ。
 - `mailBroadcasts`に件名・本文・件数・管理者・日時・状態を、`mailBroadcastBatches`に送信対象と受付状態を永続化する。全件受付・受付拒否・結果不明を区別する。SendGridの受付は実際の配達完了ではない。配信IDはSendGridのcustom argsにも記録する。
 - 処理はサーバープロセスで継続し、ブラウザーを閉じても停止しない。サーバー停止や結果不明の送信を自動再送しない。5分以上更新されない実行状態は画面で「送信結果の確認が必要」と表示する。途中失敗後の未送信分を自動再開する機能は今回含めない。再配信前にSendGridの受付記録を確認する。

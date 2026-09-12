@@ -33,6 +33,27 @@ function fixture(count, requester) {
 const draft = { subject: 'Mojidasのお知らせ', body: 'こんにちは。\n\nテキスト本文です。<b>これは文字列</b>', adminEmail: 'admin@example.invalid' };
 async function settle(service) { await Promise.all([...service.tasks.values()]); }
 async function main() {
+  const keys = ['SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL', 'MOJIDAS_BROADCAST_FROM_EMAIL'];
+  const saved = keys.map(key => process.env[key]);
+  try {
+    process.env.SENDGRID_API_KEY = 'fixture-no-network';
+    process.env.SENDGRID_FROM_EMAIL = 'general@example.invalid';
+    process.env.MOJIDAS_BROADCAST_FROM_EMAIL = 'broadcast@example.invalid';
+    const dedicated = fixture(1);
+    dedicated.service.configuration = new MojidasBroadcastService().configuration;
+    const dedicatedJob = await dedicated.service.prepare(draft);
+    await dedicated.service.start(dedicatedJob.id, draft.adminEmail);
+    await settle(dedicated.service);
+    assert.deepStrictEqual(dedicated.calls[0].payload.from,
+      { email: 'broadcast@example.invalid', name: 'Mojidas' }, '一斉メール専用Fromを使用する');
+    delete process.env.MOJIDAS_BROADCAST_FROM_EMAIL;
+    const missingJob = await dedicated.service.prepare(draft);
+    await assert.rejects(() => dedicated.service.start(missingJob.id, draft.adminEmail),
+      e => e.code === 'SENDGRID_NOT_CONFIGURED' && e.message.includes('MOJIDAS_BROADCAST_FROM_EMAIL'));
+    assert.equal(dedicated.calls.length, 1, '専用From未設定では通常メールのFromへフォールバックしない');
+  } finally {
+    keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i]; });
+  }
   let f;
   f = fixture(1503, async (_request, number) => {
     if (number === 1) {
