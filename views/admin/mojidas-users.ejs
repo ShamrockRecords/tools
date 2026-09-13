@@ -28,6 +28,7 @@
 		</div>
 
 		<p class="small text-muted">残時間はアプリと同じ利用可能時間です（ファイル認識などで予約中の時間は除きます）。追加は決済を行わず、無償提供枠へ加算します。</p>
+		<p class="small text-muted">アプリバージョンはOS別に最後のログイン・認証更新で確認した値です。現在起動中とは限りません。未対応の旧アプリなど、情報がない場合は「未取得」と表示します。</p>
 		<div class="card shadow-sm overflow-hidden">
 			<div class="table-responsive">
 				<table class="table table-hover align-middle mb-0">
@@ -35,6 +36,7 @@
 						<tr>
 							<th scope="col">アカウント</th>
 							<th scope="col">状態</th>
+							<th scope="col">最終アプリバージョン</th>
 							<th scope="col">残時間</th>
 							<th scope="col">無償時間を追加</th>
 							<th scope="col" class="text-end">招待ユーザー</th>
@@ -42,7 +44,7 @@
 					</thead>
 					<tbody>
 						<% if (!users.length) { %>
-							<tr><td colspan="5" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
+							<tr><td colspan="6" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
 						<% } %>
 						<% users.forEach((account) => { %>
 							<tr>
@@ -62,6 +64,18 @@
 										<span class="badge bg-light text-dark border">メール確認済み</span>
 									<% } %>
 								</td>
+                                <td class="text-nowrap">
+                                    <% if (account.appClients === null) { %>
+                                        <span class="text-danger">バージョン情報を取得できませんでした</span>
+                                    <% } else { %>
+                                        <% [['macos', 'Mac'], ['windows', 'Windows']].forEach(([platform, label]) => { const client = account.appClients?.[platform]; %>
+                                            <div><%= label %>：<%= client?.version || '未取得' %></div>
+                                            <% if (client) { %>
+                                                <div class="small text-muted mb-2">確認：<%= formatDate(client.lastSeenAt) %></div>
+                                            <% } %>
+                                        <% }) %>
+                                    <% } %>
+                                </td>
                                 <td class="text-nowrap">
                                     <% if (account.credit) { %>
                                         <div>毎月の無料：<%= formatCreditTime(account.credit.monthlyFreeMilliseconds) %></div>

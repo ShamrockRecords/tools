@@ -79,6 +79,7 @@ async function main() {
           disabled: false,
           createdAt: '2026-08-01T00:00:00.000Z',
           lastSignInAt: '2026-08-22T00:00:00.000Z',
+          appClients: { macos: { version: '0.24.0', lastSeenAt: '2026-09-13T00:00:00Z' }, windows: null },
           invitedUnlimited: false,
           credit: { monthlyFreeMilliseconds: 1800000, purchasedMilliseconds: 7200000, promotionalMilliseconds: 3600000, totalMilliseconds: 12600000, otherMilliseconds: 0 },
         }],
@@ -203,6 +204,10 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /user@example\.com/);
     assert.match(response.body, /招待に設定/);
+    assert.match(response.body, /最終アプリバージョン/);
+    assert.match(response.body, /Mac：0\.24\.0/);
+    assert.match(response.body, /Windows：未取得/);
+    assert.match(response.body, /確認：/);
     const csrfMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
     assert.ok(csrfMatch);
 

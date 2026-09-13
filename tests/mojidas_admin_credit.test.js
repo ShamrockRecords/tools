@@ -18,7 +18,7 @@ async function main() {
       return user;
     },
   };
-  const admin = new MojidasAdminUserStore({ authProvider: () => auth, credits });
+  const admin = new MojidasAdminUserStore({ authProvider: () => auth, credits, firestoreProvider: () => db });
   const initial = await admin.listUsers();
   assert.equal(initial.users[0].credit.monthlyFreeMilliseconds, 1800000);
   assert.equal(initial.users[0].credit.purchasedMilliseconds, 0);

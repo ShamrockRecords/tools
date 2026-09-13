@@ -1,4 +1,6 @@
 const firebaseAdmin = require('firebase-admin');
+const { getFirestore } = require('../firestore');
+const { mojidasCollection } = require('../mojidas_firestore');
 const creditStore = require('../credit/mojidas_credit_store');
 const MAX_ADDED_HOURS = 100000;
 const {
@@ -10,9 +12,10 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 class MojidasAdminUserStore {
-  constructor({ authProvider = () => firebaseAdmin.auth(), credits = creditStore } = {}) {
+  constructor({ authProvider = () => firebaseAdmin.auth(), credits = creditStore, firestoreProvider = getFirestore } = {}) {
     this.credits = credits;
     this.authProvider = authProvider;
+    this.firestoreProvider = firestoreProvider;
   }
 
   async listUsers({ pageToken = null, pageSize = DEFAULT_PAGE_SIZE } = {}) {
@@ -29,9 +32,34 @@ class MojidasAdminUserStore {
         lastSignInAt: user.metadata ? user.metadata.lastSignInTime || null : null,
         invitedUnlimited: isInvitedUnlimited(user),
         credit: await this.getUserCredit(user),
+        appClients: await this.getAppClients(user.uid),
       }))),
       nextPageToken: result.pageToken || null,
     };
+  }
+
+  async getAppClients(uid) {
+    try {
+      const snapshot = await mojidasCollection(this.firestoreProvider(), 'users').doc(uid).get();
+      const clients = snapshot.exists ? snapshot.data().appClients : null;
+      const result = {};
+      for (const platform of ['macos', 'windows']) {
+        const client = clients?.[platform];
+        const pattern = platform === 'macos' ? /^\d+\.\d+\.\d+$/ : /^\d+\.\d+\.\d+\.\d+$/;
+        if (!client || typeof client.version !== 'string' || client.version.length > 40 || !pattern.test(client.version)) {
+          result[platform] = null;
+          continue;
+        }
+        const rawDate = client.lastSeenAt?.toDate ? client.lastSeenAt.toDate() : client.lastSeenAt;
+        const date = rawDate ? new Date(rawDate) : null;
+        result[platform] = { version: client.version,
+          lastSeenAt: date && !Number.isNaN(date.getTime()) ? date.toISOString() : null };
+      }
+      return result;
+    } catch {
+      // 未取得と通信障害を区別し、他のユーザー情報は表示する。
+      return null;
+    }
   }
 
   async getUserCredit(user) {
