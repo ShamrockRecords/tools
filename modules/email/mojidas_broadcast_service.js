@@ -15,7 +15,7 @@ function millis(value) { return value?.toDate ? value.toDate().getTime() : new D
 class MojidasBroadcastService {
   constructor({ firestoreProvider = getFirestore, authProvider = () => firebaseAdmin.auth(),
     requester = sendGridRequest, now = () => Date.now(), deletionService = mojidasAccountDeletionService,
-    configuration = () => ({ apiKey: process.env.SENDGRID_API_KEY, fromEmail: process.env.SENDGRID_FROM_EMAIL }) } = {}) {
+    configuration = () => ({ apiKey: process.env.SENDGRID_API_KEY, fromEmail: process.env.MOJIDAS_BROADCAST_FROM_EMAIL }) } = {}) {
     Object.assign(this, { firestoreProvider, authProvider, requester, now, configuration, deletionService });
     this.tasks = new Map();
   }
@@ -92,7 +92,7 @@ class MojidasBroadcastService {
   async start(id, adminEmail) {
     const { apiKey, fromEmail } = this.configuration();
     if (!apiKey || !EMAIL.test(fromEmail || '')) {
-      throw fail('SENDGRID_NOT_CONFIGURED', 'SENDGRID_API_KEYとSENDGRID_FROM_EMAILを設定してください。');
+      throw fail('SENDGRID_NOT_CONFIGURED', 'SENDGRID_API_KEYとMOJIDAS_BROADCAST_FROM_EMAILを設定してください。');
     }
     const document = this.document(id);
     const claimed = await this.firestoreProvider().runTransaction(async transaction => {
