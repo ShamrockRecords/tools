@@ -185,6 +185,7 @@ function createMojidasRouter({
           'このメールアドレスでは再度アカウントを作成できません。'
         );
       }
+      await creditStore.activateSignupGift();
       const user = await client.register(email, password);
       return res.status(201).json({
         user,
@@ -194,6 +195,20 @@ function createMojidasRouter({
       return sendAuthError(res, error);
     }
   });
+
+  async function recordClientInfo(req, session) {
+    const platform = req.get('X-Mojidas-Platform');
+    const version = req.get('X-Mojidas-Version');
+    if (!['macos', 'windows'].includes(platform) || typeof version !== 'string'
+        || version.length > 40
+        || !(platform === 'macos' ? /^\d+\.\d+\.\d+$/ : /^\d+\.\d+\.\d+\.\d+$/).test(version)) return;
+    try {
+      await userStore.recordClientInfo(session.user.id, platform, version);
+    } catch {
+      // 診断情報の保存失敗でログインやトークン更新を失敗させない。
+      console.warn('[Mojidas] client version recording failed');
+    }
+  }
 
   router.post('/auth/login', loginRateLimit, async function (req, res) {
     const email = normalizeEmail(req.body.email);
@@ -215,6 +230,7 @@ function createMojidasRouter({
         email: session.user.email,
         emailVerified: session.user.emailVerified,
       });
+      await recordClientInfo(req, session);
       return res.json(session);
     } catch (error) {
       return sendAuthError(res, error);
@@ -232,6 +248,7 @@ function createMojidasRouter({
 
     try {
       const session = await client.refresh(refreshToken);
+      await recordClientInfo(req, session);
       return res.json(session);
     } catch (error) {
       return sendAuthError(res, error);
@@ -257,6 +274,7 @@ function createMojidasRouter({
         email: session.user.email,
         emailVerified: session.user.emailVerified,
       });
+      await recordClientInfo(req, session);
       return res.json({ verified: true, ...session });
     } catch (error) {
       return sendAuthError(res, error);

@@ -198,7 +198,49 @@ async function testRenewalDuringExpiration(isUnlimited) {
   assert.deepStrictEqual(firestore.collections, persistedAfterExpiration);
 }
 
+async function testSignupGift() {
+  const firestore = new FakeFirestore();
+  let now = Date.parse('2026-09-13T00:00:00Z');
+  const store = new MojidasCreditStore({ firestoreProvider: () => firestore, now: () => now });
+  const old = { userID: 'old', accountCreatedAt: new Date(now - 1000) };
+  await store.getBalance(old);
+  await store.activateSignupGift();
+  const policy = firestore.records('Mojidas/production/configuration')[0];
+  now += 1000;
+  await store.activateSignupGift();
+  assert.deepStrictEqual(firestore.records('Mojidas/production/configuration')[0], policy);
+  assert.strictEqual((await store.getBalance(old)).availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
+  const fresh = { userID: 'new', accountCreatedAt: new Date(now) };
+  let balance = await store.getBalance(fresh);
+  assert.strictEqual(balance.availableMilliseconds, MONTHLY_FREE_MILLISECONDS + 3600000);
+  assert.strictEqual(balance.purchasedMilliseconds, 0);
+  assert.strictEqual(balance.grants.find(item => item.type === 'promotional').expiresAt, null);
+  const before = structuredClone(firestore.collections);
+  await store.getBalance(fresh);
+  assert.deepStrictEqual(firestore.collections, before);
+  // 消費済み残高を再ログイン・再起動で元に戻さない。
+  const gift = firestore.records('Mojidas/production/creditGrants').find(item => item.data.type === 'promotional');
+  firestore.map('Mojidas/production/creditGrants').get(gift.id).remainingMilliseconds = 123;
+  const restarted = new MojidasCreditStore({ firestoreProvider: () => firestore, now: () => now });
+  await restarted.getBalance(fresh);
+  assert.strictEqual(firestore.map('Mojidas/production/creditGrants').get(gift.id).remainingMilliseconds, 123);
+  assert.strictEqual(firestore.records('Mojidas/production/usageLedger').filter(item => item.data.metadata.type === 'promotional').length, 1);
+  // 付与トランザクションの失敗後も次の残高取得で回復する。
+  const retryUser = { userID: 'retry', accountCreatedAt: new Date(now) };
+  const transaction = firestore.runTransaction.bind(firestore);
+  let fail = true;
+  firestore.runTransaction = async callback => {
+    if (fail) { fail = false; throw new Error('fixture transaction failure'); }
+    return transaction(callback);
+  };
+  await assert.rejects(() => restarted.ensureSignupGift(retryUser));
+  await restarted.getBalance(retryUser);
+  assert.strictEqual(firestore.records('Mojidas/production/creditGrants').filter(item => item.data.userID === 'retry' && item.data.type === 'promotional').length, 1);
+  assert.strictEqual((await restarted.getBalance(old)).availableMilliseconds, MONTHLY_FREE_MILLISECONDS);
+}
+
 async function main() {
+  await testSignupGift();
   await testRenewalDuringExpiration(false);
   await testRenewalDuringExpiration(true);
   const januaryAnchor = new Date('2026-01-31T10:15:00.000Z');

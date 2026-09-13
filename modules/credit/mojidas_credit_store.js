@@ -26,6 +26,7 @@ class MojidasCreditStore {
     this.firestoreProvider = firestoreProvider;
     this.now = now;
     this.monthlyFreeAllowanceMilliseconds = monthlyFreeAllowanceMilliseconds;
+    this.signupGiftStartsAt = null;
   }
 
   async getBalance({ userID, accountCreatedAt, isUnlimited = false }) {
@@ -42,6 +43,7 @@ class MojidasCreditStore {
 
   async ensureAccountGrants({ userID, accountCreatedAt, isUnlimited = false }) {
     await this.ensureMonthlyGrant({ userID, accountCreatedAt });
+    await this.ensureSignupGift({ userID, accountCreatedAt });
     if (isUnlimited) {
       // テスト残高も通常と同じgrantの予約・消費・返却を通す。売上には含めない。
       await this.grantCredit({
@@ -53,6 +55,35 @@ class MojidasCreditStore {
         metadata: { testOnly: true },
       });
     }
+  }
+
+  // 最初の新規登録要求より前に開始日時を固定する。再デプロイでも変えない。
+  async activateSignupGift() {
+    const document = this.collection('configuration').doc('signupGift');
+    const now = new Date(this.now());
+    await this.firestore.runTransaction(async transaction => {
+      const snapshot = await transaction.get(document);
+      if (!snapshot.exists) transaction.set(document, { startsAt: now });
+    });
+  }
+
+  async ensureSignupGift({ userID, accountCreatedAt }) {
+    const createdAt = asDate(accountCreatedAt);
+    if (!createdAt || Number.isNaN(createdAt.getTime())) return;
+    if (!this.signupGiftStartsAt) {
+      const snapshot = await this.collection('configuration').doc('signupGift').get();
+      this.signupGiftStartsAt = snapshot.exists ? asDate(snapshot.data().startsAt) : null;
+    }
+    const startsAt = this.signupGiftStartsAt;
+    if (!startsAt || createdAt < startsAt) return;
+    await this.grantCredit({
+      userID,
+      type: 'promotional',
+      label: '新規登録プレゼント（1時間）',
+      milliseconds: 60 * 60 * 1000,
+      idempotencyKey: 'signup-gift-v1',
+      metadata: { reason: '新規登録プレゼント', campaign: 'signup-gift-v1' },
+    });
   }
 
   async ensureMonthlyGrant({ userID, accountCreatedAt }) {

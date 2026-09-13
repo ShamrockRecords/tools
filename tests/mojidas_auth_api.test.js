@@ -49,6 +49,7 @@ async function request(server, method, path, body, headers = {}) {
 }
 
 async function main() {
+  await require('./mojidas_client_version_store.test')();
   const calls = [];
   let invitedUnlimited = false;
   const authClient = {
@@ -120,6 +121,10 @@ async function main() {
   let previouslyDeletedEmail = null;
   let reservationMode = 'realtime';
   const userStore = {
+    async recordClientInfo(uid, platform, version) {
+      calls.push(['client-version', uid, platform, version]);
+      if (version === '9.9.9.9') throw new Error('fixture storage failure');
+    },
     async recordLogin(user) {
       recordedUsers.push(user);
     },
@@ -134,6 +139,7 @@ async function main() {
     },
   };
   const creditStore = {
+    async activateSignupGift() {},
     async getBalance(value) {
       creditCalls.push(['balance', value]);
       return {
@@ -312,6 +318,19 @@ async function main() {
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(response.body.accessToken, 'new-access-token');
+    assert.strictEqual(calls.filter(call => call[0] === 'client-version').length, 0);
+    response = await request(server, 'POST', '/api/mojidas/auth/login', {
+      email: 'user@example.com', password: 'password123', uid: 'forged-user',
+    }, { 'X-Mojidas-Platform': 'macos', 'X-Mojidas-Version': '0.24.0' });
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(calls.filter(call => call[0] === 'client-version').pop(),
+      ['client-version', 'user-1', 'macos', '0.24.0']);
+    for (const version of ['1.2.3.4', 'bad', '9.9.9.9']) {
+      response = await request(server, 'POST', '/api/mojidas/auth/refresh', { refreshToken: 'refresh-token' },
+        { 'X-Mojidas-Platform': 'windows', 'X-Mojidas-Version': version });
+      assert.strictEqual(response.status, 200);
+    }
+    assert.strictEqual(calls.filter(call => call[0] === 'client-version').length, 3);
 
     response = await request(server, 'POST', '/api/mojidas/auth/verify-email', {
       email: 'User@Example.com',
