@@ -13,7 +13,7 @@
 			<div>
 				<a href="/admin/mojidas" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> Mojidas管理へ戻る</a>
 				<h1 class="h3 fw-bold mt-2 mb-1">Mojidasユーザー管理</h1>
-				<p class="text-muted mb-0">20件ずつ表示します。残時間の確認と無償時間の追加ができます。</p>
+				<p class="text-muted mb-0">アカウントの作成日時が新しい順に20件ずつ表示します。</p>
 			</div>
 			<div class="text-muted small"><%= user.email || '管理者' %></div>
 		</div>
@@ -36,32 +36,26 @@
 						<tr>
 							<th scope="col">アカウント</th>
 							<th scope="col">状態</th>
-							<th scope="col">最終アプリバージョン</th>
+							<th scope="col">バージョン</th>
 							<th scope="col">残時間</th>
-							<th scope="col">無償時間を追加</th>
-							<th scope="col" class="text-end">招待ユーザー</th>
+							<th scope="col" class="text-end">操作</th>
 						</tr>
 					</thead>
 					<tbody>
 						<% if (!users.length) { %>
-							<tr><td colspan="6" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
+							<tr><td colspan="5" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
 						<% } %>
-						<% users.forEach((account) => { %>
+						<% users.forEach((account, index) => { %>
 							<tr>
 								<td class="user-email">
 									<div class="fw-semibold text-break"><%= account.email || 'メールアドレス未設定' %></div>
-									<div class="small text-muted text-break"><%= account.uid %></div>
                                     <div class="small text-muted">作成：<%= formatDate(account.createdAt) %></div>
-                                    <div class="small text-muted">最終ログイン：<%= formatDate(account.lastSignInAt) %></div>
 								</td>
 								<td>
 									<% if (account.disabled) { %>
 										<span class="badge bg-secondary text-white">無効</span>
 									<% } else { %>
 										<span class="badge bg-success text-white">有効</span>
-									<% } %>
-									<% if (account.emailVerified) { %>
-										<span class="badge bg-light text-dark border">メール確認済み</span>
 									<% } %>
 								</td>
                                 <td class="text-nowrap">
@@ -70,9 +64,6 @@
                                     <% } else { %>
                                         <% [['macos', 'Mac'], ['windows', 'Windows']].forEach(([platform, label]) => { const client = account.appClients?.[platform]; %>
                                             <div><%= label %>：<%= client?.version || '未取得' %></div>
-                                            <% if (client) { %>
-                                                <div class="small text-muted mb-2">確認：<%= formatDate(client.lastSeenAt) %></div>
-                                            <% } %>
                                         <% }) %>
                                     <% } %>
                                 </td>
@@ -89,7 +80,17 @@
                                         <span class="text-danger">残時間を取得できませんでした</span>
                                     <% } %>
                                 </td>
-                                <td style="min-width: 12rem">
+                                <td class="text-end">
+                                  <button type="button" class="btn btn-outline-secondary text-nowrap" data-bs-toggle="modal" data-bs-target="#user-settings-<%= index %>">設定</button>
+                                  <div class="modal fade text-start" id="user-settings-<%= index %>" tabindex="-1" aria-labelledby="user-settings-title-<%= index %>" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                                      <div class="modal-header">
+                                        <h2 class="modal-title h5" id="user-settings-title-<%= index %>">アカウント設定</h2>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+                                      </div>
+                                      <div class="modal-body">
+                                        <p class="fw-semibold text-break"><%= account.email || 'メールアドレス未設定' %></p>
+                                        <h3 class="h6">無償時間を追加</h3>
                                     <form method="post" action="/admin/mojidas-users/<%= encodeURIComponent(account.uid) %>/promotional-hours">
                                         <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
                                         <input type="hidden" name="page" value="<%= page %>">
@@ -98,20 +99,24 @@
                                         <div class="input-group input-group-sm">
                                             <input type="number" name="hours" min="1" max="100000" step="1" required class="form-control" aria-label="<%= account.email || account.uid %>に無償で追加する時間">
                                             <span class="input-group-text">時間</span>
-                                            <button type="submit" class="btn btn-primary">追加</button>
+                                            <button type="submit" class="btn btn-primary">無償時間を追加</button>
                                         </div>
                                     </form>
-                                </td>
-								<td class="text-end">
+                                    <hr class="my-4">
+                                    <h3 class="h6">招待ユーザー</h3>
 									<form method="post" action="/admin/mojidas-users/<%= encodeURIComponent(account.uid) %>/invited-unlimited">
 										<input type="hidden" name="csrfToken" value="<%= csrfToken %>">
 										<input type="hidden" name="page" value="<%= page %>">
 										<input type="hidden" name="enabled" value="<%= account.invitedUnlimited ? 'false' : 'true' %>">
 										<button class="btn <%= account.invitedUnlimited ? 'btn-success' : 'btn-outline-secondary' %>" type="submit">
 											<i class="bi <%= account.invitedUnlimited ? 'bi-infinity' : 'bi-person-plus' %>"></i>
-											<%= account.invitedUnlimited ? '時間無制限' : '招待に設定' %>
+											<%= account.invitedUnlimited ? '招待ユーザーを解除' : '招待ユーザーにする' %>
 										</button>
 									</form>
+                                      </div>
+                                      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button></div>
+                                    </div></div>
+                                  </div>
 								</td>
 							</tr>
 						<% }) %>

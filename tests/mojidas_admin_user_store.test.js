@@ -25,7 +25,7 @@ async function main() {
             lastSignInTime: '2026-08-22T00:00:00.000Z',
           },
         }],
-        pageToken: 'next-token',
+        pageToken: null,
       };
     },
     async getUser(uid) {
@@ -53,9 +53,9 @@ async function main() {
   } });
   const store = new MojidasAdminUserStore({ firestoreProvider, authProvider: () => auth, credits: { async getBalance() { return { availableMilliseconds: 0, grants: [] }; } } });
 
-  const result = await store.listUsers({ pageToken: 'current-token', pageSize: 20 });
-  assert.deepStrictEqual(calls[0], ['list', 20, 'current-token']);
-  assert.strictEqual(result.nextPageToken, 'next-token');
+  const result = await store.listUsers({ pageSize: 20 });
+  assert.deepStrictEqual(calls[0], ['list', 1000, undefined]);
+  assert.strictEqual(result.nextPageToken, null);
   assert.strictEqual(result.users[0].invitedUnlimited, true);
   assert.strictEqual(isInvitedUnlimited({ customClaims: {} }), false);
   assert.deepStrictEqual(result.users[0].appClients, {
@@ -70,7 +70,32 @@ async function main() {
   const failed = await store.listUsers();
   assert.strictEqual(failed.users[0].appClients, null);
   assert.strictEqual(failed.users[0].email, 'user@example.com');
-  assert.strictEqual(failed.nextPageToken, 'next-token');
+  assert.strictEqual(failed.nextPageToken, null);
+
+  // Authの別ページにいる最新ユーザーも先頭へ。残高の取得は表示対象だけ。
+  const fixtures = [
+    { uid: 'old', metadata: { creationTime: '2025-01-01' } },
+    { uid: 'unknown', metadata: {} },
+    { uid: 'new', metadata: { creationTime: '2026-09-15' } },
+    { uid: 'middle', metadata: { creationTime: '2026-01-01' } },
+  ];
+  const snapshot = JSON.stringify(fixtures);
+  const sorted = new MojidasAdminUserStore({ authProvider: () => ({
+    async listUsers(limit, token) {
+      assert.strictEqual(limit, 1000);
+      return token ? { users: fixtures.slice(2) } : { users: fixtures.slice(0, 2), pageToken: 'auth-next' };
+    },
+  }) });
+  const loaded = [];
+  sorted.getUserCredit = async user => { loaded.push(user.uid); return null; };
+  sorted.getAppClients = async () => ({});
+  const first = await sorted.listUsers({ pageSize: 2 });
+  assert.deepStrictEqual(first.users.map(user => user.uid), ['new', 'middle']);
+  assert.deepStrictEqual(loaded, ['new', 'middle']);
+  const second = await sorted.listUsers({ pageSize: 2, pageToken: first.nextPageToken });
+  assert.deepStrictEqual(second.users.map(user => user.uid), ['old', 'unknown']);
+  assert.strictEqual(second.nextPageToken, null);
+  assert.strictEqual(JSON.stringify(fixtures), snapshot);
 
   await store.setInvitedUnlimited({ uid: 'user-1', enabled: true });
   assert.deepStrictEqual(calls.at(-1), [

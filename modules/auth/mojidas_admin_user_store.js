@@ -20,7 +20,19 @@ class MojidasAdminUserStore {
 
   async listUsers({ pageToken = null, pageSize = DEFAULT_PAGE_SIZE } = {}) {
     const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE));
-    const result = await this.authProvider().listUsers(limit, pageToken || undefined);
+    // Authの取得順ではなく、全アカウントの作成日時で並べてからページ分割する。
+    const auth = this.authProvider();
+    const allUsers = [];
+    let token;
+    do {
+      const batch = await auth.listUsers(1000, token);
+      allUsers.push(...batch.users);
+      token = batch.pageToken;
+    } while (token);
+    const createdTime = (user) => Date.parse(user.metadata?.creationTime) || 0;
+    allUsers.sort((a, b) => createdTime(b) - createdTime(a));
+    const offset = /^created-desc:\d+$/.test(pageToken || '') ? Number(pageToken.split(':')[1]) : 0;
+    const result = { users: allUsers.slice(offset, offset + limit) };
 
     return {
       users: await Promise.all(result.users.map(async (user) => ({
@@ -34,7 +46,7 @@ class MojidasAdminUserStore {
         credit: await this.getUserCredit(user),
         appClients: await this.getAppClients(user.uid),
       }))),
-      nextPageToken: result.pageToken || null,
+      nextPageToken: offset + limit < allUsers.length ? `created-desc:${offset + limit}` : null,
     };
   }
 

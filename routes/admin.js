@@ -323,7 +323,7 @@ router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
       req.session.mojidasUserPageTokens = { 1: null };
     }
     const pageToken = req.session.mojidasUserPageTokens[page];
-    if (page > 1 && !pageToken) {
+    if (page > 1 && !/^created-desc:\d+$/.test(pageToken || '')) {
       req.session.adminFlash = {
         type: 'warning',
         message: 'ページ情報が期限切れになったため、最初のページへ戻りました。',

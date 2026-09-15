@@ -83,7 +83,7 @@ async function main() {
           invitedUnlimited: false,
           credit: { monthlyFreeMilliseconds: 1800000, purchasedMilliseconds: 7200000, promotionalMilliseconds: 3600000, totalMilliseconds: 12600000, otherMilliseconds: 0 },
         }],
-        nextPageToken: 'page-2-token',
+        nextPageToken: 'created-desc:20',
       };
     },
     async addPromotionalHours(value) {
@@ -215,11 +215,11 @@ async function main() {
     response = await request(server, 'GET', '/admin/mojidas-users', { cookie });
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /user@example\.com/);
-    assert.match(response.body, /招待に設定/);
-    assert.match(response.body, /最終アプリバージョン/);
+    assert.match(response.body, /招待ユーザーにする/);
+    assert.match(response.body, />バージョン<\/th>/);
     assert.match(response.body, /Mac：0\.24\.0/);
     assert.match(response.body, /Windows：未取得/);
-    assert.match(response.body, /確認：/);
+    assert.doesNotMatch(response.body, /確認：/);
     const csrfMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
     assert.ok(csrfMatch);
 
