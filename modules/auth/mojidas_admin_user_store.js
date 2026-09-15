@@ -2,6 +2,7 @@ const firebaseAdmin = require('firebase-admin');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 const creditStore = require('../credit/mojidas_credit_store');
+const { PartnerStore } = require('../partners/partner_store');
 const MAX_ADDED_HOURS = 100000;
 const {
   INVITED_UNLIMITED_CLAIM,
@@ -12,10 +13,11 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 class MojidasAdminUserStore {
-  constructor({ authProvider = () => firebaseAdmin.auth(), credits = creditStore, firestoreProvider = getFirestore } = {}) {
+  constructor({ authProvider = () => firebaseAdmin.auth(), credits = creditStore, firestoreProvider = getFirestore, partners } = {}) {
     this.credits = credits;
     this.authProvider = authProvider;
     this.firestoreProvider = firestoreProvider;
+    this.partners = partners || new PartnerStore({ firestoreProvider });
   }
 
   async listUsers({ pageToken = null, pageSize = DEFAULT_PAGE_SIZE } = {}) {
@@ -43,11 +45,21 @@ class MojidasAdminUserStore {
         createdAt: user.metadata ? user.metadata.creationTime || null : null,
         lastSignInAt: user.metadata ? user.metadata.lastSignInTime || null : null,
         invitedUnlimited: isInvitedUnlimited(user),
+        isCorporate: await this.getCorporateStatus(user),
         credit: await this.getUserCredit(user),
         appClients: await this.getAppClients(user.uid),
       }))),
       nextPageToken: offset + limit < allUsers.length ? `created-desc:${offset + limit}` : null,
     };
+  }
+
+  async getCorporateStatus(user) {
+    try {
+      return Boolean(await this.partners.entitlement(user));
+    } catch {
+      // 障害時に通常ユーザーと誤表示しない。
+      return null;
+    }
   }
 
   async getAppClients(uid) {

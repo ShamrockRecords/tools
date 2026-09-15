@@ -71,6 +71,16 @@ async function main() {
   assert.strictEqual(failed.users[0].appClients, null);
   assert.strictEqual(failed.users[0].email, 'user@example.com');
   assert.strictEqual(failed.nextPageToken, null);
+  store.partners = { async entitlement(user) {
+    assert.strictEqual(user.uid, 'user-1');
+    assert.strictEqual(user.emailVerified, true);
+    return { domain: 'example.com', partnerID: 'partner-1' };
+  } };
+  assert.strictEqual((await store.listUsers()).users[0].isCorporate, true);
+  store.partners.entitlement = async () => null;
+  assert.strictEqual((await store.listUsers()).users[0].isCorporate, false);
+  store.partners.entitlement = async () => { throw new Error('fixture unavailable'); };
+  assert.strictEqual((await store.listUsers()).users[0].isCorporate, null);
 
   // Authの別ページにいる最新ユーザーも先頭へ。残高の取得は表示対象だけ。
   const fixtures = [

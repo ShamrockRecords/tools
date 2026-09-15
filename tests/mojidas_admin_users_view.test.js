@@ -6,7 +6,7 @@ async function render() {
   const users = [false, true].map((invitedUnlimited, index) => ({
     uid: `fixture-${index}`, email: `user${index}@example.invalid`,
     createdAt: '2026-09-15', lastSignInAt: '非表示のログイン日時',
-    disabled: index === 1, emailVerified: true, invitedUnlimited,
+    disabled: index === 1, emailVerified: true, invitedUnlimited, isCorporate: index === 0,
     appClients: { macos: { version: '0.29.0', lastSeenAt: '非表示の確認日時' } },
     credit: { monthlyFreeMilliseconds: 1800000, purchasedMilliseconds: 0,
       promotionalMilliseconds: 0, totalMilliseconds: 1800000, otherMilliseconds: 0 },
@@ -37,7 +37,18 @@ async function render() {
   assert(html.includes('招待ユーザーにする'));
   assert(html.includes('招待ユーザーを解除'));
   const empty = await ejs.renderFile(view, { ...locals, users: [] });
-  assert(empty.includes('colspan="5"'));
+  assert(empty.includes('colspan="9"'));
+  assert(html.includes('>種別</th>'));
+  assert(html.includes('>招待</span>'));
+  assert(html.includes('>法人</span>'));
+  const regular = await ejs.renderFile(view, { ...locals, users: [{ ...users[0], isCorporate: false }] });
+  assert(!regular.includes('>法人</span>'));
+  assert(!regular.includes('>招待</span>'));
+  for (const label of ['毎月の無料', '有償購入', '無償提供', '合計']) {
+    assert(html.includes(`>${label}</th>`));
+  }
+  const failed = await ejs.renderFile(view, { ...locals, users: [{ ...users[0], credit: null }] });
+  assert.strictEqual((failed.match(/>取得失敗</g) || []).length, 4);
   return html;
 }
 

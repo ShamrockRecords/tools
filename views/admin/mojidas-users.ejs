@@ -35,15 +35,19 @@
 					<thead class="table-light">
 						<tr>
 							<th scope="col">アカウント</th>
+							<th scope="col">種別</th>
 							<th scope="col">状態</th>
 							<th scope="col">バージョン</th>
-							<th scope="col">残時間</th>
+							<th scope="col" class="text-end text-nowrap">毎月の無料</th>
+							<th scope="col" class="text-end text-nowrap">有償購入</th>
+							<th scope="col" class="text-end text-nowrap">無償提供</th>
+							<th scope="col" class="text-end text-nowrap">合計</th>
 							<th scope="col" class="text-end">操作</th>
 						</tr>
 					</thead>
 					<tbody>
 						<% if (!users.length) { %>
-							<tr><td colspan="5" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
+							<tr><td colspan="9" class="text-center text-muted py-5">ユーザーがいません。</td></tr>
 						<% } %>
 						<% users.forEach((account, index) => { %>
 							<tr>
@@ -51,6 +55,16 @@
 									<div class="fw-semibold text-break"><%= account.email || 'メールアドレス未設定' %></div>
                                     <div class="small text-muted">作成：<%= formatDate(account.createdAt) %></div>
 								</td>
+                                <td class="text-nowrap">
+                                    <% if (account.invitedUnlimited) { %>
+                                        <span class="badge rounded-pill bg-success text-white">招待</span>
+                                    <% } %>
+                                    <% if (account.isCorporate) { %>
+                                        <span class="badge rounded-pill bg-primary text-white">法人</span>
+                                    <% } else if (account.isCorporate === null) { %>
+                                        <span class="small text-danger">法人判定を取得できませんでした</span>
+                                    <% } %>
+                                </td>
 								<td>
 									<% if (account.disabled) { %>
 										<span class="badge bg-secondary text-white">無効</span>
@@ -67,19 +81,18 @@
                                         <% }) %>
                                     <% } %>
                                 </td>
-                                <td class="text-nowrap">
-                                    <% if (account.credit) { %>
-                                        <div>毎月の無料：<%= formatCreditTime(account.credit.monthlyFreeMilliseconds) %></div>
-                                        <div>有償購入：<%= formatCreditTime(account.credit.purchasedMilliseconds) %></div>
-                                        <div>無償提供：<%= formatCreditTime(account.credit.promotionalMilliseconds || 0) %></div>
-                                        <% if (account.credit.otherMilliseconds > 0) { %>
-                                            <div class="small text-muted">その他（テスト等）：<%= formatCreditTime(account.credit.otherMilliseconds) %></div>
+                                <% ['monthlyFreeMilliseconds', 'purchasedMilliseconds', 'promotionalMilliseconds', 'totalMilliseconds'].forEach((field) => { %>
+                                    <td class="text-nowrap text-end">
+                                        <% if (account.credit) { %>
+                                            <div class="<%= field === 'totalMilliseconds' ? 'fw-semibold' : '' %>"><%= formatCreditTime(account.credit[field] || 0) %></div>
+                                            <% if (field === 'totalMilliseconds' && account.credit.otherMilliseconds > 0) { %>
+                                                <div class="small text-muted">うちその他（テスト等）：<%= formatCreditTime(account.credit.otherMilliseconds) %></div>
+                                            <% } %>
+                                        <% } else { %>
+                                            <span class="text-danger" title="残時間を取得できませんでした">取得失敗</span>
                                         <% } %>
-                                        <div class="fw-semibold">合計：<%= formatCreditTime(account.credit.totalMilliseconds) %></div>
-                                    <% } else { %>
-                                        <span class="text-danger">残時間を取得できませんでした</span>
-                                    <% } %>
-                                </td>
+                                    </td>
+                                <% }) %>
                                 <td class="text-end">
                                   <button type="button" class="btn btn-outline-secondary text-nowrap" data-bs-toggle="modal" data-bs-target="#user-settings-<%= index %>">設定</button>
                                   <div class="modal fade text-start" id="user-settings-<%= index %>" tabindex="-1" aria-labelledby="user-settings-title-<%= index %>" aria-hidden="true">

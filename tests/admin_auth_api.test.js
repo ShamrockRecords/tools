@@ -223,10 +223,10 @@ async function main() {
     const csrfMatch = response.body.match(/name="csrfToken" value="([a-f0-9]+)"/);
     assert.ok(csrfMatch);
 
-    assert.match(response.body, /毎月の無料：0時間30分0秒/);
-    assert.match(response.body, /有償購入：2時間0分0秒/);
-    assert.match(response.body, /無償提供：1時間0分0秒/);
-    assert.match(response.body, /合計：3時間30分0秒/);
+    assert.match(response.body, />0時間30分0秒<\/div>/);
+    assert.match(response.body, />2時間0分0秒<\/div>/);
+    assert.match(response.body, />1時間0分0秒<\/div>/);
+    assert.match(response.body, />3時間30分0秒<\/div>/);
     const operationID = response.body.match(/name="operationID" value="([a-f0-9-]+)"/)[1];
     response = await request(server, 'POST', '/admin/mojidas-users/user-1/promotional-hours', {
       cookie, body: { hours: '2', operationID },
