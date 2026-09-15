@@ -167,6 +167,18 @@ async function main() {
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /admin@example\.com/);
     assert.match(response.body, /サーバー管理者アカウント/);
+    assert.match(response.body, /href="\/admin\/mojidas"/);
+    assert(!response.body.includes('href="/admin/mojidas-users"'), '管理者トップではMojidasの入口を一本化');
+    assert.match(response.body, /href="\/admin\/bulk-mail"/);
+    response = await request(server, 'GET', '/admin/mojidas');
+    assert.strictEqual(response.status, 302, 'Mojidas管理も管理者認証を必須にする');
+    const callsBeforeHub = JSON.stringify([adminUserCalls, broadcastCalls, versionCalls]);
+    response = await request(server, 'GET', '/admin/mojidas', { cookie });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(JSON.stringify([adminUserCalls, broadcastCalls, versionCalls]), callsBeforeHub,
+      '入口表示だけでは管理処理を実行しない');
+    for (const suffix of ['users', 'paid-balance', 'partners', 'mail', 'versions'])
+      assert(response.body.includes(`href="/admin/mojidas-${suffix}"`));
     assert.match(response.body, /Mojidasユーザー管理/);
     assert.match(response.body, /Mojidas有償・無償時間集計/);
     assert.match(response.body, /Mojidasバージョン管理/);

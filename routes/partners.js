@@ -7,7 +7,9 @@ const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter
 function createPartnerRouter({ store = defaultStore, admin = false, now = Date.now } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
-    if (!['app.mojidas.jp', 'localhost', '127.0.0.1', '::1'].includes(req.hostname)) return res.sendStatus(404);
+    // 管理画面は既存/adminと同じホスト・管理者セッションで利用する。
+    // 販売店向けページだけをapp.mojidas.jpに限定する。
+    if (!admin && !['app.mojidas.jp', 'localhost', '127.0.0.1', '::1'].includes(req.hostname)) return res.sendStatus(404);
     res.set('Cache-Control', 'no-store'); res.set('Referrer-Policy', 'no-referrer');
     res.set('Content-Security-Policy', "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'");
     if (!req.session.partnerCSRF) req.session.partnerCSRF = crypto.randomBytes(32).toString('hex');

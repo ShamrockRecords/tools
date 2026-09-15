@@ -52,7 +52,9 @@ Firebase IDトークン、Firebase Session Cookie、Firebase Web SDKはこの処
 
 ## Mojidasユーザー管理
 
-管理者ページの「一斉メール送信」と同じ管理機能一覧から「Mojidasユーザー管理」を開きます。専用画面は`/admin/mojidas-users`です。
+Mojidas関連機能の入口は管理者トップの「Mojidas管理」（`/admin/mojidas`）へ集約します。ユーザー管理、有償・無償時間集計、販売店・法人利用管理、全ユーザーへのメール、バージョン管理をここから開き、各画面の戻るリンクもこのページへ戻ります。既存の個別URLと操作・認証条件は維持します。
+
+「Mojidas管理」から「Mojidasユーザー管理」を開きます。専用画面は`/admin/mojidas-users`です。
 
 - Firebase Authenticationのアカウントを20件ずつ表示します。
 - 前後のページへ移動でき、ページトークンは管理者セッション内だけに保持します。

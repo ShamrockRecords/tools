@@ -236,6 +236,11 @@ router.get('/', async function (req, res, next) {
   }
 });
 
+// Mojidas関連機能の入口。表示だけでは各機能の取得・更新処理を呼ばない。
+router.get('/mojidas', ensureAdmin, function (req, res) {
+  return res.render('admin/mojidas');
+});
+
 const broadcastStatusLabels = {
   preparing: '宛先を準備中', preparation_failed: '宛先取得失敗', draft: '送信前の確認待ち',
   expired: '確認期限切れ', sending: '送信処理中', completed: '送信処理完了', attention: '送信結果の確認が必要',

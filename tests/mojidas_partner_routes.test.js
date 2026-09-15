@@ -49,6 +49,21 @@ async function main() {
     assert.equal((await request(server, '/partners', { cookie: logged.cookie })).status, 200);
     assert.equal(calls.length, before);
     const admin = await request(server, '/fixture-admin');
+    const host = 'tools.udtalk.jp';
+    const hostPage = await request(server, '/admin/mojidas-partners', { cookie: admin.cookie, host });
+    assert.equal(hostPage.status, 200, '既存の管理ホストで管理画面を開ける');
+    const unauthorized = await request(server, '/admin/mojidas-partners', { host });
+    assert.equal(unauthorized.status, 302);
+    assert.equal(unauthorized.headers.location, '/admin');
+    const rejectedReview = await request(server, '/admin/mojidas-partners/review', {
+      method: 'POST', cookie: admin.cookie, host, body: { domain: 'example.co.jp', status: 'approved' } });
+    assert.equal(rejectedReview.status, 403, '管理ホストでもCSRFを必須にする');
+    const hostReview = await request(server, '/admin/mojidas-partners/review', {
+      method: 'POST', cookie: admin.cookie, host,
+      body: { csrfToken: csrf(hostPage), domain: 'example.co.jp', status: 'approved' } });
+    assert.equal(hostReview.status, 303);
+    assert.equal((await request(server, '/partners', { host })).status, 404, '販売店ページのホスト制限は維持');
+    assert.equal((await request(server, '/partners', { host: 'app.mojidas.jp' })).status, 200);
     const adminPage = await request(server, '/admin/mojidas-partners', { cookie: admin.cookie });
     assert.equal(adminPage.status, 200); assert.equal(calls.at(-1)[1], null);
     const review = await request(server, '/admin/mojidas-partners/review', { method: 'POST', cookie: admin.cookie,

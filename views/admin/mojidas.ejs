@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <%- include('../parts/head', {title: 'Mojidas管理'}) %>
+  <style>body { background-color: #f8f9fa; min-height: 100vh; }</style>
+</head>
+<body>
+  <main class="container py-5">
+    <a href="/admin" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> 管理者ページへ戻る</a>
+    <h1 class="h3 fw-bold mt-2 mb-2">Mojidas管理</h1>
+    <p class="text-muted mb-4">Mojidasのアカウント、利用時間、販売店、配信・公開設定を管理します。</p>
+    <div class="card shadow-sm">
+      <div class="list-group list-group-flush">
+        <% const features = [
+          ['/admin/mojidas-users', 'Mojidasユーザー管理', 'アカウント・残時間の確認、無償時間の追加、招待ユーザーの設定を行います。'],
+          ['/admin/mojidas-paid-balance', 'Mojidas有償・無償時間集計', '有償残高の円換算と無償提供時間の実績を確認します。'],
+          ['/admin/mojidas-partners', 'Mojidas 販売店・法人利用管理', '販売店の招待、ドメインの承認・停止、法人の月別利用時間を管理します。'],
+          ['/admin/mojidas-mail', 'Mojidas全ユーザーへメール', '一斉メールの作成・送信と配信履歴の確認を行います。'],
+          ['/admin/mojidas-versions', 'Mojidasバージョン管理', 'Mac版とWindows版の公開バージョンを管理します。'],
+        ]; features.forEach(([url, title, description]) => { %>
+          <a href="<%= url %>" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3 py-3">
+            <div><div class="fw-bold"><%= title %></div><small class="text-muted"><%= description %></small></div>
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
