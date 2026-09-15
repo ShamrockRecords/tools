@@ -5,6 +5,11 @@
 	<style>
 		body { background-color: #f8f9fa; min-height: 100vh; }
 		.user-email { min-width: 15rem; }
+		.credit-time { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+		.table { font-size: 0.875rem; }
+		.table .small, .table .badge, .table .btn { font-size: inherit; }
+		.table .modal { font-size: 1rem; }
+		.table .modal .btn-sm, .table .modal .input-group-sm > .btn { font-size: 0.875rem; }
 	</style>
 </head>
 <body>
@@ -83,13 +88,15 @@
                                 </td>
                                 <% ['monthlyFreeMilliseconds', 'purchasedMilliseconds', 'promotionalMilliseconds', 'totalMilliseconds'].forEach((field) => { %>
                                     <td class="text-nowrap text-end">
+                                        <% if (!(field === 'totalMilliseconds' && account.invitedUnlimited)) { %>
                                         <% if (account.credit) { %>
-                                            <div class="<%= field === 'totalMilliseconds' ? 'fw-semibold' : '' %>"><%= formatCreditTime(account.credit[field] || 0) %></div>
+                                            <div class="credit-time <%= field === 'totalMilliseconds' ? 'fw-semibold' : '' %>"><%= formatCreditTime(account.credit[field] || 0) %></div>
                                             <% if (field === 'totalMilliseconds' && account.credit.otherMilliseconds > 0) { %>
                                                 <div class="small text-muted">うちその他（テスト等）：<%= formatCreditTime(account.credit.otherMilliseconds) %></div>
                                             <% } %>
                                         <% } else { %>
                                             <span class="text-danger" title="残時間を取得できませんでした">取得失敗</span>
+                                        <% } %>
                                         <% } %>
                                     </td>
                                 <% }) %>

@@ -24,7 +24,14 @@ async function main() {
   assert.equal(await store.login('partner@example.net', 'test-password'), id);
   await assert.rejects(store.invite('partner@example.net', '別の名前'), { code: 'PARTNER_EXISTS' });
   assert.equal((await store.activePartner(id)).name, '販売店');
-  const input = { domain: 'example.co.jp', organizationName: '組織', website: 'https://example.co.jp', contact: '担当者' };
+  const beforeEdit = (await store.collection('partners').doc(id).get()).data();
+  await store.updateName(id, ' 新しい販売店名 ');
+  await store.updateName(id, ' 新しい販売店名 ');
+  assert.deepEqual((await store.collection('partners').doc(id).get()).data(), { ...beforeEdit, name: '新しい販売店名' });
+  for (const name of ['', ' ', 'a'.repeat(121), null]) await assert.rejects(store.updateName(id, name));
+  await assert.rejects(store.updateName('0'.repeat(64), '存在しない販売店'));
+  assert.equal(await store.login('partner@example.net', 'test-password'), id);
+  const input = { domain: 'example.co.jp', organizationName: '組織' };
   await assert.rejects(store.submit(id, { ...input, domain: 'gmail.com' }), { code: 'INVALID_DOMAIN' });
   await store.submit(id, input);
   await assert.rejects(store.submit(id, input), { code: 'DOMAIN_EXISTS' });
@@ -40,6 +47,17 @@ async function main() {
   assert.equal(await store.entitlement(user), null);
   await store.review(input.domain, 'approved', 'admin@example.org');
   assert.equal((await store.entitlement(user)).domain, input.domain);
+  const beforeDomain = (await store.collection('corporateDomains').doc(input.domain).get()).data();
+  const edit = { domain: input.domain, organizationName: '変更した組織', contactEmail: 'contact@example.com', notes: '備考\n二行目' };
+  await assert.rejects(store.updateDomain('other', edit), { code: 'FORBIDDEN' });
+  await assert.rejects(store.updateDomain(id, { ...edit, contactEmail: 'invalid' }));
+  assert.deepEqual((await store.collection('corporateDomains').doc(input.domain).get()).data(), beforeDomain);
+  await store.updateDomain(id, edit);
+  await store.updateDomain(id, edit);
+  assert.deepEqual((await store.collection('corporateDomains').doc(input.domain).get()).data(),
+    { ...beforeDomain, organizationName: edit.organizationName, contactEmail: edit.contactEmail, notes: edit.notes });
+  await store.updateDomain(null, { ...edit, contactEmail: '', notes: '' });
+  assert.equal((await store.entitlement(user)).partnerID, id);
   await store.collection('corporateUsageMonths').doc(`${id}_${input.domain}_2026-09`).set({ realtime: 6000 });
   await store.collection('corporateUsageMonths').doc(`${id}_${input.domain}_2026-08`).set({ realtime: 99000 });
   await store.collection('corporateDomains').doc('other.example').set({ partnerID: 'other' });

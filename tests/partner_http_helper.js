@@ -1,7 +1,7 @@
 const http = require('http');
-exports.request = (server, path, { method = 'GET', body, cookie, token = 'member', host } = {}) => new Promise((resolve, reject) => {
+exports.request = (server, path, { method = 'GET', body, cookie, token = 'member', host, headers = {} } = {}) => new Promise((resolve, reject) => {
   const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path, method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(cookie ? { Cookie: cookie } : {}), ...(host ? { Host: host } : {}) } }, res => {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(cookie ? { Cookie: cookie } : {}), ...(host ? { Host: host } : {}), ...headers } }, res => {
     let text = ''; res.on('data', data => { text += data; });
     res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text,
       body: String(res.headers['content-type']).includes('application/json') ? JSON.parse(text) : null,

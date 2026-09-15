@@ -49,6 +49,14 @@ async function render() {
   }
   const failed = await ejs.renderFile(view, { ...locals, users: [{ ...users[0], credit: null }] });
   assert.strictEqual((failed.match(/>取得失敗</g) || []).length, 4);
+  // 招待の合計セルは、残高取得失敗時やその他残高がある場合も空白にする。
+  for (const credit of [{ ...users[1].credit, otherMilliseconds: 60000 }, null]) {
+    const invited = await ejs.renderFile(view, { ...locals, users: [{ ...users[1], credit }] });
+    const cells = [...invited.matchAll(/<td class="text-nowrap text-end">([\s\S]*?)<\/td>/g)];
+    assert.strictEqual(cells.length, 4);
+    assert.strictEqual(cells[3][1].trim(), '');
+    assert(cells.slice(0, 3).every(cell => cell[1].trim().length > 0));
+  }
   return html;
 }
 

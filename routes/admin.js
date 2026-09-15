@@ -439,7 +439,8 @@ router.post('/mojidas-versions', ensureAdmin, async function (req, res, next) {
 
 function formatAdminCreditTime(milliseconds) {
   const seconds = Math.floor(Math.max(0, milliseconds) / 1000);
-  return `${Math.floor(seconds / 3600).toLocaleString('ja-JP')}時間${Math.floor(seconds / 60) % 60}分${seconds % 60}秒`;
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+    .map(value => String(value).padStart(2, '0')).join(':');
 }
 
 router.post('/mojidas-users/:uid/promotional-hours', ensureAdmin, async function (req, res, next) {

@@ -79,17 +79,14 @@ class PartnerStore {
   }
   async submit(partnerID, input) {
     const domain = normalizeDomain(input.domain), organizationName = textValue(input.organizationName, 160);
-    const contact = textValue(input.contact, 254), website = textValue(input.website, 500);
-    let url; try { url = new URL(website); } catch (_) { /* 下で入力エラーにする。 */ }
-    if (!domain || isSharedDomain(domain) || !organizationName || !contact
-        || !url || !['https:', 'http:'].includes(url.protocol) || url.username || url.password)
-      throw fail('INVALID_DOMAIN', '組織名・公式サイト・連絡先・独自ドメインを確認してください。');
+    if (!domain || isSharedDomain(domain) || !organizationName)
+      throw fail('INVALID_DOMAIN', '組織名・独自ドメインを確認してください。');
     await this.provider().runTransaction(async tx => {
       const partner = await tx.get(this.collection('partners').doc(partnerID));
       const ref = this.collection('corporateDomains').doc(domain), previous = await tx.get(ref);
       if (!partner.exists || partner.data().status !== 'active') throw fail('FORBIDDEN', '販売店が無効です。');
       if (previous.exists) throw fail('DOMAIN_EXISTS', 'このドメインは申請済みです。管理者へお問い合わせください。');
-      tx.set(ref, { domain, partnerID, organizationName, contact, website: url.href,
+      tx.set(ref, { domain, partnerID, organizationName,
         status: 'pending', submittedAt: this.now(), approvedAt: null });
     });
   }
@@ -106,6 +103,27 @@ class PartnerStore {
         approvedAt: status === 'approved' ? this.now() : snapshot.data().approvedAt });
     });
   }
+  async updateDomain(partnerID, input) {
+    const domain = normalizeDomain(input.domain);
+    const name = typeof input.organizationName === 'string' ? input.organizationName.trim() : '';
+    const email = typeof input.contactEmail === 'string' ? input.contactEmail.trim() : '';
+    const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
+    if (!domain || !name || name.length > 160 || email.length > 254 || notes.length > 5000
+        || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
+      throw fail('INVALID_DOMAIN', '組織名・連絡先メールアドレス・備考を確認してください。');
+    await this.provider().runTransaction(async tx => {
+      const ref = this.collection('corporateDomains').doc(domain);
+      const row = await tx.get(ref);
+      if (!row.exists || (partnerID !== null && row.data().partnerID !== partnerID))
+        throw fail('FORBIDDEN', 'このドメインは編集できません。');
+      if (partnerID !== null) {
+        const dealer = await tx.get(this.collection('partners').doc(partnerID));
+        if (!dealer.exists || dealer.data().status !== 'active') throw fail('FORBIDDEN', '販売店が無効です。');
+      }
+      // 承認状態・所有者・利用時間には触れない。
+      tx.update(ref, { organizationName: name, contactEmail: email, notes });
+    });
+  }
   async dashboard(partnerID, month) {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw fail('INVALID_MONTH', '対象月を確認してください。');
     let domains = this.collection('corporateDomains');
@@ -119,6 +137,18 @@ class PartnerStore {
       return { ...data, id: row.id, usage: { realtime: usage.realtime || 0,
         mediaFile: usage.mediaFile || 0, formalTranslation: usage.formalTranslation || 0 } };
     }));
+  }
+  async updateName(id, name) {
+    if (typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id)
+        || typeof name !== 'string' || !name.trim() || name.trim().length > 120)
+      throw fail('INVALID_PARTNER', '販売店名を1〜120文字で入力してください。');
+    const ref = this.collection('partners').doc(id);
+    await this.provider().runTransaction(async tx => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists) throw fail('INVALID_PARTNER', '販売店が見つかりません。');
+      // ログイン情報・招待情報・ドメインとの紐付けは変更しない。
+      tx.update(ref, { name: name.trim() });
+    });
   }
   async listPartners() {
     const result = await this.collection('partners').get();

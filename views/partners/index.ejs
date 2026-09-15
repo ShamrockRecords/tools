@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mojidas 販売店ポータル</title><link rel="stylesheet" href="/stylesheets/mojidas-partners.css"><script src="/javascripts/mojidas-partners.js" defer></script></head>
-<body><main><header><img src="/assets/mojidas-logo.png" alt="Mojidas"><h1><%= admin ? '販売店・法人利用管理' : '販売店ポータル' %></h1></header>
+<body><main<% if (admin) { %> data-admin-dynamic<% } else { %> data-partner-dynamic<% } %>><header><img src="/assets/mojidas-logo.png" alt="Mojidas"><h1><%= admin ? '販売店・法人利用管理' : '販売店ポータル' %></h1></header>
 <% if (error) { %><p role="alert"><%= error %></p><% } %>
 <% if (mode === 'login') { %>
 <p>管理者から招待された販売店アカウントでログインしてください。</p>
@@ -8,13 +8,75 @@
 <% } else if (mode === 'accept') { %>
 <h2>パスワードを設定</h2><form method="post" action="/partners/accept"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input id="invite-id" type="hidden" name="id"><input id="invite-token" type="hidden" name="token"><label>パスワード（8〜128文字）<input type="password" name="password" minlength="8" maxlength="128" required autocomplete="new-password"></label><label>もう一度入力<input type="password" name="confirmPassword" minlength="8" maxlength="128" required autocomplete="new-password"></label><button>パスワードを設定</button></form>
 <% } else { %>
-<% if (admin) { %><p><a href="/admin/mojidas">Mojidas管理へ戻る</a></p><section><h2>販売店を招待</h2><form method="post" action="<%= base %>/invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><label>販売店名<input name="name" maxlength="120" required></label><label>メールアドレス<input type="email" name="email" required></label><button>招待メールを送信</button></form><ul><% partners.forEach(p => { %><li><%= p.name %> — <%= p.email %>（<%= p.status === 'active' ? '有効' : '招待中' %>）</li><% }); %></ul></section>
-<% } else { %><p><%= user.name %> — <%= user.email %></p><form method="post" action="/partners/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button class="secondary">ログアウト</button></form><section><h2>組織のドメインを申請</h2><p>管理者の承認後に法人利用が有効になります。サブドメインは個別に登録してください。</p><form method="post" action="/partners/domains"><input type="hidden" name="csrfToken" value="<%= csrf %>"><label>組織名<input name="organizationName" maxlength="160" required></label><label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label><label>公式サイト<input name="website" type="url" placeholder="https://" maxlength="500" required></label><label>組織担当者の連絡先<input name="contact" maxlength="254" required></label><button>承認を申請</button></form></section><% } %>
-<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" required></label><button class="secondary">表示</button></form><p>上限なし。認識は発話時間、正式翻訳は対象時間の50％を集計します。利用報告を受信・確定した月に計上します。表示単位は時間です。</p>
-<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>状態</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><% if (admin) { %><th>承認操作</th><% } %></tr></thead><tbody>
-<% rows.forEach(row => { const u = row.usage; const hours = value => (value / 3600000).toFixed(3); %><tr>
+<% if (admin) { %>
+<p><a href="/admin/mojidas">Mojidas管理へ戻る</a></p>
+<section>
+  <div class="section-heading"><h2>販売店一覧</h2><button type="button" data-dialog-open="partner-invite">販売店を招待</button></div>
+  <div class="table"><table><thead><tr><th>販売店名</th><th>メールアドレス</th><th>状態</th><th>操作</th></tr></thead><tbody>
+  <% partners.forEach((p, index) => { %>
+    <tr><td><%= p.name %></td><td><%= p.email %></td><td><%= ({ active: '有効', invited: '招待中', suspended: '停止' })[p.status] || p.status %></td><td><button type="button" class="secondary" data-dialog-open="partner-edit-<%= index %>">編集</button></td></tr>
+  <% }); %>
+  <% if (!partners.length) { %><tr><td colspan="4">登録された販売店はありません。</td></tr><% } %>
+  </tbody></table></div>
+</section>
+<dialog id="partner-invite" aria-labelledby="partner-invite-title">
+  <h2 id="partner-invite-title">販売店を招待</h2>
+  <form method="post" action="<%= base %>/invite">
+    <input type="hidden" name="csrfToken" value="<%= csrf %>">
+    <label>販売店名<input name="name" maxlength="120" required></label>
+    <label>メールアドレス<input type="email" name="email" maxlength="254" required></label>
+    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>招待メールを送信</button></div>
+  </form>
+</dialog>
+<% partners.forEach((p, index) => { %>
+<dialog id="partner-edit-<%= index %>" aria-labelledby="partner-edit-title-<%= index %>">
+  <h2 id="partner-edit-title-<%= index %>">販売店を編集</h2>
+  <form method="post" action="<%= base %>/edit">
+    <input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="id" value="<%= p.id %>">
+    <label>販売店名<input name="name" value="<%= p.name %>" maxlength="120" required></label>
+    <p>メールアドレス：<%= p.email %></p>
+    <p>状態：<%= ({ active: '有効', invited: '招待中', suspended: '停止' })[p.status] || p.status %></p>
+    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>保存</button></div>
+  </form>
+</dialog>
+<% }); %>
+<% } else { %>
+<p><%= user.name %> — <%= user.email %></p>
+<form method="post" action="/partners/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button class="secondary">ログアウト</button></form>
+<p><button type="button" data-dialog-open="domain-application">組織のドメインを申請</button></p>
+<dialog id="domain-application" aria-labelledby="domain-application-title">
+  <h2 id="domain-application-title">組織のドメインを申請</h2>
+  <form method="post" action="/partners/domains">
+    <p>管理者の承認後に法人利用が有効になります。サブドメインは個別に登録してください。</p>
+    <input type="hidden" name="csrfToken" value="<%= csrf %>">
+    <label>組織名<input name="organizationName" maxlength="160" required></label>
+    <label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label>
+    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>承認を申請</button></div>
+  </form>
+</dialog>
+<% } %>
+<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" required></label><button class="secondary">表示</button></form><p>上限なし。認識は発話時間、正式翻訳は対象時間の50％を集計します。利用報告を受信・確定した月に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
+<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>状態</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><% if (!admin) { %><th>操作</th><% } %><% if (admin) { %><th>承認操作</th><% } %></tr></thead><tbody>
+<% const hours = value => { const seconds = Math.floor(Math.max(0, value) / 1000); return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(part => String(part).padStart(2, '0')).join(':'); }; %>
+<% rows.forEach((row, index) => { const u = row.usage; %><tr>
 <% if (admin) { %><td><%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></td><% } %>
-<td><strong><%= row.organizationName %></strong><br><%= row.domain %><% if (admin) { %><br><a href="<%= row.website %>" target="_blank" rel="noopener noreferrer">公式サイト</a><br><%= row.contact %><% } %></td><td><%= ({ pending: '承認待ち', approved: '承認済み', rejected: '却下', suspended: '停止' })[row.status] || row.status %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
-<% if (admin) { %><td><form method="post" action="<%= base %>/review"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status"><option value="approved">承認</option><option value="rejected">却下</option><option value="suspended">停止</option></select><button>適用</button></form></td><% } %></tr><% }); %>
+<td><strong><%= row.organizationName %></strong><br><%= row.domain %></td><td><%= ({ pending: '承認待ち', approved: '承認済み', rejected: '却下', suspended: '停止' })[row.status] || row.status %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
+<% if (!admin) { %><td><button type="button" class="secondary" data-dialog-open="domain-details-<%= index %>">詳細</button></td><% } %>
+<% if (admin) { %><td><form method="post" action="<%= base %>/review"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status" required><% if (!['approved', 'rejected', 'suspended'].includes(row.status)) { %><option value="" selected disabled>操作を選択</option><% } %><option value="approved"<%= row.status === 'approved' ? ' selected' : '' %>>承認</option><option value="rejected"<%= row.status === 'rejected' ? ' selected' : '' %>>却下</option><option value="suspended"<%= row.status === 'suspended' ? ' selected' : '' %>>停止</option></select><button>適用</button></form></td><% } %></tr><% }); %>
 </tbody></table></div><% if (!rows.length) { %><p>登録されたドメインはありません。</p><% } %></section>
+<% (admin ? [] : rows).forEach((row, index) => { %>
+<dialog id="domain-details-<%= index %>" aria-labelledby="domain-details-title-<%= index %>">
+  <h2 id="domain-details-title-<%= index %>">ドメインの詳細</h2>
+  <form method="post" action="<%= base %>/domains/edit">
+    <input type="hidden" name="csrfToken" value="<%= csrf %>">
+    <input type="hidden" name="domain" value="<%= row.domain %>">
+    <input type="hidden" name="month" value="<%= month %>">
+    <p><%= row.domain %></p>
+    <label>組織名<input name="organizationName" value="<%= row.organizationName %>" maxlength="160" required></label>
+    <label>連絡先メールアドレス<input type="email" name="contactEmail" value="<%= row.contactEmail || '' %>" maxlength="254"></label>
+    <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
+    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>保存</button></div>
+  </form>
+</dialog>
+<% }); %>
 <% } %></main></body></html>

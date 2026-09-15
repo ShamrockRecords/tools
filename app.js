@@ -92,8 +92,6 @@ app.use(function(req, res, next) {
   next()
 })
 
-const session = require('express-session') ;
-
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 if (!process.env.SESSION_SECRET) {
   console.warn('SESSION_SECRET is not set. Sessions will be invalidated whenever the process restarts.');
@@ -115,7 +113,7 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-app.use(session(session_opt)) ;
+app.use(require('./modules/auth/web_sessions').createWebSessions(session_opt));
 
 var i18n = require("i18n");
  
