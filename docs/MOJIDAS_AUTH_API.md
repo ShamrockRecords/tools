@@ -2,6 +2,8 @@
 
 ## 概要
 
+法人判定はログイン・更新・メール確認・`GET /me`の`user.isCorporate`へ追加します。省略可能なbooleanで、既存トークンと他のフィールドは維持します。取得障害時はフラグを省略し、認証自体は継続します。法人の課金区分はクライアントのフラグを信用せず、新規予約時にサーバーで確定します。運用は[販売店ポータル](MOJIDAS_PARTNERS.md)を参照してください。
+
 macOS / Windows版Mojidasから利用する、メールアドレス＋パスワード認証のJSON APIです。Firebase Authenticationを認証基盤として使い、デスクトップアプリはFirebase IDトークンをBearerトークンとして送信します。
 
 - Base path: `/api/mojidas`

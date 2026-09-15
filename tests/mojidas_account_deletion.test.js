@@ -114,6 +114,11 @@ async function main() {
   add('creditGrants', 'grant-1', { userID: 'user-1' });
   add('creditGrants', 'grant-other', { userID: 'user-2' });
   add('creditReservations', 'reservation-1', { userID: 'user-1' });
+  for (const name of ['corporateReservations', 'billingRunKinds']) {
+    add(name, 'owned', { userID: 'user-1' });
+    add(name, 'other', { userID: 'user-2', value: 123 });
+  }
+  add('corporateUsageMonths', 'total', { realtime: 3000, partnerID: 'dealer' });
   add('usageLedger', 'ledger-1', { userID: 'user-1' });
   add('dictionaryClients', 'client-1', { userID: 'user-1' });
   add('dictionaryAccounts', 'dictionary-1', { userID: 'user-1' });
@@ -128,6 +133,13 @@ async function main() {
   assert.deepStrictEqual(authDisabled, [['user-1', { disabled: true }]]);
   assert.deepStrictEqual(authRevoked, ['user-1']);
   assert.deepStrictEqual(firestore.recursivelyDeleted, ['dictionary-1']);
+  for (const name of ['corporateReservations', 'billingRunKinds']) {
+    const rows = firestore.collection(`Mojidas/production/${name}`).documents;
+    assert(!rows.has('owned'));
+    assert.deepStrictEqual(rows.get('other'), { userID: 'user-2', value: 123 });
+  }
+  assert.deepStrictEqual(firestore.collection('Mojidas/production/corporateUsageMonths').documents.get('total'),
+    { realtime: 3000, partnerID: 'dealer' });
   assert.strictEqual(
     firestore.collection('Mojidas/production/creditGrants').documents.has('grant-other'),
     true

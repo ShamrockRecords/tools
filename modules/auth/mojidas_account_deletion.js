@@ -82,6 +82,8 @@ class MojidasAccountDeletionService {
     for (const collectionName of [
       'creditGrants',
       'creditReservations',
+      'corporateReservations',
+      'billingRunKinds',
       'usageLedger',
       'dictionaryClients',
     ]) {

@@ -188,6 +188,8 @@ app.use('/locale_change', localeChangeRouter);
 app.use('/youyaku', youyakuIndexRouter);
 app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
+app.use('/partners', require('./routes/partners').createPartnerRouter());
+app.use('/admin/mojidas-partners', require('./routes/partners').createPartnerRouter({ admin: true }));
 app.use('/admin', adminRouter);
 app.use('/api/mojidas', mojidasApiRouter);
 

@@ -7,6 +7,8 @@ const {
   FirebaseAuthRestClient,
 } = require('../../modules/auth/firebase_auth_rest');
 const mojidasUserStore = require('../../modules/auth/mojidas_user_store');
+const mojidasPartnerStore = require('../../modules/partners/partner_store');
+const { withCorporateUsage } = require('../../modules/partners/corporate_usage_store');
 const {
   mojidasAccountDeletionService,
 } = require('../../modules/auth/mojidas_account_deletion');
@@ -40,9 +42,11 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 function createMojidasRouter({
   authClient,
   userStore = mojidasUserStore,
+  partnerStore = authClient ? null : mojidasPartnerStore,
   accountDeletionService = mojidasAccountDeletionService,
   apiKeyIssuer,
   creditStore = mojidasCreditStore,
+  corporateUsageStore,
   dictionaryStore = mojidasDictionaryStore,
   billingService = mojidasStripeBillingService,
   serviceConfigurationProvider = publicServiceConfiguration,
@@ -54,6 +58,22 @@ function createMojidasRouter({
   allowLocalhost = true,
 } = {}) {
   const router = express.Router();
+  if (partnerStore) creditStore = withCorporateUsage(creditStore, corporateUsageStore);
+  const corporateAccount = user => partnerStore ? partnerStore.entitlement(user) : Promise.resolve(null);
+  // 認証レスポンスには追加情報として付ける。この関数では残高・予約を操作しない。
+  async function publicAccount(user) {
+    if (!partnerStore) return user;
+    try {
+      return { ...user, isCorporate: Boolean(await partnerStore.entitlement(user)) };
+    } catch (_) {
+      // 判定不能をfalseと断定せず省略し、既存ログインの可用性を維持する。
+      console.warn('[Mojidas] corporate status unavailable');
+      return user;
+    }
+  }
+  async function accountSession(session) {
+    return { ...session, user: await publicAccount(session.user) };
+  }
   const client = authClient || new FirebaseAuthRestClient({
     apiKey: process.env.FIREBASE_API_KEY,
     firebaseAdmin,
@@ -231,7 +251,7 @@ function createMojidasRouter({
         emailVerified: session.user.emailVerified,
       });
       await recordClientInfo(req, session);
-      return res.json(session);
+      return res.json(await accountSession(session));
     } catch (error) {
       return sendAuthError(res, error);
     }
@@ -249,7 +269,7 @@ function createMojidasRouter({
     try {
       const session = await client.refresh(refreshToken);
       await recordClientInfo(req, session);
-      return res.json(session);
+      return res.json(await accountSession(session));
     } catch (error) {
       return sendAuthError(res, error);
     }
@@ -275,7 +295,7 @@ function createMojidasRouter({
         emailVerified: session.user.emailVerified,
       });
       await recordClientInfo(req, session);
-      return res.json({ verified: true, ...session });
+      return res.json({ verified: true, ...await accountSession(session) });
     } catch (error) {
       return sendAuthError(res, error);
     }
@@ -323,7 +343,7 @@ function createMojidasRouter({
 
   router.get('/me', authenticate(client), async function (req, res) {
     return res.json({
-      user: client.publicUser(req.mojidasUser),
+      user: await publicAccount(client.publicUser(req.mojidasUser)),
     });
   });
 
@@ -357,6 +377,7 @@ function createMojidasRouter({
   router.get('/credits/balance', authenticate(client), async function (req, res) {
     try {
       const balance = await creditStore.getBalance({
+        ...(partnerStore ? { corporate: await corporateAccount(req.mojidasUser) } : {}),
         userID: req.mojidasUser.uid,
         accountCreatedAt: accountCreationTime(req.mojidasUser),
         isUnlimited: isInvitedUnlimited(req.mojidasUser),
@@ -452,6 +473,7 @@ function createMojidasRouter({
           return sendTranslationError(res, { code: 'INVALID_TRANSLATION_REQUEST' });
         }
         const requestFingerprint = fingerprintFormalJobRequest(req.body);
+        const corporate = await corporateAccount(req.mojidasUser);
         const job = formalJobs.start({
           userID: req.mojidasUser.uid,
           idempotencyKey,
@@ -460,6 +482,7 @@ function createMojidasRouter({
             translator,
             creditStore,
             user: req.mojidasUser,
+            corporate,
             request: req.body,
             signal,
           }),
@@ -498,6 +521,9 @@ function createMojidasRouter({
     authenticate(client),
     async function (req, res) {
       try {
+        if (await corporateAccount(req.mojidasUser)) {
+          return sendError(res, 409, 'CORPORATE_ACCOUNT', '法人向けで利用中のため、時間のチャージは不要です。');
+        }
         const checkout = await billingService.createCheckoutSession({
           userID: req.mojidasUser.uid,
           email: req.mojidasUser.email,
@@ -552,6 +578,7 @@ function createMojidasRouter({
 
     try {
       const reservation = await creditStore.createReservation({
+        ...(partnerStore ? { corporate: await corporateAccount(req.mojidasUser) } : {}),
         userID: req.mojidasUser.uid,
         accountCreatedAt: accountCreationTime(req.mojidasUser),
         operation,
@@ -761,6 +788,8 @@ function sendCreditError(res, error) {
     RESERVATION_CLOSED: [409, 'この認識処理は既に終了しています。'],
     RESERVATION_SERVER_MANAGED: [403, '正式翻訳の利用時間はサーバーが確定します。'],
     INVALID_SEQUENCE: [409, '利用時間の更新順序が正しくありません。'],
+    CORPORATE_DISABLED: [409, '法人利用の設定が変更されました。残時間を更新して、もう一度開始してください。'],
+    INVALID_USAGE: [400, '利用時間の値が正しくありません。'],
     INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
     INVALID_TRANSLATION_USAGE: [400, '翻訳時間の消費内容が正しくありません。'],
     IDEMPOTENCY_CONFLICT: [409, '同じ冪等キーが異なる翻訳内容に使用されています。'],
@@ -829,6 +858,7 @@ async function executeFormalTranslation({
   translator,
   creditStore,
   user,
+  corporate,
   request,
   signal,
 }) {
@@ -841,6 +871,7 @@ async function executeFormalTranslation({
     request: estimateRequest,
   });
   const reservation = await creditStore.createReservation({
+    ...(corporate ? { corporate } : {}),
     userID: user.uid,
     accountCreatedAt: accountCreationTime(user),
     operation: 'formalTranslation',
