@@ -268,6 +268,9 @@ async function main() {
       updatedAt: '2026-08-30T12:00:00.000Z',
     });
 
+    response = await request(server, 'GET', '/api/mojidas/version?refresh=test');
+    assert.strictEqual(response.status, 200);
+
     response = await request(server, 'GET', '/api/mojidas/billing/success');
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /Mojidas/);

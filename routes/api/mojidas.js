@@ -167,7 +167,7 @@ function createMojidasRouter({
 
   router.get('/version', async function (req, res) {
     try {
-      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+      res.set('Cache-Control', req.query.refresh ? 'no-store' : 'public, max-age=60, stale-while-revalidate=60');
       return res.json(await versionStore.getVersions());
     } catch (error) {
       console.error('[Mojidas] version fetch failed:', error);
