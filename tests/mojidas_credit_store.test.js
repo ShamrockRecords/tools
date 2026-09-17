@@ -47,8 +47,7 @@ class FakeCollection {
   }
 
   where(field, operator, value) {
-    assert.strictEqual(operator, '==');
-    return new FakeQuery(this.firestore, this.name, field, value);
+    return new FakeQuery(this.firestore, this.name, field, value, operator);
   }
 }
 
@@ -83,16 +82,29 @@ class FakeDocument {
 }
 
 class FakeQuery {
-  constructor(firestore, collectionName, field, value) {
+  constructor(firestore, collectionName, field, value, operator = '==') {
     this.firestore = firestore;
     this.collectionName = collectionName;
     this.field = field;
     this.value = value;
+    this.filters = [[field, operator, value]];
+  }
+
+  where(field, operator, value) {
+    const query = new FakeQuery(this.firestore, this.collectionName, this.field, this.value);
+    query.filters = [...this.filters, [field, operator, value]];
+    return query;
   }
 
   async get() {
     const docs = this.firestore.records(this.collectionName)
-      .filter((record) => record.data[this.field] === this.value)
+      .filter((record) => this.filters.every(([field, operator, value]) => {
+        const actual = record.data[field];
+        if (operator === '==') return actual === value;
+        if (operator === '>=') return actual >= value;
+        if (operator === '<') return actual < value;
+        throw new Error(`未対応の比較: ${operator}`);
+      }))
       .map((record) => snapshot(
         new FakeDocument(this.firestore, this.collectionName, record.id),
         record.data

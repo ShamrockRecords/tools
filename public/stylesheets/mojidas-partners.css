@@ -4,10 +4,13 @@ dialog h2{margin:0 0 24px}
 dialog form{display:flex;flex-direction:column;gap:16px}
 dialog label{display:flex;flex-direction:column;gap:8px;margin:0}
 dialog input{width:100%}
+dialog label.checkbox{flex-direction:row;align-items:center;gap:10px}
+dialog .checkbox input{width:auto;flex:none}
 dialog textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #aaa;border-radius:6px;font:inherit;resize:vertical}
 dialog textarea:focus{outline:3px solid #96bfff}
 dialog p{margin:0;overflow-wrap:anywhere}
 .section-heading,.dialog-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .dialog-actions{justify-content:flex-end;margin-top:8px}
 .dialog-actions button{margin:0}
+.year-pagination{display:flex;align-items:center;gap:12px}
 .table form:has(select[name="status"]){display:flex;align-items:center;gap:12px;flex-wrap:wrap}

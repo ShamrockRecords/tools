@@ -75,6 +75,16 @@ async function main() {
     assert.equal((await post(`/usage/${formalRow.id}/complete`, { consumedMilliseconds: 0 })).status, 403);
     const totals = db.records(mojidasCollectionPath('corporateUsageMonths'))[0].data;
     assert.equal(totals.mediaFile, 13000); assert.equal(totals.formalTranslation, 5000);
+    await domain.update({ limitMilliseconds: 0, stopAtLimit: true });
+    const blockedBalance = await request(server, '/credits/balance');
+    assert.equal(blockedBalance.body.isCorporate, true);
+    assert.equal(blockedBalance.body.usageAllowed, false);
+    assert.equal(blockedBalance.body.availableMilliseconds, 0);
+    assert.equal(blockedBalance.body.usageBlockedReason, 'CORPORATE_LIMIT_REACHED');
+    assert.equal((await post('/usage/reservations', reserve())).status, 409);
+    assert.equal((await post(`/usage/${corp.body.id}/heartbeat`, { sequence: 1, consumedMilliseconds: 6000 })).status, 409);
+    assert.equal((await post('/auth/login', { email: user.email, password: 'password' })).status, 200);
+    await domain.update({ limitMilliseconds: null, stopAtLimit: false });
     await domain.update({ status: 'suspended' });
     assert.equal((await post('/usage/reservations', corpArgs)).body.id, corp.body.id);
     for (let retry = 0; retry < 2; retry++) assert.equal((await post(`/usage/${corp.body.id}/heartbeat`, { sequence: 1, consumedMilliseconds: 6000 })).status, 200);

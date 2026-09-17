@@ -55,15 +55,36 @@
   </form>
 </dialog>
 <% } %>
-<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" required></label><button class="secondary">表示</button></form><p>上限なし。認識は発話時間、正式翻訳は対象時間の50％を集計します。利用報告を受信・確定した月に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
-<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>状態</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><% if (!admin) { %><th>操作</th><% } %><% if (admin) { %><th>承認操作</th><% } %></tr></thead><tbody>
+<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" required></label><button class="secondary">表示</button></form><p>認識は発話時間、正式翻訳は対象時間の50％を集計します。今月は現在の利用期間、過去の月はその月のリセット日からの期間を表示します。利用報告を受信・確定した期間に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
+<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>状態</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><th>超過</th><% if (!admin) { %><th>操作</th><% } %><% if (admin) { %><th>承認操作</th><% } %></tr></thead><tbody>
 <% const hours = value => { const seconds = Math.floor(Math.max(0, value) / 1000); return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(part => String(part).padStart(2, '0')).join(':'); }; %>
 <% rows.forEach((row, index) => { const u = row.usage; %><tr>
 <% if (admin) { %><td><%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></td><% } %>
-<td><strong><%= row.organizationName %></strong><br><%= row.domain %></td><td><%= ({ pending: '承認待ち', approved: '承認済み', rejected: '却下', suspended: '停止' })[row.status] || row.status %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
+<td><strong><%= row.organizationName %></strong><br><%= row.domain %><% if (row.periodStart != null) { %><br><small><%= new Date(row.periodStart).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>〜<%= new Date(row.periodEnd - 1).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %></small><% } %></td><td><%= ({ pending: '承認待ち', approved: '承認済み', rejected: '却下', suspended: '停止' })[row.status] || row.status %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
+<td><%= row.excessMilliseconds > 0 ? hours(row.excessMilliseconds) : '—' %></td>
 <% if (!admin) { %><td><button type="button" class="secondary" data-dialog-open="domain-details-<%= index %>">詳細</button></td><% } %>
 <% if (admin) { %><td><form method="post" action="<%= base %>/review"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status" required><% if (!['approved', 'rejected', 'suspended'].includes(row.status)) { %><option value="" selected disabled>操作を選択</option><% } %><option value="approved"<%= row.status === 'approved' ? ' selected' : '' %>>承認</option><option value="rejected"<%= row.status === 'rejected' ? ' selected' : '' %>>却下</option><option value="suspended"<%= row.status === 'suspended' ? ' selected' : '' %>>停止</option></select><button>適用</button></form></td><% } %></tr><% }); %>
 </tbody></table></div><% if (!rows.length) { %><p>登録されたドメインはありません。</p><% } %></section>
+<section aria-labelledby="annual-usage-title">
+  <div class="section-heading">
+    <h2 id="annual-usage-title">月別の利用時間 — <%= year %>年</h2>
+    <nav class="year-pagination" aria-label="利用時間の年切り替え">
+      <form method="get" action="<%= base %>"><input type="hidden" name="month" value="<%= month %>"><input type="hidden" name="year" value="<%= year - 1 %>"><button class="secondary" <%= year <= 2000 ? 'disabled' : '' %>>← 前年</button></form>
+      <form method="get" action="<%= base %>"><input type="hidden" name="month" value="<%= month %>"><input type="hidden" name="year" value="<%= year + 1 %>"><button class="secondary" <%= year >= 9999 ? 'disabled' : '' %>>翌年 →</button></form>
+    </nav>
+  </div>
+  <p>1月から12月までの暦月（日本時間）の実績です。上限判定のリセット期間とは異なり、利用報告を受信・確定した月に計上します。</p>
+  <% annualRows.forEach(row => { %>
+    <h3><%= row.organizationName %>（<%= row.domain %>）</h3>
+    <% if (admin) { %><p>販売店：<%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></p><% } %>
+    <div class="table"><table>
+      <thead><tr><th>月</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th></tr></thead>
+      <tbody><% row.months.forEach(item => { %><tr><th scope="row"><%= item.month %>月</th><td><%= hours(item.realtime) %></td><td><%= hours(item.mediaFile) %></td><td><%= hours(item.formalTranslation) %></td><td><%= hours(item.total) %></td></tr><% }); %></tbody>
+      <tfoot><tr><th scope="row">年間合計</th><td><%= hours(row.months.reduce((sum, item) => sum + item.realtime, 0)) %></td><td><%= hours(row.months.reduce((sum, item) => sum + item.mediaFile, 0)) %></td><td><%= hours(row.months.reduce((sum, item) => sum + item.formalTranslation, 0)) %></td><td><%= hours(row.total) %></td></tr></tfoot>
+    </table></div>
+  <% }); %>
+  <% if (!annualRows.length) { %><p>登録されたドメインはありません。</p><% } %>
+</section>
 <% (admin ? [] : rows).forEach((row, index) => { %>
 <dialog id="domain-details-<%= index %>" aria-labelledby="domain-details-title-<%= index %>">
   <h2 id="domain-details-title-<%= index %>">ドメインの詳細</h2>
@@ -75,6 +96,12 @@
     <label>組織名<input name="organizationName" value="<%= row.organizationName %>" maxlength="160" required></label>
     <label>連絡先メールアドレス<input type="email" name="contactEmail" value="<%= row.contactEmail || '' %>" maxlength="254"></label>
     <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
+    <label>上限（時間）<input type="number" name="limitHours" min="0" step="0.01" value="<%= row.limitMilliseconds == null ? '' : row.limitMilliseconds / 3600000 %>" placeholder="空欄は上限なし"></label>
+    <label>毎月のリセット日<input type="number" name="resetDay" min="1" max="31" step="1" value="<%= row.resetDay || 1 %>" required></label>
+    <p>日本時間の指定日0時にリセットします。指定日がない月は月末です。リセット日を変更すると、その日付による期間で利用時間を再集計します。</p>
+    <label class="checkbox"><input type="checkbox" name="stopAtLimit" <%= row.stopAtLimit ? 'checked' : '' %>>上限に達したら利用不可にする</label>
+    <label class="checkbox"><input type="checkbox" name="notifyAtOneHour" <%= row.notifyAtOneHour ? 'checked' : '' %>>残り1時間で連絡先と販売店にメールで通知する</label>
+    <p>通知は利用報告の受信時に判定します。報告間隔・メール配送分の遅れがあります。認識中の停止も報告時の判定となり、超過する場合があります。</p>
     <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>保存</button></div>
   </form>
 </dialog>

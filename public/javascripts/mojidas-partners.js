@@ -18,8 +18,10 @@ document.addEventListener('submit', async event => {
   const url = new URL(form.action, location.href);
   const method = form.method.toUpperCase();
   const month = new URL(location.href).searchParams.get('month');
+  const year = new URL(location.href).searchParams.get('year');
   if (method === 'GET') url.search = fields.toString();
   else if (month) url.searchParams.set('month', month);
+  if (year && !url.searchParams.has('year')) url.searchParams.set('year', year);
   const buttons = [...main.querySelectorAll('button')];
   const disabled = buttons.map(button => button.disabled);
   buttons.forEach(button => { button.disabled = true; });

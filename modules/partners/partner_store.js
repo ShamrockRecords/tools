@@ -4,6 +4,9 @@ const { mojidasCollection } = require('../mojidas_firestore');
 const { normalizeDomain, isSharedDomain } = require('./domain_policy');
 const { createAdminPasswordHash, verifyPassword } = require('../auth/admin_credentials');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
+const { parseQuota, resetDay, boundary, quotaStatus } = require('./quota_policy');
+const { readQuota, saveQuota, totalUsage } = require('./quota_store');
+const { monthAt } = require('./usage_policy');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -100,7 +103,9 @@ class PartnerStore {
       if (status === 'approved' && (isSharedDomain(domain) || !partner.exists || partner.data().status !== 'active'))
         throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ承認できます。');
       tx.update(ref, { status, reviewedBy: adminEmail, reviewedAt: this.now(),
-        approvedAt: status === 'approved' ? this.now() : snapshot.data().approvedAt });
+        ...(status === 'approved' && !snapshot.data().approvedAt
+          ? { resetDay: snapshot.data().resetDay || resetDay({ approvedAt: this.now() }) } : {}),
+        approvedAt: status === 'approved' ? (snapshot.data().approvedAt || this.now()) : snapshot.data().approvedAt });
     });
   }
   async updateDomain(partnerID, input) {
@@ -108,6 +113,9 @@ class PartnerStore {
     const name = typeof input.organizationName === 'string' ? input.organizationName.trim() : '';
     const email = typeof input.contactEmail === 'string' ? input.contactEmail.trim() : '';
     const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
+    const quota = input.resetDay === undefined ? null : parseQuota(input);
+    if (quota?.notifyAtOneHour && (!email || quota.limitMilliseconds === null))
+      throw fail('INVALID_QUOTA', '通知を有効にする場合は連絡先メールアドレスと上限を設定してください。');
     if (!domain || !name || name.length > 160 || email.length > 254 || notes.length > 5000
         || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
       throw fail('INVALID_DOMAIN', '組織名・連絡先メールアドレス・備考を確認してください。');
@@ -121,7 +129,10 @@ class PartnerStore {
         if (!dealer.exists || dealer.data().status !== 'active') throw fail('FORBIDDEN', '販売店が無効です。');
       }
       // 承認状態・所有者・利用時間には触れない。
-      tx.update(ref, { organizationName: name, contactEmail: email, notes });
+      tx.update(ref, { organizationName: name, contactEmail: email, notes,
+        ...(quota || {}),
+        ...(quota && quota.resetDay !== resetDay(row.data())
+          ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) });
     });
   }
   async dashboard(partnerID, month) {
@@ -132,10 +143,37 @@ class PartnerStore {
     // 閲覧可能なドメインの指定月だけを読む。過去全月・他店・会員情報は読まない。
     return Promise.all(domainRows.docs.map(async row => {
       const data = row.data();
-      const snapshot = await this.collection('corporateUsageMonths').doc(`${data.partnerID}_${row.id}_${month}`).get();
-      const usage = snapshot.exists ? snapshot.data() : {};
-      return { ...data, id: row.id, usage: { realtime: usage.realtime || 0,
-        mediaFile: usage.mediaFile || 0, formalTranslation: usage.formalTranslation || 0 } };
+      const [year, monthNumber] = month.split('-').map(Number);
+      const quota = await this.provider().runTransaction(async tx => {
+        const current = await tx.get(this.collection('corporateDomains').doc(row.id));
+        const settings = current.data();
+        const value = await readQuota(this.provider(), tx, row.id, settings,
+          month === monthAt(this.now()) ? this.now() : boundary(year, monthNumber - 1, resetDay(settings)));
+        if (value.missing) saveQuota(tx, value);
+        return { ...value, settings };
+      });
+      return { ...quota.settings, resetDay: resetDay(quota.settings), id: row.id,
+        usage: quota.usage, periodStart: quota.period.start, periodEnd: quota.period.end,
+        ...quotaStatus(quota.settings, totalUsage(quota.usage)) };
+    }));
+  }
+  async yearlyUsage(partnerID, year) {
+    if (!Number.isInteger(year) || year < 2000 || year > 9999)
+      throw fail('INVALID_YEAR', '対象年を確認してください。');
+    let domains = this.collection('corporateDomains');
+    if (partnerID) domains = domains.where('partnerID', '==', partnerID);
+    const rows = await domains.get();
+    return Promise.all(rows.docs.map(async row => {
+      const data = row.data();
+      const months = await Promise.all(Array.from({ length: 12 }, async (_, index) => {
+        const month = `${year}-${String(index + 1).padStart(2, '0')}`;
+        const snapshot = await this.collection('corporateUsageMonths').doc(`${data.partnerID}_${row.id}_${month}`).get();
+        const usage = snapshot.exists ? snapshot.data() : {};
+        const realtime = usage.realtime || 0, mediaFile = usage.mediaFile || 0, formalTranslation = usage.formalTranslation || 0;
+        return { month: index + 1, realtime, mediaFile, formalTranslation, total: realtime + mediaFile + formalTranslation };
+      }));
+      return { domain: row.id, organizationName: data.organizationName, partnerID: data.partnerID, months,
+        total: months.reduce((sum, item) => sum + item.total, 0) };
     }));
   }
   async updateName(id, name) {

@@ -5,7 +5,7 @@ const { request, listen } = require('./partner_http_helper');
 const { createPartnerRouter } = require('../routes/partners');
 
 async function main() {
-  const fixture = { mode: 'dashboard', admin: true, user: null, month: '2026-09',
+  const fixture = { mode: 'dashboard', admin: true, user: null, month: '2026-09', year: 2026, annualRows: [],
     partners: [], csrf: 'fixture', base: '/admin/mojidas-partners', error: '',
     rows: [{ partnerID: 'test', organizationName: 'テスト', domain: 'example.com',
       website: 'https://example.com', contact: '', status: 'approved',
@@ -32,6 +32,7 @@ async function main() {
     login: async (email, password) => { assert.equal(password, 'password'); return 'dealer-a'; },
     activePartner: async id => active ? { id, name: '<script>dealer</script>', email: 'dealer@example.com' } : null,
     dashboard: async (id, month) => { calls.push(['dashboard', id, month]); return []; },
+    yearlyUsage: async (id, year) => { calls.push(['yearlyUsage', id, year]); return []; },
     listPartners: async () => [],
     submit: async (id, body) => { calls.push(['submit', id, body.domain]); },
     review: async (...args) => { calls.push(['review', ...args]); },
@@ -65,6 +66,13 @@ async function main() {
     const dashboard = await request(server, '/partners?partnerID=dealer-b', { cookie: logged.cookie });
     assert.equal(dashboard.status, 200); assert.match(dashboard.text, /&lt;script&gt;dealer/);
     assert.match(dashboard.text, /data-dialog-open="domain-application"/);
+    const annualPage = await request(server, '/partners?year=2025&partnerID=dealer-b', { cookie: logged.cookie });
+    assert.equal(annualPage.status, 200);
+    assert.match(annualPage.text, /月別の利用時間 — 2025年/);
+    assert.match(annualPage.text, /name="year" value="2024"/);
+    assert.match(annualPage.text, /name="year" value="2026"/);
+    assert(calls.some(call => call[0] === 'yearlyUsage' && call[1] === 'dealer-a' && call[2] === 2025));
+    assert.equal((await request(server, '/partners?year=invalid', { cookie: logged.cookie })).status, 400);
     const application = dashboard.text.match(/<dialog id="domain-application"[\s\S]*?<\/dialog>/)[0];
     assert.match(application, /action="\/partners\/domains"/);
     for (const field of ['organizationName', 'domain', 'csrfToken']) {

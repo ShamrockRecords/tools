@@ -60,10 +60,26 @@ async function main() {
   assert.equal((await store.entitlement(user)).partnerID, id);
   await store.collection('corporateUsageMonths').doc(`${id}_${input.domain}_2026-09`).set({ realtime: 6000 });
   await store.collection('corporateUsageMonths').doc(`${id}_${input.domain}_2026-08`).set({ realtime: 99000 });
+  await store.collection('corporateUsageLedger').doc('current').set({ domain: input.domain,
+    partnerID: id, operation: 'realtime', milliseconds: 6000, occurredAt: new Date(clock) });
+  await store.collection('corporateUsageLedger').doc('previous').set({ domain: input.domain,
+    partnerID: id, operation: 'realtime', milliseconds: 99000, occurredAt: new Date(clock - 31 * 86400000) });
   await store.collection('corporateDomains').doc('other.example').set({ partnerID: 'other' });
   const dashboard = await store.dashboard(id, '2026-09');
   assert.equal(dashboard.length, 1);
   assert.deepEqual(dashboard[0].usage, { realtime: 6000, mediaFile: 0, formalTranslation: 0 });
+  const beforeAnnual = JSON.stringify([...db.collections].map(([name, values]) => [name, [...values]]));
+  const annual = await store.yearlyUsage(id, 2026);
+  assert.equal(annual.length, 1, '他の販売店を含まない');
+  assert.deepEqual(annual[0].months.map(item => item.month), Array.from({ length: 12 }, (_, index) => index + 1));
+  assert.equal(annual[0].months[0].total, 0, '未利用月も表示');
+  assert.equal(annual[0].months[7].total, 99000);
+  assert.equal(annual[0].months[8].total, 6000);
+  assert.equal(annual[0].total, 105000);
+  assert.equal((await store.yearlyUsage(id, 2025))[0].total, 0);
+  for (const year of [0, 10000, 2026.5, NaN]) await assert.rejects(store.yearlyUsage(id, year));
+  assert.equal(JSON.stringify([...db.collections].map(([name, values]) => [name, [...values]])), beforeAnnual,
+    '一覧取得でデータを書き換えない');
   const expiredID = await store.invite('expired@example.net', '期限切れ');
   const expiredToken = sent.text.match(/token=([a-f0-9]{64})/)[1];
   clock += 24 * 60 * 60 * 1000;

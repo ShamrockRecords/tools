@@ -29,8 +29,12 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
     const user = admin ? null : await partner(req);
     if (!admin && mode === 'dashboard' && !user) return res.redirect('/partners');
     const month = typeof req.query.month === 'string' ? req.query.month : monthAt(now());
+    const year = req.query.year === undefined ? Number(monthAt(now()).slice(0, 4)) : Number(req.query.year);
+    if (!Number.isInteger(year) || year < 2000 || year > 9999)
+      return res.status(400).type('text').send('対象年を確認してください。');
     const rows = mode === 'dashboard' ? await store.dashboard(user ? user.id : null, month) : [];
-    return res.status(status).render('partners/index', { mode, admin, user, month, rows,
+    const annualRows = mode === 'dashboard' ? await store.yearlyUsage(user ? user.id : null, year) : [];
+    return res.status(status).render('partners/index', { mode, admin, user, month, rows, year, annualRows,
       partners: admin ? await store.listPartners() : [], csrf: req.session.partnerCSRF,
       base: admin ? '/admin/mojidas-partners' : '/partners', error });
   }

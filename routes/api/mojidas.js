@@ -789,6 +789,7 @@ function sendCreditError(res, error) {
     RESERVATION_SERVER_MANAGED: [403, '正式翻訳の利用時間はサーバーが確定します。'],
     INVALID_SEQUENCE: [409, '利用時間の更新順序が正しくありません。'],
     CORPORATE_DISABLED: [409, '法人利用の設定が変更されました。残時間を更新して、もう一度開始してください。'],
+    CORPORATE_LIMIT_REACHED: [409, '法人利用の上限に達しました。次回リセット日まで利用できません。販売店へお問い合わせください。'],
     INVALID_USAGE: [400, '利用時間の値が正しくありません。'],
     INVALID_ACCOUNT_DATE: [500, 'アカウントの登録日時を確認できませんでした。'],
     INVALID_TRANSLATION_USAGE: [400, '翻訳時間の消費内容が正しくありません。'],
@@ -951,6 +952,7 @@ function sendFormalTranslationJob(res, job) {
 function sendFormalTranslationJobError(res, error) {
   if (error && [
     'INSUFFICIENT_CREDIT',
+    'CORPORATE_LIMIT_REACHED',
     'INVALID_TRANSLATION_USAGE',
     'IDEMPOTENCY_CONFLICT',
   ].includes(error.code)) {

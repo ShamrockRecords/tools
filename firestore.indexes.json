@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "corporateUsageLedger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "domain", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
