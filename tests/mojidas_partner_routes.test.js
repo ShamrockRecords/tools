@@ -25,12 +25,14 @@ async function main() {
     { domain: 'a.example', organizationName: '組織A', partnerID: 'test', months: [], total: 0 },
     { domain: 'b.example', organizationName: '組織B', partnerID: 'test', months: [], total: 0 },
   ];
-  const annualHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
-    { ...fixture, annualRows: annualFixture });
-  assert(annualHTML.includes('<option value="">組織を選択してください</option>'));
-  for (const row of annualFixture) {
-    assert(annualHTML.includes(`data-annual-domain="${row.domain}" hidden`));
-    assert(annualHTML.includes(`<option value="${row.domain}">`));
+  for (const admin of [true, false]) {
+    const annualHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+      { ...fixture, admin, user: { name: '販売店', email: 'dealer@example.com' }, annualRows: annualFixture });
+    assert(annualHTML.includes('<option value="">組織を選択してください</option>'));
+    for (const row of annualFixture) {
+      assert(annualHTML.includes(`data-annual-domain="${row.domain}" hidden`));
+      assert(annualHTML.includes(`<option value="${row.domain}">`));
+    }
   }
   // DOM更新のみで切り替え、年変更後も選択を復元し、消えた組織は未選択にする。
   const context = { document: { addEventListener() {}, getElementById() { return null; } } };

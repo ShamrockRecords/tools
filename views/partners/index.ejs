@@ -74,16 +74,14 @@
     </nav>
   </div>
   <p>1月から12月までの暦月（日本時間）の実績です。上限判定のリセット期間とは異なり、利用報告を受信・確定した月に計上します。</p>
-  <% if (admin) { %>
     <label for="annual-organization">組織</label>
     <select id="annual-organization" data-annual-organization>
       <option value="">組織を選択してください</option>
       <% annualRows.forEach(row => { %><option value="<%= row.domain %>"><%= row.organizationName %>（<%= row.domain %>）</option><% }); %>
     </select>
     <p data-annual-empty>組織を選択すると月別の利用時間を表示します。</p>
-  <% } %>
   <% annualRows.forEach(row => { %>
-    <div<% if (admin) { %> data-annual-domain="<%= row.domain %>" hidden<% } %>>
+    <div data-annual-domain="<%= row.domain %>" hidden>
     <h3><%= row.organizationName %>（<%= row.domain %>）</h3>
     <% if (admin) { %><p>販売店：<%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></p><% } %>
     <div class="table"><table>
