@@ -47,7 +47,10 @@
 							autocomplete="off"
 							required
 						>
-						<div class="form-text">3要素の文字列で入力します。先頭の数字（現在: <strong><%= form.macOSVersion.split('.')[0] || '—' %></strong>）が表示バージョンです。</div>
+						<div class="form-text">3要素の文字列で入力します。</div>
+						<label for="macOSMessage" class="form-label mt-3">Mac版の変更内容</label>
+						<textarea class="form-control" id="macOSMessage" name="macOSMessage" rows="5" maxlength="2000"><%= form.macOSMessage || '' %></textarea>
+						<div class="form-text">2000文字以内。改行できます。空欄の場合はアプリの既定の案内文を表示します。</div>
 					</div>
 
 					<div class="mb-4">
@@ -65,7 +68,10 @@
 							autocomplete="off"
 							required
 						>
-						<div class="form-text">4要素の文字列で入力します。先頭の数字（現在: <strong><%= form.windowsVersion.split('.')[0] || '—' %></strong>）が表示バージョンです。</div>
+						<div class="form-text">4要素の文字列で入力します。</div>
+						<label for="windowsMessage" class="form-label mt-3">Windows版の変更内容</label>
+						<textarea class="form-control" id="windowsMessage" name="windowsMessage" rows="5" maxlength="2000"><%= form.windowsMessage || '' %></textarea>
+						<div class="form-text">2000文字以内。改行できます。空欄の場合はアプリの既定の案内文を表示します。</div>
 					</div>
 
 					<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
@@ -76,14 +82,14 @@
 								未保存のため、現在は既定値を返しています。
 							<% } %>
 						</div>
-						<button type="submit" class="btn btn-primary px-4">バージョンを保存</button>
+						<button type="submit" class="btn btn-primary px-4">バージョンと変更内容を保存</button>
 					</div>
 				</form>
 			</div>
 		</div>
 
 		<div class="alert alert-secondary small mt-4 mb-0" role="note">
-			アプリは公開API <code>GET /api/mojidas/version</code> からこの値を取得します。保存後、アプリ側のキャッシュ状況により反映まで最大1分程度かかる場合があります。
+			アプリは公開API <code>GET /api/mojidas/version</code> からこの値を取得します。変更内容の表示には対応版のアプリが必要です。次の更新確認時に取得します（APIのキャッシュは最大60秒）。
 		</div>
 	</div>
 </body>

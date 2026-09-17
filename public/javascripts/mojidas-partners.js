@@ -1,4 +1,20 @@
 'use strict';
+function updateAnnualOrganization(main, value) {
+  const select = main.querySelector('[data-annual-organization]');
+  if (!select) return;
+  select.value = value;
+  // 削除などで選択肢がなくなった場合も未選択へ戻す。
+  if (!select.value) select.value = '';
+  main.querySelectorAll('[data-annual-domain]').forEach(row => {
+    row.hidden = !select.value || row.dataset.annualDomain !== select.value;
+  });
+  main.querySelector('[data-annual-empty]').hidden = !!select.value;
+}
+document.addEventListener('change', event => {
+  if (event.target.matches('[data-annual-organization]')) {
+    updateAnnualOrganization(event.target.closest('main'), event.target.value);
+  }
+});
 document.addEventListener('click', event => {
   const open = event.target.closest('[data-dialog-open]');
   if (open) document.getElementById(open.dataset.dialogOpen).showModal();
@@ -39,6 +55,7 @@ document.addEventListener('submit', async event => {
         || '更新できませんでした。ログイン状態を確認して、もう一度お試しください。');
     }
     const scrollPosition = window.scrollY;
+    updateAnnualOrganization(updated, main.querySelector('[data-annual-organization]')?.value || '');
     main.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     main.replaceWith(updated);
     if (method === 'GET') history.replaceState(null, '', url.pathname + url.search);

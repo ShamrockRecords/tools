@@ -196,12 +196,16 @@ async function main() {
         csrfToken: versionCSRFMatch[1],
         macOSVersion: '1.2.3',
         windowsVersion: '4.5.6.7',
+        macOSMessage: 'Macの改善\n不具合修正',
+        windowsMessage: 'Windowsの改善',
       },
     });
     assert.strictEqual(response.status, 303);
     assert.deepStrictEqual(versionCalls, [{
       macOSVersion: '1.2.3',
       windowsVersion: '4.5.6.7',
+      macOSMessage: 'Macの改善\n不具合修正',
+      windowsMessage: 'Windowsの改善',
     }]);
 
     response = await request(server, 'GET', '/admin/mojidas-paid-balance', { cookie });

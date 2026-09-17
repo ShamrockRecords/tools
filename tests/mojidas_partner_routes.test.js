@@ -21,6 +21,31 @@ async function main() {
     assert.equal(html.includes('<dialog id="domain-details-0"'), !admin);
   }
   const calls = []; let active = true;
+  const annualFixture = [
+    { domain: 'a.example', organizationName: '組織A', partnerID: 'test', months: [], total: 0 },
+    { domain: 'b.example', organizationName: '組織B', partnerID: 'test', months: [], total: 0 },
+  ];
+  const annualHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+    { ...fixture, annualRows: annualFixture });
+  assert(annualHTML.includes('<option value="">組織を選択してください</option>'));
+  for (const row of annualFixture) {
+    assert(annualHTML.includes(`data-annual-domain="${row.domain}" hidden`));
+    assert(annualHTML.includes(`<option value="${row.domain}">`));
+  }
+  // DOM更新のみで切り替え、年変更後も選択を復元し、消えた組織は未選択にする。
+  const context = { document: { addEventListener() {}, getElementById() { return null; } } };
+  require('vm').createContext(context);
+  require('vm').runInContext(require('fs').readFileSync(path.join(__dirname, '../public/javascripts/mojidas-partners.js'), 'utf8'), context);
+  const blocks = annualFixture.map(row => ({ dataset: { annualDomain: row.domain }, hidden: true }));
+  let selected = '';
+  const select = { get value() { return selected; }, set value(value) { selected = annualFixture.some(row => row.domain === value) ? value : ''; } };
+  const empty = { hidden: false };
+  const mainDOM = { querySelector: key => key === '[data-annual-organization]' ? select : empty, querySelectorAll: () => blocks };
+  for (const [value, visibility] of [['', [true, true]], ['a.example', [false, true]], ['b.example', [true, false]], ['missing.example', [true, true]]]) {
+    context.updateAnnualOrganization(mainDOM, value);
+    assert.deepEqual(blocks.map(row => row.hidden), visibility);
+    assert.equal(empty.hidden, !!select.value);
+  }
   for (const status of ['approved', 'rejected', 'suspended', 'pending']) {
     const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
       { ...fixture, rows: [{ ...fixture.rows[0], status }] });

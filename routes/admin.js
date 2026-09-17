@@ -388,6 +388,8 @@ router.get('/mojidas-versions', ensureAdmin, async function (req, res, next) {
     const form = req.session.mojidasVersionForm || {
       macOSVersion: versions.macOSVersion,
       windowsVersion: versions.windowsVersion,
+      macOSMessage: versions.macOSMessage,
+      windowsMessage: versions.windowsMessage,
     };
     delete req.session.mojidasVersionForm;
 
@@ -415,6 +417,8 @@ router.post('/mojidas-versions', ensureAdmin, async function (req, res, next) {
 
   const form = {
     macOSVersion: typeof req.body.macOSVersion === 'string' ? req.body.macOSVersion.trim() : '',
+    macOSMessage: req.body.macOSMessage,
+    windowsMessage: req.body.windowsMessage,
     windowsVersion: typeof req.body.windowsVersion === 'string'
       ? req.body.windowsVersion.trim()
       : '',
@@ -424,11 +428,11 @@ router.post('/mojidas-versions', ensureAdmin, async function (req, res, next) {
     await getMojidasVersionStore(req).setVersions(form);
     req.session.adminFlash = {
       type: 'success',
-      message: 'Mojidasの公開バージョンを更新しました。',
+      message: 'Mojidasの公開バージョンと変更内容を更新しました。',
     };
     return res.redirect(303, '/admin/mojidas-versions');
   } catch (error) {
-    if (error && error.code === 'INVALID_VERSION') {
+    if (error && ['INVALID_VERSION', 'INVALID_MESSAGE'].includes(error.code)) {
       req.session.mojidasVersionForm = form;
       req.session.adminFlash = { type: 'danger', message: error.message };
       return res.redirect(303, '/admin/mojidas-versions');

@@ -74,7 +74,16 @@
     </nav>
   </div>
   <p>1月から12月までの暦月（日本時間）の実績です。上限判定のリセット期間とは異なり、利用報告を受信・確定した月に計上します。</p>
+  <% if (admin) { %>
+    <label for="annual-organization">組織</label>
+    <select id="annual-organization" data-annual-organization>
+      <option value="">組織を選択してください</option>
+      <% annualRows.forEach(row => { %><option value="<%= row.domain %>"><%= row.organizationName %>（<%= row.domain %>）</option><% }); %>
+    </select>
+    <p data-annual-empty>組織を選択すると月別の利用時間を表示します。</p>
+  <% } %>
   <% annualRows.forEach(row => { %>
+    <div<% if (admin) { %> data-annual-domain="<%= row.domain %>" hidden<% } %>>
     <h3><%= row.organizationName %>（<%= row.domain %>）</h3>
     <% if (admin) { %><p>販売店：<%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></p><% } %>
     <div class="table"><table>
@@ -82,6 +91,7 @@
       <tbody><% row.months.forEach(item => { %><tr><th scope="row"><%= item.month %>月</th><td><%= hours(item.realtime) %></td><td><%= hours(item.mediaFile) %></td><td><%= hours(item.formalTranslation) %></td><td><%= hours(item.total) %></td></tr><% }); %></tbody>
       <tfoot><tr><th scope="row">年間合計</th><td><%= hours(row.months.reduce((sum, item) => sum + item.realtime, 0)) %></td><td><%= hours(row.months.reduce((sum, item) => sum + item.mediaFile, 0)) %></td><td><%= hours(row.months.reduce((sum, item) => sum + item.formalTranslation, 0)) %></td><td><%= hours(row.total) %></td></tr></tfoot>
     </table></div>
+    </div>
   <% }); %>
   <% if (!annualRows.length) { %><p>登録されたドメインはありません。</p><% } %>
 </section>

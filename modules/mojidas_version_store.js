@@ -36,26 +36,33 @@ class MojidasVersionStore {
         DEFAULT_WINDOWS_VERSION
       ),
       updatedAt: asDate(data.updatedAt),
+      macOSMessage: typeof data.macOSMessage === 'string' ? data.macOSMessage.trim() : '',
+      windowsMessage: typeof data.windowsMessage === 'string' ? data.windowsMessage.trim() : '',
     };
   }
 
-  async setVersions({ macOSVersion, windowsVersion }) {
+  async setVersions({ macOSVersion, windowsVersion, macOSMessage, windowsMessage }) {
     const normalizedMacOSVersion = normalizeVersion(macOSVersion, 3, 'Mac版');
     const normalizedWindowsVersion = normalizeVersion(windowsVersion, 4, 'Windows版');
     const updatedAt = this.now();
+    const messages = {};
+    for (const [key, value] of Object.entries({ macOSMessage, windowsMessage })) {
+      // 旧画面などで省略された項目は保存済みの内容を維持する。
+      if (value === undefined) continue;
+      if (typeof value !== 'string' || value.length > 2000) {
+        throw new MojidasVersionStoreError('INVALID_MESSAGE', '変更内容は2000文字以内で入力してください。');
+      }
+      messages[key] = value.trim();
+    }
 
     await this.document.set({
       macOSVersion: normalizedMacOSVersion,
       windowsVersion: normalizedWindowsVersion,
       updatedAt,
-    });
+      ...messages,
+    }, { merge: true });
 
-    return {
-      schemaVersion: 1,
-      macOSVersion: normalizedMacOSVersion,
-      windowsVersion: normalizedWindowsVersion,
-      updatedAt,
-    };
+    return this.getVersions();
   }
 
   get firestore() {
