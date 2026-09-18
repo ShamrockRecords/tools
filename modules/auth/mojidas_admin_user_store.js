@@ -11,6 +11,7 @@ const {
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+const { userStatistics } = require('./mojidas_user_statistics');
 
 class MojidasAdminUserStore {
   constructor({ authProvider = () => firebaseAdmin.auth(), credits = creditStore, firestoreProvider = getFirestore, partners } = {}) {
@@ -20,8 +21,8 @@ class MojidasAdminUserStore {
     this.partners = partners || new PartnerStore({ firestoreProvider });
   }
 
-  async listUsers({ pageToken = null, pageSize = DEFAULT_PAGE_SIZE } = {}) {
-    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE));
+  async listUsers({ page, pageToken = null, pageSize = DEFAULT_PAGE_SIZE } = {}) {
+    const limit = Math.floor(Math.min(MAX_PAGE_SIZE, Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE)));
     // Authの取得順ではなく、全アカウントの作成日時で並べてからページ分割する。
     const auth = this.authProvider();
     const allUsers = [];
@@ -32,11 +33,31 @@ class MojidasAdminUserStore {
       token = batch.pageToken;
     } while (token);
     const createdTime = (user) => Date.parse(user.metadata?.creationTime) || 0;
-    allUsers.sort((a, b) => createdTime(b) - createdTime(a));
-    const offset = /^created-desc:\d+$/.test(pageToken || '') ? Number(pageToken.split(':')[1]) : 0;
+    allUsers.sort((a, b) => createdTime(b) - createdTime(a) || a.uid.localeCompare(b.uid));
+    const totalUsers = allUsers.length;
+    const totalPages = Math.max(1, Math.ceil(totalUsers / limit));
+    const legacyOffset = /^created-desc:\d+$/.test(pageToken || '') ? Number(pageToken.split(':')[1]) : 0;
+    const requestedPage = page === undefined ? Math.floor(legacyOffset / limit) + 1 : Number(page);
+    const currentPage = Math.min(totalPages, Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1);
+    const offset = (currentPage - 1) * limit;
     const result = { users: allUsers.slice(offset, offset + limit) };
+    let clients = new Map();
+    if (allUsers.length) {
+      try {
+        const snapshot = await mojidasCollection(this.firestoreProvider(), 'users').select('appClients').get();
+        clients = new Map(snapshot.docs.map(doc => [doc.id, doc.data().appClients]));
+      } catch {
+        clients = null;
+      }
+    }
 
     return {
+      statistics: userStatistics(allUsers, clients),
+      page: currentPage,
+      totalUsers,
+      totalPages,
+      startIndex: totalUsers ? offset + 1 : 0,
+      endIndex: Math.min(offset + limit, totalUsers),
       users: await Promise.all(result.users.map(async (user) => ({
         uid: user.uid,
         email: user.email || null,

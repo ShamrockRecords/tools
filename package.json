@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "pretest": "node tests/mojidas_admin_users_view.test.js",
+    "pretest": "node tests/mojidas_admin_users_view.test.js && node tests/persistent_session_store.test.js",
     "start": "node ./bin/www",
     "test": "node tests/caption_editor_tokens.test.js && node tests/generate_srt_data.test.js && node tests/acp_api_key_issuer.test.js && node tests/admin_credentials.test.js && node tests/admin_auth_api.test.js && node tests/mojidas_admin_user_store.test.js && node tests/mojidas_admin_credit.test.js && node tests/mojidas_verification_email.test.js && node tests/mojidas_broadcast_service.test.js && node tests/mojidas_account_deletion.test.js && node tests/mojidas_credit_store.test.js && node tests/mojidas_credit_integrity.test.js && node tests/mojidas_credit_api_integrity.test.js && node tests/mojidas_paid_balance_store.test.js && node tests/mojidas_service_configuration.test.js && node tests/mojidas_version_store.test.js && node tests/mojidas_dictionary_store.test.js && node tests/google_cloud_translation.test.js && node tests/mojidas_translation_config.test.js && node tests/semantic_block_service.test.js && node tests/mojidas_translation_service.test.js && node tests/formal_translation_job_store.test.js && node tests/mojidas_translation_api.test.js && node tests/mojidas_auth_api.test.js && node tests/mojidas_stripe_billing.test.js && npm run test:partners && npm run test:udtalk-monitor",
     "test:partners": "node tests/mojidas_partner_store.test.js && node tests/mojidas_corporate_usage_policy.test.js && node tests/mojidas_corporate_usage_store.test.js && node tests/mojidas_corporate_quota.test.js && node tests/mojidas_corporate_api.test.js && node tests/mojidas_partner_routes.test.js",

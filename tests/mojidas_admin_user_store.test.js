@@ -97,14 +97,41 @@ async function main() {
     },
   }) });
   const loaded = [];
+  let statisticsReads = 0;
+  sorted.firestoreProvider = () => ({ collection: () => ({ select(field) {
+    assert.strictEqual(field, 'appClients');
+    return { async get() {
+      statisticsReads++;
+      return { docs: [
+        { id: 'old', data: () => ({ appClients: { macos: { version: '1.2.3' } } }) },
+        { id: 'new', data: () => ({ appClients: { windows: { version: '1.2.3.4' } } }) },
+      ] };
+    } };
+  } }) });
   sorted.getUserCredit = async user => { loaded.push(user.uid); return null; };
   sorted.getAppClients = async () => ({});
   const first = await sorted.listUsers({ pageSize: 2 });
+  assert.strictEqual(statisticsReads, 1);
+  assert.deepStrictEqual(first.statistics.platforms.map(item => item.count), [1, 1, 0, 2]);
   assert.deepStrictEqual(first.users.map(user => user.uid), ['new', 'middle']);
   assert.deepStrictEqual(loaded, ['new', 'middle']);
   const second = await sorted.listUsers({ pageSize: 2, pageToken: first.nextPageToken });
+  assert.deepStrictEqual(second.statistics, first.statistics);
   assert.deepStrictEqual(second.users.map(user => user.uid), ['old', 'unknown']);
   assert.strictEqual(second.nextPageToken, null);
+  assert.strictEqual(first.totalUsers, 4);
+  assert.strictEqual(first.totalPages, 2);
+  assert.strictEqual(first.startIndex, 1);
+  assert.strictEqual(first.endIndex, 2);
+  const direct = await sorted.listUsers({ pageSize: 2, page: 2 });
+  assert.deepStrictEqual(direct.users.map(user => user.uid), ['old', 'unknown']);
+  assert.strictEqual(direct.startIndex, 3);
+  assert.strictEqual(direct.endIndex, 4);
+  assert.strictEqual((await sorted.listUsers({ pageSize: 2, page: 999 })).page, 2);
+  assert.strictEqual((await sorted.listUsers({ pageSize: 2, page: -1 })).page, 1);
+  const emptyStore = new MojidasAdminUserStore({ authProvider: () => ({ listUsers: async () => ({ users: [] }) }) });
+  const emptyPage = await emptyStore.listUsers({ page: 3 });
+  assert.deepStrictEqual([emptyPage.page, emptyPage.totalPages, emptyPage.totalUsers, emptyPage.startIndex, emptyPage.endIndex], [1, 1, 0, 0, 0]);
   assert.strictEqual(JSON.stringify(fixtures), snapshot);
 
   await store.setInvitedUnlimited({ uid: 'user-1', enabled: true });

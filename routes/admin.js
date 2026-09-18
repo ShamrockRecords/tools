@@ -14,7 +14,7 @@ const mojidasBroadcastService = require('../modules/email/mojidas_broadcast_serv
 var router = express.Router();
 
 const LEGACY_FIREBASE_COOKIE_NAME = 'sessionCookie';
-const SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
+const { LOGIN_DURATION_MS: SESSION_DURATION_MS } = require('../modules/auth/persistent_session_store');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RECIPIENTS = 1500;
 const SENDGRID_BATCH_SIZE = 500;
@@ -319,26 +319,12 @@ router.get('/bulk-mail', ensureAdmin, async function (req, res, next) {
 router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
   try {
     const page = normalizeAdminPage(req.query.page);
-    if (page === 1 || !req.session.mojidasUserPageTokens) {
-      req.session.mojidasUserPageTokens = { 1: null };
-    }
-    const pageToken = req.session.mojidasUserPageTokens[page];
-    if (page > 1 && !/^created-desc:\d+$/.test(pageToken || '')) {
-      req.session.adminFlash = {
-        type: 'warning',
-        message: 'ページ情報が期限切れになったため、最初のページへ戻りました。',
-      };
-      return res.redirect('/admin/mojidas-users?page=1');
-    }
-
     const result = await getMojidasAdminUserStore(req).listUsers({
-      pageToken,
+      page,
       pageSize: MOJIDAS_USER_PAGE_SIZE,
     });
-    if (result.nextPageToken) {
-      req.session.mojidasUserPageTokens[page + 1] = result.nextPageToken;
-    } else {
-      delete req.session.mojidasUserPageTokens[page + 1];
+    if (result.page !== page) {
+      return res.redirect(`/admin/mojidas-users?page=${result.page}`);
     }
 
     return res.render('admin/mojidas-users', {
@@ -347,7 +333,8 @@ router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
       createOperationID: () => crypto.randomUUID(),
       formatCreditTime: formatAdminCreditTime,
       page,
-      hasNext: Boolean(result.nextPageToken),
+      pagination: result,
+      statistics: result.statistics,
       csrfToken: ensureAdminCSRFToken(req),
       flash: consumeAdminFlash(req),
       formatDate: formatAdminDate,

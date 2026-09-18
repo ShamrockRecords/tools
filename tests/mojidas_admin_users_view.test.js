@@ -13,11 +13,47 @@ async function render() {
   }));
   let operation = 0;
   const locals = { user: { email: 'admin@example.invalid' }, users, flash: null,
-    page: 2, hasNext: true, csrfToken: 'fixture-csrf',
+    page: 2, pagination: { totalUsers: 201, totalPages: 11, startIndex: 21, endIndex: 40 }, csrfToken: 'fixture-csrf',
     createOperationID: () => `operation-${operation++}`, formatDate: value => value,
     formatCreditTime: value => `${value / 60000}分` };
   const view = path.join(__dirname, '../views/admin/mojidas-users.ejs');
   const html = await ejs.renderFile(view, locals);
+  const { userStatistics } = require('../modules/auth/mojidas_user_statistics');
+  const now = Date.parse('2026-09-18T15:00:00Z');
+  const fixtures = [
+    { uid: 'a', metadata: { creationTime: '2026-09-18T14:59:59Z' } },
+    { uid: 'b', metadata: { creationTime: '2026-09-18T15:00:00Z' } },
+    { uid: 'c', metadata: { creationTime: '2026-09-12T15:00:00Z' } },
+    { uid: 'd', metadata: { creationTime: '2026-09-12T14:59:59Z' } },
+  ];
+  const statistics = userStatistics(fixtures, new Map([
+    ['a', { macos: { version: '1.2.3' } }],
+    ['b', { windows: { version: '1.2.3.4' } }],
+    ['c', { macos: { version: '1.2.3' }, windows: { version: '1.2.3.4' } }],
+    ['deleted', { macos: { version: '1.2.3' } }],
+  ]), now);
+  assert.deepStrictEqual(statistics.days.map(day => day.count), [1, 0, 0, 0, 0, 1, 1]);
+  assert.strictEqual(statistics.days[6].date, '2026-09-19');
+  assert.deepStrictEqual(statistics.platforms.map(item => item.count), [1, 1, 1, 1]);
+  const charts = await ejs.renderFile(view, { ...locals, statistics });
+  assert(charts.includes('conic-gradient('));
+  assert(charts.includes('25.0%'));
+  assert(charts.includes('過去7日間の新規ユーザー'));
+  const failedCharts = await ejs.renderFile(view, { ...locals, statistics: userStatistics(fixtures, null, now) });
+  assert(failedCharts.includes('OS情報を取得できませんでした'));
+  const emptyCharts = await ejs.renderFile(view, { ...locals, statistics: userStatistics([], new Map(), now) });
+  assert(!emptyCharts.includes('NaN'));
+  assert(!emptyCharts.includes('conic-gradient('));
+  assert.strictEqual((html.match(/aria-label="ユーザー一覧ページ"/g) || []).length, 2);
+  assert(html.includes('全201件中 21〜40件（2 / 11ページ）'));
+  assert(html.includes('href="/admin/mojidas-users?page=11"'));
+  assert(html.includes('aria-current="page">2</span>'));
+  const firstPage = await ejs.renderFile(view, { ...locals, page: 1 });
+  assert(!firstPage.includes('page=0'));
+  assert(firstPage.includes('aria-disabled="true">前へ'));
+  const lastPage = await ejs.renderFile(view, { ...locals, page: 11 });
+  assert(lastPage.includes('aria-disabled="true">次へ'));
+  assert(!lastPage.includes('page=12'));
   assert(html.includes('>バージョン</th>'));
   assert(html.includes('>操作</th>'));
   for (const removed of ['メール確認済み', '最終ログイン', '最終アプリバージョン', '非表示の確認日時']) {

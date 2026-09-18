@@ -11,6 +11,9 @@ function updateAnnualOrganization(main, value) {
   main.querySelector('[data-annual-empty]').hidden = !!select.value;
 }
 document.addEventListener('change', event => {
+  if (event.target.matches('[data-auto-month]') && event.target.checkValidity()) {
+    event.target.form.requestSubmit();
+  }
   if (event.target.matches('[data-annual-organization]')) {
     updateAnnualOrganization(event.target.closest('main'), event.target.value);
   }
@@ -38,7 +41,7 @@ document.addEventListener('submit', async event => {
   if (method === 'GET') url.search = fields.toString();
   else if (month) url.searchParams.set('month', month);
   if (year && !url.searchParams.has('year')) url.searchParams.set('year', year);
-  const buttons = [...main.querySelectorAll('button')];
+  const buttons = [...main.querySelectorAll('button, [data-auto-month]')];
   const disabled = buttons.map(button => button.disabled);
   buttons.forEach(button => { button.disabled = true; });
   form.setAttribute('aria-busy', 'true');

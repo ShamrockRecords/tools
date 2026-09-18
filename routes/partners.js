@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const defaultStore = require('../modules/partners/partner_store');
 const { monthAt } = require('../modules/partners/usage_policy');
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
+const { LOGIN_DURATION_MS } = require('../modules/auth/persistent_session_store');
 
 function createPartnerRouter({ store = defaultStore, admin = false, now = Date.now } = {}) {
   const router = express.Router();
@@ -21,7 +22,7 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
   const limited = createMemoryRateLimiter({ windowMs: 900000, max: 10, keyPrefix: admin ? 'partner-admin' : 'partner-login' });
   const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
   async function partner(req) {
-    if (!req.session.partnerLogin || now() - req.session.partnerLogin.at >= 43200000) return null;
+    if (!req.session.partnerLogin || now() - req.session.partnerLogin.at >= LOGIN_DURATION_MS) return null;
     return store.activePartner(req.session.partnerLogin.id);
   }
   async function render(req, res, mode, status = 200, error = '') {
@@ -49,7 +50,7 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
       let id; try { id = await store.login(req.body.email, req.body.password); }
       catch (_) { return render(req, res, 'login', 401, 'ログインできませんでした。'); }
       await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()));
-      req.session.partnerLogin = { id, at: now() }; req.session.cookie.maxAge = 43200000;
+      req.session.partnerLogin = { id, at: now() }; req.session.cookie.maxAge = LOGIN_DURATION_MS;
       if (req.get('X-Requested-With') === 'MojidasDOM') return render(req, res, 'dashboard');
       return res.redirect(303, '/partners');
     }));
@@ -61,19 +62,17 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
         return res.redirect(303, '/partners');
       } catch (_) { return render(req, res, 'accept', 400, '招待の期限・パスワードの一致を確認し、招待メールのリンクから開き直してください。'); }
     }));
-    router.post('/logout', wrap((req, res) => {
-      delete req.session.partnerLogin;
+    router.post('/logout', wrap(async (req, res) => {
+      await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()));
       if (req.get('X-Requested-With') === 'MojidasDOM') return render(req, res, 'login');
       return res.redirect(303, '/partners');
     }));
-    router.post('/domains', wrap(async (req, res) => {
-      const user = await partner(req); if (!user) return res.sendStatus(401);
-      try { await store.submit(user.id, req.body); }
-      catch (error) { return render(req, res, 'dashboard', 400, error.message); }
-      if (req.get('X-Requested-With') === 'MojidasDOM') return render(req, res, 'dashboard');
-      return res.redirect(303, '/partners');
-    }));
   } else {
+    router.post('/domains', wrap(async (req, res) => {
+      try { await store.addDomain(req.body.partnerID, req.body, req.session.adminUser.email); }
+      catch (error) { return render(req, res, 'dashboard', 400, error.message); }
+      return adminUpdated(req, res);
+    }));
     router.post('/edit', wrap(async (req, res) => {
       try { await store.updateName(req.body.id, req.body.name); }
       catch (error) { return render(req, res, 'dashboard', 400, error.message); }
@@ -84,8 +83,8 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
       catch (_) { return render(req, res, 'dashboard', 400, '招待できませんでした。登録状況・メール設定を確認してください。未完了の招待は再送できます。'); }
       return adminUpdated(req, res);
     }));
-    router.post('/review', wrap(async (req, res) => {
-      try { await store.review(req.body.domain, req.body.status, req.session.adminUser.email); }
+    router.post('/domains/status', wrap(async (req, res) => {
+      try { await store.setDomainStatus(req.body.domain, req.body.status, req.session.adminUser.email); }
       catch (error) { return render(req, res, 'dashboard', 400, error.message); }
       return adminUpdated(req, res);
     }));

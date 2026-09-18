@@ -72,6 +72,9 @@ async function main() {
     async listUsers(value) {
       adminUserCalls.push(['list', value]);
       return {
+        page: Math.min(value.page, 3), totalUsers: 41, totalPages: 3,
+        startIndex: (Math.min(value.page, 3) - 1) * 20 + 1,
+        endIndex: Math.min(Math.min(value.page, 3) * 20, 41),
         users: [{
           uid: 'user-1',
           email: 'user@example.com',
@@ -216,6 +219,14 @@ async function main() {
     assert.match(response.body, /累計付与/);
     assert.match(response.body, /credit_60m_jpy/);
 
+    // ページ履歴のない状態でも直接3ページ目を開ける。
+    response = await request(server, 'GET', '/admin/mojidas-users?page=3', { cookie });
+    assert.strictEqual(response.status, 200);
+    assert.match(response.body, /全41件中 41〜41件/);
+    assert.deepStrictEqual(adminUserCalls.at(-1), ['list', { page: 3, pageSize: 20 }]);
+    response = await request(server, 'GET', '/admin/mojidas-users?page=999', { cookie });
+    assert.strictEqual(response.status, 302);
+    assert.strictEqual(response.headers.location, '/admin/mojidas-users?page=3');
     response = await request(server, 'GET', '/admin/mojidas-users', { cookie });
     assert.strictEqual(response.status, 200);
     assert.match(response.body, /user@example\.com/);

@@ -93,6 +93,9 @@ app.use(function(req, res, next) {
 })
 
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_SECRET || !firebaseAdmin.apps.length)) {
+  throw new Error('Persistent sessions require SESSION_SECRET and Firebase Admin credentials in production.');
+}
 if (!process.env.SESSION_SECRET) {
   console.warn('SESSION_SECRET is not set. Sessions will be invalidated whenever the process restarts.');
 }
@@ -113,7 +116,9 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-app.use(require('./modules/auth/web_sessions').createWebSessions(session_opt));
+app.use(require('./modules/auth/web_sessions').createWebSessions(session_opt, {
+  persistent: process.env.NODE_ENV !== 'test' && firebaseAdmin.apps.length > 0,
+}));
 
 var i18n = require("i18n");
  

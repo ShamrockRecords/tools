@@ -40,30 +40,32 @@
   </form>
 </dialog>
 <% }); %>
+<p><button type="button" data-dialog-open="domain-application">法人ドメインを追加</button></p>
+<dialog id="domain-application" aria-labelledby="domain-application-title">
+  <h2 id="domain-application-title">法人ドメインを追加</h2>
+  <form method="post" action="<%= base %>/domains">
+    <p>追加すると法人利用が有効になります。サブドメインは個別に登録してください。</p>
+    <input type="hidden" name="csrfToken" value="<%= csrf %>">
+    <label>販売店<select name="partnerID" required><option value="" selected disabled>販売店を選択してください</option><% partners.filter(p => p.status === 'active').forEach(p => { %><option value="<%= p.id %>"><%= p.name %>（<%= p.email %>）</option><% }); %></select></label>
+    <% if (!partners.some(p => p.status === 'active')) { %><p>先に販売店の招待とパスワード設定を完了してください。</p><% } %>
+    <label>組織名<input name="organizationName" maxlength="160" required></label>
+    <label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label>
+    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button<%= partners.some(p => p.status === 'active') ? '' : ' disabled' %>>追加</button></div>
+  </form>
+</dialog>
 <% } else { %>
 <p><%= user.name %> — <%= user.email %></p>
 <form method="post" action="/partners/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button class="secondary">ログアウト</button></form>
-<p><button type="button" data-dialog-open="domain-application">組織のドメインを申請</button></p>
-<dialog id="domain-application" aria-labelledby="domain-application-title">
-  <h2 id="domain-application-title">組織のドメインを申請</h2>
-  <form method="post" action="/partners/domains">
-    <p>管理者の承認後に法人利用が有効になります。サブドメインは個別に登録してください。</p>
-    <input type="hidden" name="csrfToken" value="<%= csrf %>">
-    <label>組織名<input name="organizationName" maxlength="160" required></label>
-    <label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label>
-    <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>承認を申請</button></div>
-  </form>
-</dialog>
 <% } %>
-<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" required></label><button class="secondary">表示</button></form><p>認識は発話時間、正式翻訳は対象時間の50％を集計します。今月は現在の利用期間、過去の月はその月のリセット日からの期間を表示します。利用報告を受信・確定した期間に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
-<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>状態</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><th>超過</th><% if (!admin) { %><th>操作</th><% } %><% if (admin) { %><th>承認操作</th><% } %></tr></thead><tbody>
+<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" data-auto-month required></label></form><p>認識は発話時間、正式翻訳は対象時間の50％を集計します。今月は現在の利用期間、過去の月はその月のリセット日からの期間を表示します。利用報告を受信・確定した期間に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
+<div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><th>超過</th><th>操作</th></tr></thead><tbody>
 <% const hours = value => { const seconds = Math.floor(Math.max(0, value) / 1000); return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(part => String(part).padStart(2, '0')).join(':'); }; %>
-<% rows.forEach((row, index) => { const u = row.usage; %><tr>
+<% rows.forEach((row, index) => { const u = row.usage; %><tr class="domain-usage-row<%= row.status === 'approved' ? '' : ' is-inactive' %>">
 <% if (admin) { %><td><%= partners.find(p => p.id === row.partnerID)?.name || row.partnerID %></td><% } %>
-<td><strong><%= row.organizationName %></strong><br><%= row.domain %><% if (row.periodStart != null) { %><br><small><%= new Date(row.periodStart).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>〜<%= new Date(row.periodEnd - 1).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %></small><% } %></td><td><%= ({ pending: '承認待ち', approved: '承認済み', rejected: '却下', suspended: '停止' })[row.status] || row.status %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
+<td><strong><%= row.organizationName %></strong><br><%= row.domain %><% if (row.periodStart != null) { %><br><small><%= new Date(row.periodStart).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>〜<%= new Date(row.periodEnd - 1).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %></small><% } %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
 <td><%= row.excessMilliseconds > 0 ? hours(row.excessMilliseconds) : '—' %></td>
-<% if (!admin) { %><td><button type="button" class="secondary" data-dialog-open="domain-details-<%= index %>">詳細</button></td><% } %>
-<% if (admin) { %><td><form method="post" action="<%= base %>/review"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status" required><% if (!['approved', 'rejected', 'suspended'].includes(row.status)) { %><option value="" selected disabled>操作を選択</option><% } %><option value="approved"<%= row.status === 'approved' ? ' selected' : '' %>>承認</option><option value="rejected"<%= row.status === 'rejected' ? ' selected' : '' %>>却下</option><option value="suspended"<%= row.status === 'suspended' ? ' selected' : '' %>>停止</option></select><button>適用</button></form></td><% } %></tr><% }); %>
+<td><button type="button" class="secondary" data-dialog-open="domain-details-<%= index %>">詳細</button>
+<% if (admin) { %><form method="post" action="<%= base %>/domains/status"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status" required><option value="active"<%= row.status === 'approved' ? ' selected' : '' %>>有効</option><option value="inactive"<%= row.status !== 'approved' ? ' selected' : '' %>>無効</option></select><button>適用</button></form><% } %></td></tr><% }); %>
 </tbody></table></div><% if (!rows.length) { %><p>登録されたドメインはありません。</p><% } %></section>
 <section aria-labelledby="annual-usage-title">
   <div class="section-heading">
@@ -93,7 +95,7 @@
   <% }); %>
   <% if (!annualRows.length) { %><p>登録されたドメインはありません。</p><% } %>
 </section>
-<% (admin ? [] : rows).forEach((row, index) => { %>
+<% rows.forEach((row, index) => { %>
 <dialog id="domain-details-<%= index %>" aria-labelledby="domain-details-title-<%= index %>">
   <h2 id="domain-details-title-<%= index %>">ドメインの詳細</h2>
   <form method="post" action="<%= base %>/domains/edit">

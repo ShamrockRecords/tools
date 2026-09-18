@@ -1,0 +1,42 @@
+<div class="row g-3 mb-4">
+  <section class="col-lg-7" aria-label="日別の新規登録数">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6 fw-bold">過去7日間の新規ユーザー</h2>
+      <p class="small text-muted">本日を含む7日間・日本時間。現在登録されているユーザーの登録日で集計します。</p>
+      <% const max = Math.max(1, ...statistics.days.map(day => day.count)); %>
+      <div style="height:190px;display:flex;gap:8px;align-items:stretch" role="img" aria-label="<%= statistics.days.map(day => `${day.date}: ${day.count}人`).join('、') %>">
+        <% statistics.days.forEach(day => { %>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
+            <span class="small fw-bold"><%= day.count %></span>
+            <div style="width:65%;height:<%= day.count / max * 140 %>px;background:#2563eb;border-radius:4px 4px 0 0" title="<%= day.date %>：<%= day.count %>人"></div>
+            <span class="small border-top w-100 text-center pt-2"><%= day.label %></span>
+          </div>
+        <% }); %>
+      </div>
+    </div></div>
+  </section>
+  <section class="col-lg-5" aria-label="利用OSの割合">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6 fw-bold">Mac／Windowsの利用割合</h2>
+      <p class="small text-muted">全ユーザー対象。OS別のバージョン記録から集計し、両OSの記録がある方は「両方」に分類します。</p>
+      <% if (statistics.platforms === null) { %>
+        <p class="text-danger" role="status">OS情報を取得できませんでした。画面を再読み込みしてください。</p>
+      <% } else if (!statistics.total) { %>
+        <p class="text-muted">ユーザーがいません。</p>
+      <% } else { let angle = 0;
+        const stops = statistics.platforms.map(item => {
+          const start = angle; angle += item.count / statistics.total * 360;
+          return `${item.color} ${start}deg ${angle}deg`;
+        }); %>
+        <div class="d-flex flex-wrap align-items-center justify-content-center gap-3">
+          <div style="width:160px;height:160px;border-radius:50%;background:conic-gradient(<%= stops.join(',') %>)" role="img" aria-label="<%= statistics.platforms.map(item => `${item.label} ${item.count}人`).join('、') %>"></div>
+          <ul class="list-unstyled small mb-0">
+            <% statistics.platforms.forEach(item => { %>
+              <li class="mb-2"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;margin-right:6px;background:<%= item.color %>"></span><%= item.label %>：<%= item.count %>人（<%= (item.count / statistics.total * 100).toFixed(1) %>%）</li>
+            <% }); %>
+          </ul>
+        </div>
+      <% } %>
+    </div></div>
+  </section>
+</div>

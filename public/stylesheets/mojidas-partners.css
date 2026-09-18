@@ -13,4 +13,7 @@ dialog p{margin:0;overflow-wrap:anywhere}
 .dialog-actions{justify-content:flex-end;margin-top:8px}
 .dialog-actions button{margin:0}
 .year-pagination{display:flex;align-items:center;gap:12px}
-.table form:has(select[name="status"]){display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.domain-usage-row>td:last-child{width:1%;white-space:nowrap;padding:8px}
+.domain-usage-row>td:last-child button,.domain-usage-row>td:last-child select{font-size:13px;padding:5px 8px;margin:2px 0}
+.domain-usage-row form:has(select[name="status"]){display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
+.domain-usage-row.is-inactive{background:#f0f0f0}

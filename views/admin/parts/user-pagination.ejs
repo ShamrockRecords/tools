@@ -1,0 +1,28 @@
+<nav class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3" aria-label="ユーザー一覧ページ">
+  <div class="text-muted small">全<%= pagination.totalUsers %>件中 <%= pagination.startIndex %>〜<%= pagination.endIndex %>件（<%= page %> / <%= pagination.totalPages %>ページ）</div>
+  <ul class="pagination pagination-sm flex-wrap mb-0">
+    <% if (page > 1) { %>
+      <li class="page-item"><a class="page-link" href="/admin/mojidas-users?page=<%= page - 1 %>">前へ</a></li>
+    <% } else { %>
+      <li class="page-item disabled"><span class="page-link" aria-disabled="true">前へ</span></li>
+    <% } %>
+    <% let previous = 0;
+       const pages = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pagination.totalPages])]
+         .filter(number => number >= 1 && number <= pagination.totalPages).sort((a, b) => a - b);
+       pages.forEach(number => { %>
+      <% if (previous && number > previous + 1) { %>
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      <% } %>
+      <% if (number === page) { %>
+        <li class="page-item active"><span class="page-link" aria-current="page"><%= number %></span></li>
+      <% } else { %>
+        <li class="page-item"><a class="page-link" href="/admin/mojidas-users?page=<%= number %>" aria-label="<%= number %>ページ目"><%= number %></a></li>
+      <% } %>
+    <% previous = number; }); %>
+    <% if (page < pagination.totalPages) { %>
+      <li class="page-item"><a class="page-link" href="/admin/mojidas-users?page=<%= page + 1 %>">次へ</a></li>
+    <% } else { %>
+      <li class="page-item disabled"><span class="page-link" aria-disabled="true">次へ</span></li>
+    <% } %>
+  </ul>
+</nav>

@@ -17,6 +17,8 @@ async function main() {
   const id = await store.invite('partner@example.net', '販売店');
   const token = sent.text.match(/token=([a-f0-9]{64})/)[1];
   assert.equal(await store.activePartner(id), null);
+  await assert.rejects(store.addDomain(id, { domain: 'invited.example', organizationName: '招待中' }, 'admin@example.org'),
+    { code: 'FORBIDDEN' });
   await assert.rejects(store.accept(id, '0'.repeat(64), 'test-password'), { code: 'INVALID_INVITE' });
   await store.accept(id, token, 'test-password');
   await assert.rejects(store.accept(id, token, 'new-password'), { code: 'INVALID_INVITE' });
@@ -32,22 +34,28 @@ async function main() {
   await assert.rejects(store.updateName('0'.repeat(64), '存在しない販売店'));
   assert.equal(await store.login('partner@example.net', 'test-password'), id);
   const input = { domain: 'example.co.jp', organizationName: '組織' };
-  await assert.rejects(store.submit(id, { ...input, domain: 'gmail.com' }), { code: 'INVALID_DOMAIN' });
-  await store.submit(id, input);
-  await assert.rejects(store.submit(id, input), { code: 'DOMAIN_EXISTS' });
+  await assert.rejects(store.addDomain(id, { ...input, domain: 'gmail.com' }), { code: 'INVALID_DOMAIN' });
+  await store.addDomain(id, input, 'admin@example.org');
+  await assert.rejects(store.addDomain(id, input), { code: 'DOMAIN_EXISTS' });
   const user = { email: 'member@example.co.jp', emailVerified: true };
-  assert.equal(await store.entitlement(user), null);
-  await store.review(input.domain, 'approved', 'admin@example.org');
+  assert.equal((await store.entitlement(user)).partnerID, id, '追加直後から有効');
+  await store.setDomainStatus(input.domain, 'active', 'admin@example.org');
   assert.equal((await store.entitlement(user)).partnerID, id);
   assert.equal(await store.entitlement({ ...user, emailVerified: false }), null);
   assert.equal(await store.entitlement({ ...user, disabled: true }), null);
   assert.equal(await store.entitlement({ ...user, email: 'member@sub.example.co.jp' }), null);
   assert.equal(await store.entitlement({ ...user, email: 'member@other.co.jp' }), null);
-  await store.review(input.domain, 'suspended', 'admin@example.org');
+  await store.setDomainStatus(input.domain, 'inactive', 'admin@example.org');
   assert.equal(await store.entitlement(user), null);
-  await store.review(input.domain, 'approved', 'admin@example.org');
+  await store.setDomainStatus(input.domain, 'active', 'admin@example.org');
   assert.equal((await store.entitlement(user)).domain, input.domain);
   const beforeDomain = (await store.collection('corporateDomains').doc(input.domain).get()).data();
+  const beforeFailedAdd = JSON.stringify([...db.collections].map(([name, values]) => [name, [...values]]));
+  await assert.rejects(store.addDomain('0'.repeat(64), { ...input, domain: 'missing.example' }, 'admin@example.org'), { code: 'FORBIDDEN' });
+  await assert.rejects(store.addDomain('', input, 'admin@example.org'), { code: 'INVALID_PARTNER' });
+  await assert.rejects(store.addDomain(id, input, 'admin@example.org'), { code: 'DOMAIN_EXISTS' });
+  await assert.rejects(store.setDomainStatus(input.domain, 'pending', 'admin@example.org'), { code: 'INVALID_STATUS' });
+  assert.equal(JSON.stringify([...db.collections].map(([name, values]) => [name, [...values]])), beforeFailedAdd);
   const edit = { domain: input.domain, organizationName: '変更した組織', contactEmail: 'contact@example.com', notes: '備考\n二行目' };
   await assert.rejects(store.updateDomain('other', edit), { code: 'FORBIDDEN' });
   await assert.rejects(store.updateDomain(id, { ...edit, contactEmail: 'invalid' }));
@@ -80,11 +88,25 @@ async function main() {
   for (const year of [0, 10000, 2026.5, NaN]) await assert.rejects(store.yearlyUsage(id, year));
   assert.equal(JSON.stringify([...db.collections].map(([name, values]) => [name, [...values]])), beforeAnnual,
     '一覧取得でデータを書き換えない');
+  const savedDomain = (await store.collection('corporateDomains').doc(input.domain).get()).data();
+  await store.setDomainStatus(input.domain, 'inactive', 'admin@example.org');
+  await store.setDomainStatus(input.domain, 'active', 'admin@example.org');
+  assert.deepEqual((await store.collection('corporateDomains').doc(input.domain).get()).data(), savedDomain,
+    '再有効化しても所有者・初回有効日・上限・詳細情報を変更しない');
+  assert.deepEqual(await store.yearlyUsage(id, 2026), annual, '状態変更で利用履歴が変わらない');
+  for (const status of ['pending', 'rejected', 'suspended']) {
+    await store.collection('corporateDomains').doc(input.domain).update({ status });
+    assert.equal(await store.entitlement(user), null, '旧無効状態を自動で有効にしない');
+  }
+  await store.setDomainStatus(input.domain, 'active', 'admin@example.org');
   const expiredID = await store.invite('expired@example.net', '期限切れ');
   const expiredToken = sent.text.match(/token=([a-f0-9]{64})/)[1];
   clock += 24 * 60 * 60 * 1000;
   await assert.rejects(store.accept(expiredID, expiredToken, 'test-password'), { code: 'INVALID_INVITE' });
   assert.equal(await store.activePartner(expiredID), null);
-  console.log('販売店ストア: ドメイン・招待・承認・解除の隔離テスト成功（本番通信なし）');
+  await store.collection('partners').doc(id).update({ status: 'suspended' });
+  await assert.rejects(store.addDomain(id, { ...input, domain: 'disabled.example' }, 'admin@example.org'), { code: 'FORBIDDEN' });
+  assert.equal((await store.collection('corporateDomains').doc('disabled.example').get()).exists, false);
+  console.log('販売店ストア: 管理者追加・重複保全・招待・有効／無効の隔離テスト成功（本番通信なし）');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

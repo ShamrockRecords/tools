@@ -80,7 +80,9 @@ class PartnerStore {
     if (!snapshot.exists || snapshot.data().status !== 'active') return null;
     return { id, name: snapshot.data().name, email: snapshot.data().email };
   }
-  async submit(partnerID, input) {
+  async addDomain(partnerID, input, adminEmail) {
+    if (typeof partnerID !== 'string' || !/^[a-f0-9]{64}$/.test(partnerID))
+      throw fail('INVALID_PARTNER', '販売店を選択してください。');
     const domain = normalizeDomain(input.domain), organizationName = textValue(input.organizationName, 160);
     if (!domain || isSharedDomain(domain) || !organizationName)
       throw fail('INVALID_DOMAIN', '組織名・独自ドメインを確認してください。');
@@ -88,20 +90,24 @@ class PartnerStore {
       const partner = await tx.get(this.collection('partners').doc(partnerID));
       const ref = this.collection('corporateDomains').doc(domain), previous = await tx.get(ref);
       if (!partner.exists || partner.data().status !== 'active') throw fail('FORBIDDEN', '販売店が無効です。');
-      if (previous.exists) throw fail('DOMAIN_EXISTS', 'このドメインは申請済みです。管理者へお問い合わせください。');
+      if (previous.exists) throw fail('DOMAIN_EXISTS', 'このドメインは登録済みです。');
+      const createdAt = this.now();
       tx.set(ref, { domain, partnerID, organizationName,
-        status: 'pending', submittedAt: this.now(), approvedAt: null });
+        status: 'approved', createdAt, approvedAt: createdAt,
+        resetDay: resetDay({ approvedAt: createdAt }), createdBy: adminEmail });
     });
   }
-  async review(domain, status, adminEmail) {
-    if (normalizeDomain(domain) !== domain || !['approved', 'rejected', 'suspended'].includes(status))
-      throw fail('INVALID_REVIEW', '承認内容を確認してください。');
+  async setDomainStatus(domain, state, adminEmail) {
+    if (normalizeDomain(domain) !== domain || !['active', 'inactive'].includes(state))
+      throw fail('INVALID_STATUS', '有効または無効を選択してください。');
+    // 既存の課金判定・利用期間との互換性を保つ保存値。
+    const status = state === 'active' ? 'approved' : 'suspended';
     await this.provider().runTransaction(async tx => {
       const ref = this.collection('corporateDomains').doc(domain), snapshot = await tx.get(ref);
-      if (!snapshot.exists) throw fail('NOT_FOUND', '申請がありません。');
+      if (!snapshot.exists) throw fail('NOT_FOUND', 'ドメインが登録されていません。');
       const partner = await tx.get(this.collection('partners').doc(snapshot.data().partnerID));
       if (status === 'approved' && (isSharedDomain(domain) || !partner.exists || partner.data().status !== 'active'))
-        throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ承認できます。');
+        throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ有効にできます。');
       tx.update(ref, { status, reviewedBy: adminEmail, reviewedAt: this.now(),
         ...(status === 'approved' && !snapshot.data().approvedAt
           ? { resetDay: snapshot.data().resetDay || resetDay({ approvedAt: this.now() }) } : {}),
