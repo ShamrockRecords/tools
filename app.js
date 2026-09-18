@@ -190,6 +190,7 @@ app.use('/partners', require('./routes/partners').createPartnerRouter());
 app.use('/admin/mojidas-partners', require('./routes/partners').createPartnerRouter({ admin: true }));
 app.use('/admin', adminRouter);
 app.use('/api/mojidas', mojidasApiRouter);
+app.use('/api/udtalk', require('./routes/api/udtalk_monitor').createUdtalkMonitorRouter());
 
 function sendMojidasBodyParserError(res, next, error) {
   if (error && error.type === 'entity.too.large') {

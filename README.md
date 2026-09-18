@@ -27,6 +27,10 @@ ROOT_URL = "http://localhost:3000"
 
 Heroku等で動かす場合はこれらをインスタンスの環境編集に登録してください。
 
+## UDトーク設定JSONの監視
+
+`service_v3.php`を検査し、異常が続く間は毎回`info@shamrock-records.jp`へ通知します。Heroku Schedulerで`npm run monitor:udtalk-service`を`Hourly`に設定してください。環境変数、HTTP API、検証方法は[設定JSON監視の説明](docs/UDTALK_SERVICE_PROPERTIES_MONITOR.md)を参照してください。
+
 
 
 # Mojidas API
