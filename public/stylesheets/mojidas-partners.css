@@ -13,7 +13,10 @@ dialog p{margin:0;overflow-wrap:anywhere}
 .dialog-actions{justify-content:flex-end;margin-top:8px}
 .dialog-actions button{margin:0}
 .year-pagination{display:flex;align-items:center;gap:12px}
-.domain-usage-row>td:last-child{width:1%;white-space:nowrap;padding:8px}
-.domain-usage-row>td:last-child button,.domain-usage-row>td:last-child select{font-size:13px;padding:5px 8px;margin:2px 0}
-.domain-usage-row form:has(select[name="status"]){display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
-.domain-usage-row.is-inactive{background:#f0f0f0}
+:is(.domain-usage-row,.partner-row)>td:last-child{width:1%;white-space:nowrap;padding:8px}
+:is(.domain-usage-row,.partner-row)>td:last-child :is(button,select){font-size:13px;padding:5px 8px;margin:2px 0}
+:is(.domain-usage-row,.partner-row) form:has(select[name="status"]){display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
+:is(.domain-usage-row,.partner-row).is-inactive{background:#f0f0f0}
+/* 法人ドメインの実際の利用状態（開始前を含む）。 */
+.domain-state { display: inline-block; padding: 2px 8px; border-radius: 12px; background: #edf2f7; color: #425466; font-size: 12px; white-space: nowrap; }
+.danger { background: #c62828; color: #fff; border-color: #c62828; }

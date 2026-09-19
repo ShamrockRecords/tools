@@ -1,4 +1,22 @@
 'use strict';
+function nextValidityMonth(value) {
+  const date = new Date(value + ':00Z');
+  if (!Number.isFinite(date.getTime())) return '';
+  const day = date.getUTCDate();
+  date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth() + 1);
+  const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, last));
+  return date.toISOString().slice(0, 16);
+}
+function updateValidity(form) {
+  const fields = form.querySelector('[data-validity-fields]');
+  const enabled = form.elements.validityPeriod.value === 'limited';
+  fields.hidden = !enabled; fields.disabled = !enabled;
+  if (enabled && !form.elements.validityStartsAt.value) {
+    form.elements.validityStartsAt.value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 16);
+    form.elements.validityEndsAt.value = nextValidityMonth(form.elements.validityStartsAt.value);
+  }
+}
 function updateAnnualOrganization(main, value) {
   const select = main.querySelector('[data-annual-organization]');
   if (!select) return;
@@ -11,6 +29,8 @@ function updateAnnualOrganization(main, value) {
   main.querySelector('[data-annual-empty]').hidden = !!select.value;
 }
 document.addEventListener('change', event => {
+  if (event.target.matches('[data-validity-toggle]')) updateValidity(event.target.form);
+  if (event.target.matches('[data-validity-start]')) event.target.form.elements.validityEndsAt.value = nextValidityMonth(event.target.value);
   if (event.target.matches('[data-auto-month]') && event.target.checkValidity()) {
     event.target.form.requestSubmit();
   }
@@ -32,6 +52,7 @@ document.addEventListener('submit', async event => {
   if (!main) return;
   event.preventDefault();
   if (submitting) return;
+  if (form.hasAttribute('data-confirm-delete') && !window.confirm('この法人ドメインの登録情報を削除します。よろしいですか？')) return;
   submitting = true;
   const fields = new URLSearchParams(new FormData(form));
   const url = new URL(form.action, location.href);

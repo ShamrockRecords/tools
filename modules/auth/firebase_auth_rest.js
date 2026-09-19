@@ -1,5 +1,6 @@
 const https = require('https');
 const { MojidasEmailVerificationService } = require('./mojidas_email_verification');
+const { mojidasActivityNotifications } = require('../email/mojidas_activity_notifications');
 
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 
@@ -74,10 +75,11 @@ function request({ hostname, path, contentType, body }) {
 }
 
 class FirebaseAuthRestClient {
-  constructor({ apiKey, firebaseAdmin, requester = request, verificationService }) {
+  constructor({ apiKey, firebaseAdmin, requester = request, verificationService, activityNotifications = mojidasActivityNotifications }) {
     this.apiKey = apiKey;
     this.firebaseAdmin = firebaseAdmin;
     this.requester = requester;
+    this.activityNotifications = activityNotifications;
     this.verificationService = verificationService
       || new MojidasEmailVerificationService({ firebaseAdmin });
   }
@@ -99,6 +101,11 @@ class FirebaseAuthRestClient {
       password,
       returnSecureToken: true,
     });
+
+    // 確認メールの成否とは別に、Firebaseで新規作成された時点で通知する。
+    try {
+      await this.activityNotifications.registration({ userID: response.localId, email: response.email || email });
+    } catch (_) { console.warn('[Mojidas] registration notification failed'); }
 
     try {
       await this.verificationService.issue({

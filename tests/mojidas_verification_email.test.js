@@ -58,7 +58,11 @@ async function main() {
   assert.strictEqual(escapeHTML('a&"<>'), 'a&amp;&quot;&lt;&gt;');
 
   const verificationIssues = [];
+  await require('./mojidas_activity_notifications.test')();
+  const registrations = [];
+  const activityNotifications = { async registration(value) { registrations.push(value); } };
   const authClient = new FirebaseAuthRestClient({
+    activityNotifications,
     apiKey: 'firebase-api-key',
     firebaseAdmin: { apps: [{}] },
     requester: async ({ path }) => {
@@ -79,9 +83,14 @@ async function main() {
   });
   const registered = await authClient.register('user@example.com', 'password123');
   assert.strictEqual(registered.id, 'user-1');
+  assert.deepStrictEqual(registrations, [{ userID: 'user-1', email: 'user@example.com' }]);
+  authClient.activityNotifications = { async registration() { throw new Error('isolated failure'); } };
+  assert.equal((await authClient.register('user@example.com', 'password123')).id, 'user-1');
+  verificationIssues.pop();
   assert.deepStrictEqual(verificationIssues, [{ uid: 'user-1', email: 'user@example.com' }]);
 
   const failingClient = new FirebaseAuthRestClient({
+    activityNotifications,
     apiKey: 'firebase-api-key',
     firebaseAdmin: { apps: [{}] },
     requester: async () => ({
@@ -99,6 +108,10 @@ async function main() {
     () => failingClient.register('failed@example.com', 'password123'),
     (error) => error instanceof FirebaseAuthError && error.code === 'VERIFICATION_EMAIL_FAILED'
   );
+  assert.equal(registrations[1].userID, 'user-2', '確認メール失敗でも作成済みなら通知する');
+  failingClient.requester = async () => { throw new FirebaseAuthError('EMAIL_EXISTS', 'exists', 400); };
+  await assert.rejects(() => failingClient.register('failed@example.com', 'password123'));
+  assert.equal(registrations.length, 2, '登録拒否では通知しない');
 
   const generatedCode = generateCode();
   assert.match(generatedCode, /^\d{6}$/);

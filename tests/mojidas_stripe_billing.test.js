@@ -9,6 +9,7 @@ async function main() {
   const checkoutCreateCalls = [];
   const checkoutRetrieveCalls = [];
   const grantCalls = [];
+  const notifications = [];
   let retrievedSession = paidSession();
   const stripeClient = {
     checkout: {
@@ -48,6 +49,7 @@ async function main() {
     STRIPE_PRICE_CREDIT_10H_JPY: 'price_10h',
   };
   const service = new MojidasStripeBillingService({
+    activityNotifications: { async charge(value) { assert(grantCalls.length > 0); notifications.push(value); } },
     stripeClient,
     creditStore,
     environment,
@@ -116,7 +118,17 @@ async function main() {
     { handled: false, credited: false }
   );
 
-  console.log('Mojidas Stripe Checkout/Webhook: 商品検証と購入時間付与テストに成功しました。');
+  assert.equal(notifications.length, 1, '未払い・商品不一致・対象外イベントは通知しない');
+  assert.equal(notifications[0].sessionID, 'cs_test_123');
+  assert.equal(notifications[0].milliseconds, 3600000);
+  retrievedSession = paidSession();
+  service.creditStore = { async grantCredit() { throw new Error('grant failed'); } };
+  await assert.rejects(() => service.processWebhookEvent(completedEvent()));
+  assert.equal(notifications.length, 1, '時間付与失敗では通知しない');
+  service.creditStore = creditStore;
+  service.activityNotifications = { async charge() { throw new Error('notification failed'); } };
+  assert.equal((await service.processWebhookEvent(completedEvent())).credited, true, '通知障害で付与済み購入を失敗にしない');
+  console.log('Mojidas Stripe Checkout/Webhook: 商品検証・購入時間付与・通知タイミングに成功しました。');
 }
 
 function completedEvent() {

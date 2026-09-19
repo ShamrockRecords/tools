@@ -5,6 +5,7 @@ const { nextUsage, monthAt } = require('./usage_policy');
 const { UNLIMITED_AVAILABLE_MILLISECONDS } = require('../credit/mojidas_credit_store');
 const { quotaStatus } = require('./quota_policy');
 const { readQuota, saveQuota, totalUsage, notifyQuota } = require('./quota_store');
+const { SELF_PARTNER_ID, inPeriod, refreshDomain } = require('./domain_lifecycle');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const runID = (uid, run) => crypto.createHash('sha256').update(`${uid}:${run}`).digest('hex').slice(0, 32);
 const lease = (row, now) => new Date(now + Math.max(600000, row.operation === 'mediaFile' ? row.requestedMilliseconds + 1800000 : 600000));
@@ -19,6 +20,7 @@ class CorporateUsageStore {
   }
   collection(name) { return mojidasCollection(this.provider(), name); }
   async status(corporate) {
+    const current = await refreshDomain(this.provider(), corporate.domain, this.now());
     const result = await this.provider().runTransaction(async tx => {
       const snapshot = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
       const row = snapshot.exists ? snapshot.data() : {};
@@ -27,13 +29,15 @@ class CorporateUsageStore {
       return { row, quota, status: quotaStatus(row, totalUsage(quota.usage)) };
     });
     if (result.quota) await this.notify(corporate.domain, result.row, result.quota);
-    return result.status;
+    return current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')
+      ? { ...result.status, usageAllowed: false, usageBlockedReason: 'CORPORATE_DISABLED' } : result.status;
   }
   async notify(domain, row, quota) {
     try { await notifyQuota(this.provider(), domain, row, quota, this.now(), this.mailer); }
     catch (error) { console.warn('[Mojidas] 法人通知の処理失敗', error.code || 'NOTIFICATION_FAILED'); }
   }
   async selectBilling(args) {
+    if (args.corporate) await refreshDomain(this.provider(), args.corporate.domain, this.now());
     const id = runID(args.userID, args.recognitionRunID);
     return this.provider().runTransaction(async tx => {
       const ref = this.collection('billingRunKinds').doc(id), previous = await tx.get(ref);
@@ -48,15 +52,18 @@ class CorporateUsageStore {
       let corporate = personal.exists ? null : args.corporate || null;
       if (corporate) {
         const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
-        const partner = await tx.get(this.collection('partners').doc(corporate.partnerID));
+        const partner = corporate.partnerID === SELF_PARTNER_ID ? null : await tx.get(this.collection('partners').doc(corporate.partnerID));
         if (!domain.exists || domain.data().status !== 'approved' || domain.data().partnerID !== corporate.partnerID
-            || !partner.exists || partner.data().status !== 'active') fail('CORPORATE_DISABLED');
+            || !inPeriod(domain.data(), this.now())
+            || (corporate.partnerID !== SELF_PARTNER_ID && (!partner.exists || partner.data().status !== 'active'))) fail('CORPORATE_DISABLED');
       }
       tx.set(ref, { userID: args.userID, corporate, operation: args.operation, clientSessionID: args.clientSessionID, createdAt: new Date(this.now()) });
       return corporate;
     });
   }
   async create(args, corporate) {
+    const current = await refreshDomain(this.provider(), corporate.domain, this.now());
+    if (current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')) fail('CORPORATE_DISABLED');
     const id = `corporate_${runID(args.userID, args.recognitionRunID)}`;
     return this.provider().runTransaction(async tx => {
       const ref = this.collection('corporateReservations').doc(id), snapshot = await tx.get(ref);
@@ -68,6 +75,7 @@ class CorporateUsageStore {
         return { ...present(id, row), alreadyReserved: true };
       }
       const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
+      if (!domain.exists) fail('CORPORATE_DISABLED');
       const settings = domain.exists ? domain.data() : {};
       if (settings.limitMilliseconds != null) {
         const quota = await readQuota(this.provider(), tx, corporate.domain, settings, this.now());
@@ -88,10 +96,14 @@ class CorporateUsageStore {
       if (!snapshot.exists) fail('RESERVATION_NOT_FOUND');
       const result = nextUsage(snapshot.data(), { ...args, finish });
       const row = result.row, month = monthAt(this.now());
+      if (!result.changed && ['completed', 'cancelled'].includes(row.status))
+        return { reservation: present(ref.id, row), domain: row.corporate.domain };
       const domain = await tx.get(this.collection('corporateDomains').doc(row.corporate.domain));
       const settings = domain.exists ? domain.data() : {};
       const quota = await readQuota(this.provider(), tx, row.corporate.domain, settings, this.now());
-      const statsRef = this.collection('corporateUsageMonths').doc(`${row.corporate.partnerID}_${row.corporate.domain}_${month}`);
+      // 利用確定時点の販売店へ計上する。再送はdelta=0のため移管後も二重計上しない。
+      const reportingPartnerID = settings.partnerID || row.corporate.partnerID;
+      const statsRef = this.collection('corporateUsageMonths').doc(`${reportingPartnerID}_${row.corporate.domain}_${month}`);
       const stats = result.delta > 0 ? await tx.get(statsRef) : null;
       const updated = { ...row, leaseExpiresAt: lease(row, this.now()), updatedAt: new Date(this.now()) };
       if (result.changed) tx.set(ref, updated);
@@ -103,15 +115,18 @@ class CorporateUsageStore {
         const old = stats.exists ? stats.data() : {};
         const total = (old[row.operation] || 0) + result.delta;
         if (!Number.isSafeInteger(total)) fail('INVALID_USAGE');
-        tx.set(statsRef, { ...old, domain: row.corporate.domain, partnerID: row.corporate.partnerID,
+        tx.set(statsRef, { ...old, domain: row.corporate.domain, partnerID: reportingPartnerID,
           month, [row.operation]: total });
         tx.set(this.collection('corporateUsageLedger').doc(`${ref.id}_${row.consumedMilliseconds}`), {
-          reservationID: ref.id, domain: row.corporate.domain, partnerID: row.corporate.partnerID,
+          reservationID: ref.id, domain: row.corporate.domain, partnerID: reportingPartnerID,
           operation: row.operation, month, milliseconds: result.delta, occurredAt: new Date(this.now()),
         });
       }
       return { reservation: present(ref.id, result.changed ? updated : row), settings, quota, domain: row.corporate.domain };
     });
+    const current = await refreshDomain(this.provider(), outcome.domain, this.now());
+    // 期限切れでも確定済み利用を失わない。精算後に継続だけを止める。
+    if (!finish && current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')) fail('CORPORATE_DISABLED');
     if (outcome.quota) {
       await this.notify(outcome.domain, outcome.settings, outcome.quota);
       // 利用確定を先にcommitする。エラーで台帳を巻き戻さず、終了時の精算も許可する。
@@ -126,7 +141,8 @@ class CorporateUsageStore {
     const row = snapshot.data(), expiry = row.leaseExpiresAt;
     if (!['held', 'consuming'].includes(row.status)
         || new Date(expiry.toDate ? expiry.toDate() : expiry).getTime() <= this.now()) fail('RESERVATION_EXPIRED');
-    if (!(await this.status(row.corporate)).usageAllowed) fail('CORPORATE_LIMIT_REACHED');
+    const status = await this.status(row.corporate);
+    if (!status.usageAllowed) fail(status.usageBlockedReason || 'CORPORATE_LIMIT_REACHED');
     return row;
   }
 }

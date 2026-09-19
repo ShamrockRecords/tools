@@ -104,9 +104,30 @@ async function main() {
   clock += 24 * 60 * 60 * 1000;
   await assert.rejects(store.accept(expiredID, expiredToken, 'test-password'), { code: 'INVALID_INVITE' });
   assert.equal(await store.activePartner(expiredID), null);
-  await store.collection('partners').doc(id).update({ status: 'suspended' });
+  const beforePartnerToggle = structuredClone(db.collections);
+  const savedPartner = (await store.collection('partners').doc(id).get()).data();
+  await assert.rejects(store.setPartnerStatus(expiredID, 'active', 'admin@example.org'), { code: 'INVITE_PENDING' });
+  await assert.rejects(store.setPartnerStatus(id, 'invited', 'admin@example.org'), { code: 'INVALID_PARTNER' });
+  await assert.rejects(store.setPartnerStatus('0'.repeat(64), 'active', 'admin@example.org'), { code: 'NOT_FOUND' });
+  assert.deepStrictEqual(db.collections, beforePartnerToggle);
+  await store.setPartnerStatus(id, 'inactive', 'admin@example.org');
+  await store.setPartnerStatus(id, 'inactive', 'admin@example.org');
+  assert.equal(await store.activePartner(id), null);
+  assert.equal(await store.entitlement(user), null);
+  await assert.rejects(store.login('partner@example.net', 'test-password'), { code: 'LOGIN_FAILED' });
+  await assert.rejects(store.invite('partner@example.net', '上書き不可'), { code: 'PARTNER_EXISTS' });
   await assert.rejects(store.addDomain(id, { ...input, domain: 'disabled.example' }, 'admin@example.org'), { code: 'FORBIDDEN' });
   assert.equal((await store.collection('corporateDomains').doc('disabled.example').get()).exists, false);
+  await store.setPartnerStatus(id, 'active', 'admin@example.org');
+  assert.equal(await store.login('partner@example.net', 'test-password'), id);
+  assert.equal((await store.entitlement(user)).partnerID, id);
+  assert.deepStrictEqual((await store.collection('partners').doc(id).get()).data(), {
+    ...savedPartner, statusUpdatedBy: 'admin@example.org', statusUpdatedAt: clock,
+  });
+  for (const [name, values] of beforePartnerToggle) {
+    if (name.endsWith('/partners')) continue;
+    assert.deepStrictEqual(db.collections.get(name), values, '切り替えでドメイン・利用実績・他データを変更しない');
+  }
   console.log('販売店ストア: 管理者追加・重複保全・招待・有効／無効の隔離テスト成功（本番通信なし）');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

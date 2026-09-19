@@ -1,5 +1,6 @@
 const mojidasCreditStore = require('../credit/mojidas_credit_store');
 const { PRODUCT_DEFINITIONS } = require('../mojidas_service_configuration');
+const { mojidasActivityNotifications } = require('../email/mojidas_activity_notifications');
 
 const CHECKOUT_EVENT_TYPES = new Set([
   'checkout.session.completed',
@@ -19,8 +20,10 @@ class MojidasStripeBillingService {
     stripeClient = null,
     creditStore = mojidasCreditStore,
     environment = process.env,
+    activityNotifications = mojidasActivityNotifications,
   } = {}) {
     this.creditStore = creditStore;
+    this.activityNotifications = activityNotifications;
     this.environment = environment;
     this.stripeClient = stripeClient;
   }
@@ -182,6 +185,12 @@ class MojidasStripeBillingService {
         totalJPY: product.totalJPY,
       },
     });
+
+    try {
+      await this.activityNotifications.charge({ sessionID: session.id, userID,
+        email: session.customer_details?.email || session.customer_email,
+        milliseconds: product.milliseconds, totalJPY: product.totalJPY });
+    } catch (_) { console.warn('[Mojidas] charge notification failed'); }
 
     return {
       handled: true,

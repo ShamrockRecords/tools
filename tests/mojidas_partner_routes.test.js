@@ -5,6 +5,7 @@ const { request, listen } = require('./partner_http_helper');
 const { createPartnerRouter } = require('../routes/partners');
 
 async function main() {
+  await require('./mojidas_partner_dom.test')();
   const fixture = { mode: 'dashboard', admin: true, user: null, month: '2026-09', year: 2026, annualRows: [],
     partners: [], csrf: 'fixture', base: '/admin/mojidas-partners', error: '',
     rows: [{ partnerID: 'test', organizationName: 'テスト', domain: 'example.com',
@@ -25,8 +26,47 @@ async function main() {
     for (const field of ['organizationName', 'contactEmail', 'notes', 'limitHours', 'resetDay', 'stopAtLimit', 'notifyAtOneHour'])
       assert(dialog.includes(`name="${field}"`));
     assert(dialog.includes('type="button" class="secondary" data-dialog-close'));
+    for (const field of ['partnerID', 'plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt', 'status'])
+      assert.equal(dialog.includes(`name="${field}"`), admin, '契約設定の編集は管理者のみ');
   }
   const calls = []; let active = true;
+  for (const status of ['active', 'suspended', 'invited']) {
+    const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+      { ...fixture, partners: [{ id: 'dealer', name: '販売店', email: 'dealer@example.com', status }] });
+    const dealerTable = html.split('<h2>販売店一覧</h2>')[1].split('</table>')[0];
+    assert(!dealerTable.includes('<th>状態</th>'));
+    assert.equal((dealerTable.match(/<th>/g) || []).length, 3);
+    assert(dealerTable.includes('data-dialog-open="partner-edit-0"'));
+    assert.equal(dealerTable.includes('action="/admin/mojidas-partners/status"'), status !== 'invited');
+    if (status !== 'invited') assert(dealerTable.includes(`value="${status === 'active' ? 'active' : 'inactive'}" selected`));
+    assert.equal(dealerTable.includes('class="partner-row is-inactive"'), status === 'suspended');
+  }
+  for (const admin of [true, false]) for (const status of ['approved', 'suspended']) for (const canDelete of [true, false]) {
+    const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+      { ...fixture, admin, user: { name: '販売店', email: 'dealer@example.com' }, rows: [{ ...fixture.rows[0], status, canDelete }] });
+    assert.equal(html.includes('data-confirm-delete'), admin && status === 'suspended' && canDelete);
+  }
+  for (const admin of [true, false]) {
+  const historicalRows = [{ ...fixture.rows[0], historical: true }];
+  const before = structuredClone(historicalRows);
+  const historyHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+    { ...fixture, admin, user: { name: '販売店', email: 'dealer@example.com' }, rows: historicalRows,
+      annualRows: [{ ...historicalRows[0], months: [], total: 0 }] });
+  assert(!historyHTML.includes('移管前の実績（閲覧のみ）'));
+  assert(!historyHTML.includes('value="example.com"'));
+  assert(!historyHTML.includes('<br>example.com'));
+  assert(historyHTML.includes('登録されたドメインはありません。'));
+  assert.deepStrictEqual(historicalRows, before, '非表示化で元の実績データを変更しない');
+  assert(!historyHTML.includes('id="domain-details-0"'));
+  assert(!historyHTML.includes('action="/admin/mojidas-partners/domains/status"'));
+  }
+  const scheduledHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
+    { ...fixture, rows: [{ ...fixture.rows[0], status: 'approved', displayState: 'scheduled', partnerID: 'self', plan: 'trial' }] });
+  assert(scheduledHTML.includes('<option value="self">自社</option>'));
+  assert(scheduledHTML.includes('<td>自社</td>'));
+  assert(scheduledHTML.includes('class="domain-state">開始前</span>'));
+  for (const field of ['plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt']) assert(scheduledHTML.includes(`name="${field}"`));
+  assert(scheduledHTML.split('/domains/status')[1].includes('value="active" selected'), '開始前でも操作上は有効を維持');
   const dropdownHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
     { ...fixture, partners: [
       { id: 'active-dealer', name: '<販売店>', email: 'active@example.com', status: 'active' },
@@ -83,7 +123,7 @@ async function main() {
     }
     const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
       { ...fixture, rows: [{ ...fixture.rows[0], status }] });
-    const select = html.match(/<select name="status"[\s\S]*?<\/select>/)[0];
+    const select = html.split('/domains/status')[1].match(/<select name="status"[\s\S]*?<\/select>/)[0];
     assert(select.includes(`value="${status === 'approved' ? 'active' : 'inactive'}" selected`));
     assert.equal((select.match(/ selected/g) || []).length, 1);
   }
@@ -95,9 +135,11 @@ async function main() {
     listPartners: async () => [],
     addDomain: async (id, body, email) => { calls.push(['add-domain', id, body.domain, email]); },
     setDomainStatus: async (...args) => { calls.push(['status', ...args]); },
+    setPartnerStatus: async (...args) => { calls.push(['partner-status', ...args]); },
     invite: async (...args) => { calls.push(['invite', ...args]); },
     updateName: async (...args) => { calls.push(['edit', ...args]); },
     updateDomain: async (id, body) => { calls.push(['domain-edit', id, body.domain]); },
+    deleteDomain: async domain => { calls.push(['domain-delete', domain]); },
     accept: async (...args) => { calls.push(['accept', ...args]); },
   };
   const app = express(); app.use(express.json());
@@ -211,7 +253,15 @@ async function main() {
     assert.equal((await request(server, addPath, { method: 'POST', cookie: admin.cookie,
       body: { csrfToken: csrf(adminPage), partnerID: 'dealer-b', domain: 'example.co.jp' } })).status, 303);
     assert.deepEqual(calls.at(-1), ['add-domain', 'dealer-b', 'example.co.jp', 'admin@example.com']);
-    for (const action of ['invite', 'edit', 'domains', 'domains/status', 'domains/edit']) {
+    const partnerStatusPath = '/admin/mojidas-partners/status';
+    assert.equal((await request(server, partnerStatusPath, { method: 'POST', cookie: logged.cookie,
+      body: { csrfToken: csrf(dashboard), id: 'dealer-a', status: 'inactive' } })).status, 302);
+    assert.equal((await request(server, partnerStatusPath, { method: 'POST', cookie: admin.cookie,
+      body: { id: 'dealer-a', status: 'inactive' } })).status, 403);
+    assert.equal((await request(server, partnerStatusPath, { method: 'POST', cookie: admin.cookie,
+      body: { csrfToken: csrf(adminPage), id: 'dealer-a', status: 'inactive' } })).status, 303);
+    assert.deepStrictEqual(calls.at(-1), ['partner-status', 'dealer-a', 'inactive', 'admin@example.com']);
+    for (const action of ['invite', 'edit', 'status', 'domains', 'domains/status', 'domains/edit', 'domains/delete']) {
       const result = await request(server, `/admin/mojidas-partners/${action}?month=2026-08`, {
         method: 'POST', cookie: admin.cookie, headers: { 'X-Requested-With': 'MojidasDOM' },
         body: { csrfToken: csrf(adminPage), domain: 'example.co.jp', name: '販売店', status: 'active' } });

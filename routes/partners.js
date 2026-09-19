@@ -68,6 +68,11 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
       return res.redirect(303, '/partners');
     }));
   } else {
+    router.post('/domains/delete', wrap(async (req, res) => {
+      try { await store.deleteDomain(req.body.domain); }
+      catch (error) { return render(req, res, 'dashboard', 400, error.message); }
+      return adminUpdated(req, res);
+    }));
     router.post('/domains', wrap(async (req, res) => {
       try { await store.addDomain(req.body.partnerID, req.body, req.session.adminUser.email); }
       catch (error) { return render(req, res, 'dashboard', 400, error.message); }
@@ -75,6 +80,11 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
     }));
     router.post('/edit', wrap(async (req, res) => {
       try { await store.updateName(req.body.id, req.body.name); }
+      catch (error) { return render(req, res, 'dashboard', 400, error.message); }
+      return adminUpdated(req, res);
+    }));
+    router.post('/status', wrap(async (req, res) => {
+      try { await store.setPartnerStatus(req.body.id, req.body.status, req.session.adminUser.email); }
       catch (error) { return render(req, res, 'dashboard', 400, error.message); }
       return adminUpdated(req, res);
     }));

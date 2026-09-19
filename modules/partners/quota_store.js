@@ -29,8 +29,8 @@ function saveQuota(tx, quota) {
 async function notifyQuota(db, domain, row, quota, now, mailer) {
   const status = quotaStatus(row, totalUsage(quota.usage));
   if (!row.notifyAtOneHour || status.remainingMilliseconds === null || status.remainingMilliseconds > HOUR) return;
-  const partner = await mojidasCollection(db, 'partners').doc(row.partnerID).get();
-  const recipients = [...new Set([row.contactEmail, partner.exists && partner.data().email]
+  const partner = row.partnerID === 'self' ? null : await mojidasCollection(db, 'partners').doc(row.partnerID).get();
+  const recipients = [...new Set([row.contactEmail, row.partnerID === 'self' ? 'app@mojidas.jp' : partner.exists && partner.data().email]
     .filter(Boolean).map(value => value.trim().toLowerCase()))];
   const sender = mailer || new SendGridMailer({ fromEmail: process.env.MOJIDAS_AUTH_FROM_EMAIL || process.env.SENDGRID_FROM_EMAIL, fromName: 'Mojidas' });
   for (const recipient of recipients) {
