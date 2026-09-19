@@ -46,6 +46,12 @@ class FakeCollection {
     return new FakeDocument(this.firestore, this.name, id);
   }
 
+  async get() {
+    return { docs: this.firestore.records(this.name).map(record => snapshot(
+      new FakeDocument(this.firestore, this.name, record.id), record.data
+    )) };
+  }
+
   where(field, operator, value) {
     return new FakeQuery(this.firestore, this.name, field, value, operator);
   }

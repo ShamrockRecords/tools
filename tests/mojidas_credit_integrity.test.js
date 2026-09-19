@@ -48,6 +48,25 @@ async function scenario(isUnlimited) {
   assert.strictEqual(remaining('purchased'),4400);
   await finish(a,800);
   assert.strictEqual((await balance()).availableMilliseconds,initial-1600);
+  const consumptionEvents = db.records('Mojidas/production/usageLedger')
+    .map(record => record.data).filter(event => event.kind === 'consume');
+  assert.strictEqual(consumptionEvents.length, 4, '再送で消費履歴を増やさない');
+  const byType = {};
+  for (const event of consumptionEvents) {
+    assert.strictEqual(event.metadata.allocations.reduce((sum, item) => sum + item.milliseconds, 0), -event.milliseconds);
+    for (const item of event.metadata.allocations) {
+      assert(item.grantID);
+      byType[item.type] = (byType[item.type] || 0) + item.milliseconds;
+    }
+  }
+  assert.deepStrictEqual(byType, { monthlyFree: 1000, purchased: 600 }, 'heartbeatと最終精算の消費元を保存');
+  const snapshotBeforeReport = structuredClone(db.collections);
+  const { MojidasPaidBalanceStore } = require('../modules/billing/mojidas_paid_balance_store');
+  const monthlyReport = await new MojidasPaidBalanceStore({ firestoreProvider: () => db, now: () => now }).getReport();
+  assert.strictEqual(monthlyReport.monthly.rows[0].monthlyFree, 1000);
+  assert.strictEqual(monthlyReport.monthly.rows[0].purchased, 600);
+  assert.strictEqual(monthlyReport.monthly.rows[0].total, 1600);
+  assert.deepStrictEqual(db.collections, snapshotBeforeReport, '集計で残高・履歴を変更しない');
   await assert.rejects(()=>report(a,2,900),e=>e.code==='RESERVATION_CLOSED');
 
   const live = await reserve('late-live');

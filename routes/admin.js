@@ -349,6 +349,10 @@ router.get('/mojidas-paid-balance', ensureAdmin, async function (req, res, next)
     return res.render('admin/mojidas-paid-balance', {
       user: await resolveUserRecord(req.adminUser),
       report: await getMojidasPaidBalanceStore(req).getReport(),
+      formatMonthlyDuration(milliseconds) {
+        const seconds = Math.floor(milliseconds / 1000);
+        return `${Math.floor(seconds / 3600).toLocaleString('ja-JP')}時間${Math.floor(seconds / 60) % 60}分${seconds % 60}秒`;
+      },
       formatDate: formatAdminDate,
       formatJPY(value, maximumFractionDigits = 0) {
         return new Intl.NumberFormat('ja-JP', {

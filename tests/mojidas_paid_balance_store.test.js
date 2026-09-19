@@ -1,4 +1,5 @@
 const assert = require('assert');
+require('./mojidas_monthly_credit_report.test');
 
 const {
   REPORTING_THRESHOLD_JPY,

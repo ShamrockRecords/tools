@@ -99,6 +99,33 @@
         </div>
         <% } %>
 
+        <% if (report.monthly) { %>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-bold py-3">月別の使用時間・購入実績</div>
+            <div class="card-body small text-muted">
+                日本時間の暦月で集計します。無償は月次無料枠、提供は新規登録プレゼント・プロモーション等です。
+                リアルタイム認識は消費記録の月、ファイル認識・翻訳版の作成は精算した月に実消費時間を計上します。予約・返却は使用時間に含めません。取消でも消費が確定している記録は含みます。
+                購入実績は税込・取消反映後です。Stripeの返金は自動同期されず、Mojidas側で取消を記録した分を除外します。テスト枠は使用時間に含めません。
+                過去の区分を復元できない使用は「区分不明」に表示し、合計に含めます。削除済み履歴は復元できません。
+                <% if (report.monthly.undatedRecords) { %><div class="text-danger mt-2">日時不明のため集計できない記録：<%= report.monthly.undatedRecords %>件</div><% } %>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle text-nowrap mb-0">
+                    <thead class="table-light"><tr><th scope="col">対象月</th><th scope="col">無償の使用</th><th scope="col">購入分の使用</th><th scope="col">提供分の使用</th><th scope="col">区分不明</th><th scope="col">使用合計</th><th scope="col">購入時間</th><th scope="col">購入金額（税込）</th></tr></thead>
+                    <tbody>
+                    <% report.monthly.rows.forEach(item => { %>
+                        <tr><th scope="row"><%= item.month %></th>
+                        <% ['monthlyFree', 'purchased', 'promotional', 'unknown', 'total', 'purchasedMilliseconds'].forEach(key => { %>
+                            <td class="text-end"><%= formatMonthlyDuration(item[key]) %></td>
+                        <% }) %>
+                        <td class="text-end"><%= item.unvaluedPurchases ? '未確定' : formatJPY(item.purchaseJPY) %><% if (item.unvaluedPurchases) { %><div class="small text-danger">金額不明 <%= item.unvaluedPurchases %>件（判明分 <%= formatJPY(item.purchaseJPY) %>）</div><% } %></td></tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <% } %>
+
 		<div class="alert alert-secondary small mb-0" role="note">
 			購入時の税込金額を、その購入枠の未使用時間の割合で按分しています。処理中のファイル認識などで一時予約されている未消費時間も含み、合計は過少表示を避けるため1円未満を切り上げています。これは日々の管理用参考値であり、資金決済法上の基準日残高や会計上の確定額は専門家へ確認してください。Stripe上の返金だけではMojidasの時間残高に自動反映されません。
 		</div>

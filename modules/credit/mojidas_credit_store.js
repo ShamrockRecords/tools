@@ -526,7 +526,9 @@ class MojidasCreditStore {
                 milliseconds: -allocated,
                 idempotencyKey: `consume:${reservationID}:${sequence}`,
                 occurredAt: now,
-                metadata: { sequence },
+                metadata: { sequence, allocations: extension.allocations.map(item => ({
+                  grantID: item.id, type: item.data.type, milliseconds: item.milliseconds,
+                })) },
               }
             );
           }
@@ -783,7 +785,9 @@ class MojidasCreditStore {
             milliseconds: -additionalMilliseconds,
             idempotencyKey: `finalize-charge:${reservationID}`,
             occurredAt: now,
-            metadata: { status },
+            metadata: { status, allocations: additionalAllocation.allocations.map(item => ({
+              grantID: item.id, type: item.data.type, milliseconds: item.milliseconds,
+            })) },
           }
         );
       }

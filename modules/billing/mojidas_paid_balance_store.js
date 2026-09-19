@@ -1,5 +1,6 @@
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
+const { summarizeMonthlyCredits } = require('./mojidas_monthly_credit_report');
 
 const REPORTING_THRESHOLD_JPY = 10_000_000;
 
@@ -10,21 +11,28 @@ class MojidasPaidBalanceStore {
   }
 
   async getReport() {
-    const [grantSnapshot, ledgerSnapshot, heldSnapshot, consumingSnapshot, promotionalSnapshot] = await Promise.all([
-      this.collection('creditGrants').where('type', '==', 'purchased').get(),
-      this.collection('usageLedger').where('kind', '==', 'grant').get(),
-      this.collection('creditReservations').where('status', '==', 'held').get(),
-      this.collection('creditReservations').where('status', '==', 'consuming').get(),
-      this.collection('creditGrants').where('type', '==', 'promotional').get(),
-    ]);
-
-    return summarizePaidBalance({
+    const now = new Date(this.now());
+    // 認識中の消費・精算と競合しても、3種類の履歴を同じ時点で読む。
+    const [grantSnapshot, ledgerSnapshot, reservationSnapshot] = await this.firestore.runTransaction(
+      transaction => Promise.all([
+        transaction.get(this.collection('creditGrants')),
+        transaction.get(this.collection('usageLedger')),
+        transaction.get(this.collection('creditReservations')),
+      ]), { readOnly: true }
+    );
+    const documents = {
       grantDocuments: grantSnapshot.docs,
-      promotionalDocuments: promotionalSnapshot.docs,
       ledgerDocuments: ledgerSnapshot.docs,
-      reservationDocuments: [...heldSnapshot.docs, ...consumingSnapshot.docs],
-      now: new Date(this.now()),
-    });
+      reservationDocuments: reservationSnapshot.docs,
+      now,
+    };
+    return {
+      ...summarizePaidBalance({ ...documents,
+        promotionalDocuments: grantSnapshot.docs,
+        ledgerDocuments: ledgerSnapshot.docs.filter(doc => doc.data().kind === 'grant'),
+      }),
+      monthly: summarizeMonthlyCredits(documents),
+    };
   }
 
   get firestore() {
