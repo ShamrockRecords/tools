@@ -35,7 +35,7 @@ async function main() {
     if (mail.to === 'dealer@example.net' && failMail) { failMail = false; throw new Error('mail failed'); }
     deliveries.push(mail.to);
   } } };
-  const store = new CorporateUsageStore(options), partners = new PartnerStore(options);
+  const store = new CorporateUsageStore(options), partners = new PartnerStore({ ...options, portalStore: null });
   const col = name => db.collection(mojidasCollectionPath(name));
   const corporate = { domain: 'example.org', partnerID: 'dealer' };
   const domain = col('corporateDomains').doc(corporate.domain);

@@ -12,7 +12,7 @@ const { createMojidasRouter } = require('../routes/api/mojidas');
 async function main() {
   const db = new TransactionalFirestore(), now = Date.UTC(2026, 8, 15);
   const options = { firestoreProvider: () => db, now: () => now };
-  const base = new MojidasCreditStore(options), partners = new PartnerStore(options);
+  const base = new MojidasCreditStore(options), partners = new PartnerStore({ ...options, portalStore: null });
   const collection = name => db.collection(mojidasCollectionPath(name));
   await collection('partners').doc('dealer').set({ status: 'active' });
   const domain = collection('corporateDomains').doc('example.co.jp');

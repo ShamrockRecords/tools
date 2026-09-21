@@ -12,7 +12,14 @@ function createWebSessions(options, { persistent = false, firestoreProvider } = 
     store: makeStore('partner'),
     cookie: { ...options.cookie, path: '/partners' },
   });
+  const corporateSession = session({
+    ...options,
+    name: 'mojidas.corporate.sid',
+    store: makeStore('corporate'),
+    cookie: { ...options.cookie, path: '/corporate' },
+  });
   return (req, res, next) => {
+    if (req.path === '/corporate' || req.path.startsWith('/corporate/')) return corporateSession(req, res, next);
     const isPartner = req.path === '/partners' || req.path.startsWith('/partners/');
     return (isPartner ? partnerSession : standardSession)(req, res, next);
   };

@@ -6,7 +6,7 @@ const { normalizeDomain, isSharedDomain } = require('../modules/partners/domain_
 async function main() {
   const db = new FakeFirestore();
   let clock = Date.UTC(2026, 8, 15), sent;
-  const store = new PartnerStore({ firestoreProvider: () => db, now: () => clock,
+  const store = new PartnerStore({ firestoreProvider: () => db, now: () => clock, portalStore: null,
     mailer: { send: async message => { sent = message; } } });
   assert.equal(normalizeDomain(' EXAMPLE.CO.JP '), 'example.co.jp');
   for (const value of ['https://example.com', 'name@example.com', '*.example.com', 'localhost', '127.0.0.1'])

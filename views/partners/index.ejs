@@ -52,6 +52,8 @@
     <label>販売店<select name="partnerID" required><option value="" selected disabled>販売店を選択してください</option><option value="self">自社</option><% partners.filter(p => p.status === 'active').forEach(p => { %><option value="<%= p.id %>"><%= p.name %>（<%= p.email %>）</option><% }); %></select></label>
     <label>組織名<input name="organizationName" maxlength="200" required></label>
     <label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label>
+    <label>連絡先メールアドレス（法人ポータルのログイン・送信先）<input name="contactEmail" type="email" maxlength="254" required></label>
+    <p>初回有効化時に法人ポータルを作成し、仮パスワードとURLを送信します。</p>
     <label>プラン<select name="plan" required><option value="trial">トライアル</option><option value="metered">従量制</option><option value="light">ライト</option><option value="standard">スタンダード</option><option value="custom" selected>カスタム</option></select></label>
     <label>有効期間<select name="validityPeriod" data-validity-toggle><option value="none" selected>なし</option><option value="limited">あり</option></select></label>
     <fieldset data-validity-fields hidden disabled><legend>有効期間（日本時間）</legend><label>開始<input name="validityStartsAt" type="datetime-local" data-validity-start required></label><label>終了<input name="validityEndsAt" type="datetime-local" required></label></fieldset>
@@ -124,6 +126,8 @@
     <% } %>
     <label>組織名<input name="organizationName" value="<%= row.organizationName %>" maxlength="200" required></label>
     <label>連絡先メールアドレス<input type="email" name="contactEmail" value="<%= row.contactEmail || '' %>" maxlength="254"></label>
+    <% if (admin) { %><p>初回有効化時にこのメールアドレスで法人ポータルを作成します。作成後の連絡先変更ではログイン先は変わりません。</p>
+    <% if (row.portalAccountID) { %><p>法人ポータルのログイン：<%= row.portalLoginEmail %></p><% } %><% } %>
     <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
     <label>上限（時間）<input type="number" name="limitHours" min="0" step="0.01" value="<%= row.limitMilliseconds == null ? '' : row.limitMilliseconds / 3600000 %>" placeholder="空欄は上限なし"></label>
     <label>毎月のリセット日<input type="number" name="resetDay" min="1" max="31" step="1" value="<%= row.resetDay || 1 %>" required></label>
@@ -133,6 +137,9 @@
     <p>通知は利用報告の受信時に判定します。報告間隔・メール配送分の遅れがあります。認識中の停止も報告時の判定となり、超過する場合があります。</p>
     <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>保存</button></div>
   </form>
+  <% if (admin && row.portalAccountID) { %>
+  <form method="post" action="<%= base %>/domains/portal-invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><p>未送信・送信失敗の案内だけ再送します。送信済みの仮パスワードは再発行しません。</p><button class="secondary">ポータル案内を再送</button></form>
+  <% } %>
 </dialog>
 <% }); %>
 <% } %></main></body></html>

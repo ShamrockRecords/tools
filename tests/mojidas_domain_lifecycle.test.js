@@ -25,7 +25,7 @@ class DB extends FakeFirestore {
 }
 async function main() {
   const db = new DB(); let now = parseDate('2026-09-19T10:00');
-  const store = new PartnerStore({ firestoreProvider: () => db, now: () => now });
+  const store = new PartnerStore({ firestoreProvider: () => db, now: () => now, portalStore: null });
   const usage = new CorporateUsageStore({ firestoreProvider: () => db, now: () => now });
   const input = { domain: 'trial.example.org', organizationName: '組織', plan: 'trial', validityPeriod: 'limited', validityStartsAt: '2026-09-20T10:00', validityEndsAt: '2026-10-20T10:00', status: 'active' };
   for (const bad of [{ plan: '__proto__' }, { validityStartsAt: '2026-02-30T10:00' }, { validityEndsAt: input.validityStartsAt }, { validityPeriod: 'invalid' }, { status: 'invalid' }]) assert.throws(() => parseLifecycle({ ...input, ...bad }));

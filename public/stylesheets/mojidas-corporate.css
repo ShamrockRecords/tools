@@ -1,0 +1,23 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #28233a; background: #f7f6fb; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1100px; margin: auto; padding: 32px 20px; }
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 32px; }
+h1 { font-size: 1.3rem; } h2 { font-size: 1.25rem; }
+p { line-height: 1.8; }
+.brand { padding: 6px 16px; border-radius: 999px; background: white; }
+.brand img { display: block; height: auto; }
+.user-menu { margin-left: auto; overflow-wrap: anywhere; }
+.user-menu summary { cursor: pointer; padding: 8px; }
+.user-menu nav { padding: 16px; border: 1px solid #ddd5ef; background: white; border-radius: 12px; }
+.auth-card { max-width: 520px; margin: auto; padding: 28px; background: white; border: 1px solid #e1dbea; border-radius: 16px; }
+label { display: block; margin: 18px 0; }
+input { display: block; width: 100%; font: inherit; padding: 10px; margin-top: 8px; border: 1px solid #aaa; border-radius: 6px; }
+button { font: inherit; border: 0; border-radius: 8px; padding: 10px 18px; background: #6040a8; color: white; cursor: pointer; margin: 8px 0; }
+.secondary { background: #eee9f8; color: #432773; }
+a { color: #593295; }
+.error { color: #982a2a; background: #fff0f0; padding: 16px; border-radius: 8px; }
+.domain-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 20px; }
+.domain-card { border: 1px solid #e1dbea; padding: 24px; border-radius: 16px; background: white; overflow-wrap: anywhere; }
+dt { color: #666; margin-top: 16px; } dd { margin: 4px 0; }
+:focus-visible { outline: 3px solid #9470dc; outline-offset: 3px; }

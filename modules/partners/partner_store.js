@@ -9,6 +9,7 @@ const { parseQuota, resetDay, boundary, quotaStatus, periodAt } = require('./quo
 const { readQuota, saveQuota, totalUsage } = require('./quota_store');
 const { monthAt } = require('./usage_policy');
 const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require('./domain_lifecycle');
+const { CorporatePortalStore } = require('./corporate_portal_store');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -16,8 +17,9 @@ const emailValue = value => String(value || '').trim().toLowerCase();
 const textValue = (value, max) => String(value || '').trim().slice(0, max);
 
 class PartnerStore {
-  constructor({ firestoreProvider = getFirestore, now = Date.now, mailer } = {}) {
+  constructor({ firestoreProvider = getFirestore, now = Date.now, mailer, portalStore } = {}) {
     this.provider = firestoreProvider; this.now = now; this.mailer = mailer;
+    this.portal = portalStore === undefined ? new CorporatePortalStore({ firestoreProvider, now, mailer }) : portalStore;
   }
   collection(name) { return mojidasCollection(this.provider(), name); }
   async entitlement(user) {
@@ -111,10 +113,13 @@ class PartnerStore {
       if (partnerID !== SELF_PARTNER_ID && (!partner.exists || partner.data().status !== 'active')) throw fail('FORBIDDEN', '販売店が無効です。');
       if (previous.exists) throw fail('DOMAIN_EXISTS', 'このドメインは登録済みです。');
       const createdAt = this.now();
-      tx.set(ref, { domain, partnerID, organizationName,
+      const data = { domain, partnerID, organizationName, contactEmail: emailValue(input.contactEmail),
         ...lifecycle, status: lifecycle.hasValidityPeriod && createdAt >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status, createdAt, approvedAt: createdAt,
-        resetDay: resetDay({ approvedAt: createdAt }), createdBy: adminEmail });
+        resetDay: resetDay({ approvedAt: createdAt }), createdBy: adminEmail };
+      const portal = this.portal ? await this.portal.provision(tx, data) : {};
+      tx.set(ref, { ...data, ...portal });
     });
+    if (this.portal) await this.portal.deliverForDomain(domain);
   }
   async setDomainStatus(domain, state, adminEmail) {
     if (normalizeDomain(domain) !== domain || !['active', 'inactive'].includes(state))
@@ -130,11 +135,13 @@ class PartnerStore {
         throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ有効にできます。');
       if (status === 'approved' && snapshot.data().hasValidityPeriod && this.now() >= snapshot.data().validityEndsAt)
         throw fail('INVALID_STATUS', '有効期間が終了しているため有効にできません。');
-      tx.update(ref, { status, reviewedBy: adminEmail, reviewedAt: this.now(),
+      const portal = this.portal ? await this.portal.provision(tx, { ...snapshot.data(), status }) : {};
+      tx.update(ref, { ...portal, status, reviewedBy: adminEmail, reviewedAt: this.now(),
         ...(status === 'approved' && !snapshot.data().approvedAt
           ? { resetDay: snapshot.data().resetDay || resetDay({ approvedAt: this.now() }) } : {}),
         approvedAt: status === 'approved' ? (snapshot.data().approvedAt || this.now()) : snapshot.data().approvedAt });
     });
+    if (this.portal && status === 'approved') await this.portal.deliverForDomain(domain);
   }
   async updateDomain(partnerID, input) {
     const domain = normalizeDomain(input.domain);
@@ -170,6 +177,9 @@ class PartnerStore {
         if (targetPartner !== SELF_PARTNER_ID && (targetPartner !== row.data().partnerID || lifecycle?.status === 'approved') && (!dealer.exists || dealer.data().status !== 'active'))
           throw fail('FORBIDDEN', '販売店が無効です。');
       }
+      const nextStatus = lifecycle ? (lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status) : row.data().status;
+      const portal = this.portal && partnerID === null
+        ? await this.portal.provision(tx, { ...row.data(), contactEmail: email, status: nextStatus }) : {};
       // 過去の利用台帳・集計と承認日は変更しない。契約設定は同じトランザクションで保存する。
       if (targetPartner !== row.data().partnerID) {
         const previous = row.data();
@@ -179,13 +189,14 @@ class PartnerStore {
           resetDay: resetDay(previous), transferredAt: this.now(), status: 'suspended',
         });
       }
-      tx.update(ref, { organizationName: name, contactEmail: email, notes,
+      tx.update(ref, { ...portal, organizationName: name, contactEmail: email, notes,
         ...(lifecycle ? { ...lifecycle, status: lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status } : {}),
         ...(partnerID === null && input.partnerID !== undefined ? { partnerID: targetPartner } : {}),
         ...(quota || {}),
         ...(quota && quota.resetDay !== resetDay(row.data())
           ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) });
     });
+    if (this.portal && partnerID === null) await this.portal.deliverForDomain(domain);
   }
   async domainRows(partnerID) {
     let current = this.collection('corporateDomains'), history = this.collection('corporateDomainAssignments');

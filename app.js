@@ -200,6 +200,7 @@ app.use('/youyaku', youyakuIndexRouter);
 app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/partners', require('./routes/partners').createPartnerRouter());
+app.use('/corporate', require('./routes/corporate').createCorporateRouter());
 app.use('/admin/mojidas-partners', require('./routes/partners').createPartnerRouter({ admin: true }));
 app.use('/admin', adminRouter);
 app.use('/api/mojidas/business-inquiries', require('./routes/api/mojidas_business_inquiry').createBusinessInquiryRouter());

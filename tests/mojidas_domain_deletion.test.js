@@ -30,7 +30,7 @@ class DB {
   }
 }
 async function main() {
-  const db = new DB(), store = new PartnerStore({ firestoreProvider: () => db });
+  const db = new DB(), store = new PartnerStore({ firestoreProvider: () => db, portalStore: null });
   const ref = (name, id) => mojidasCollection(db, name).doc(id);
   const put = (name, id, data) => db.rows.set(ref(name, id).path, data);
   const domain = 'delete.example.org';

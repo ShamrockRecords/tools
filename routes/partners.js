@@ -68,6 +68,16 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
       return res.redirect(303, '/partners');
     }));
   } else {
+    router.post('/domains/portal-invite', limited, wrap(async (req, res) => {
+      try {
+        if (!store.portal) throw new Error('法人ポータルが設定されていません。');
+        const { normalizeDomain } = require('../modules/partners/domain_policy');
+        const domain = normalizeDomain(req.body.domain);
+        if (!domain) throw new Error('ドメインを確認してください。');
+        await store.portal.deliverForDomain(domain);
+      } catch (error) { return render(req, res, 'dashboard', 400, error.message); }
+      return adminUpdated(req, res);
+    }));
     router.post('/domains/delete', wrap(async (req, res) => {
       try { await store.deleteDomain(req.body.domain); }
       catch (error) { return render(req, res, 'dashboard', 400, error.message); }

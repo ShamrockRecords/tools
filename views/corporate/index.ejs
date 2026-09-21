@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>法人向けポータル | Mojidas</title><link rel="stylesheet" href="/stylesheets/mojidas-corporate.css"></head>
+<body><main>
+  <header><a class="brand" href="/corporate"><img src="/assets/mojidas-logo.png" alt="Mojidas" width="160"></a><h1>法人向けポータル</h1>
+  <% if (user) { %><details class="user-menu"><summary><%= user.email %></summary><nav aria-label="ユーザーメニュー">
+    <% if (!user.mustChangePassword) { %><a href="/corporate/password">パスワードの変更</a><% } %>
+    <form method="post" action="/corporate/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button>ログアウト</button></form>
+  </nav></details><% } %></header>
+  <% if (error) { %><p class="error" role="alert"><%= error %></p><% } %>
+  <% if (mode === 'login') { %>
+  <section class="auth-card"><h2>ログイン</h2><p>Mojidasアプリ・販売店ポータルとは別のアカウントです。案内メールに記載されたメールアドレスとパスワードをご利用ください。</p>
+    <form method="post" action="/corporate/login"><input type="hidden" name="csrfToken" value="<%= csrf %>">
+      <label>メールアドレス<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
+      <label>パスワード<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><button>ログイン</button>
+    </form>
+  </section>
+  <% } else if (mode === 'verify') { %>
+  <section class="auth-card"><h2>メールアドレスの認証</h2><p><%= user.email %> に届いた6桁のコードを入力してください。有効期限は10分です。認証後にパスワードを変更します。</p>
+    <form method="post" action="/corporate/verify"><input type="hidden" name="csrfToken" value="<%= csrf %>">
+      <label>認証コード<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required></label><button>認証する</button>
+    </form>
+    <form method="post" action="/corporate/resend"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button class="secondary">コードを再送（1分間隔）</button></form>
+  </section>
+  <% } else if (mode === 'password' || mode === 'initial-password') { %>
+  <section class="auth-card"><h2><%= mode === 'initial-password' ? '初回パスワードの設定' : 'パスワードの変更' %></h2><p>12〜128文字の、これまでと異なるパスワードを設定してください。変更後、他の端末のログインは無効になります。</p>
+    <form method="post" action="/corporate/password"><input type="hidden" name="csrfToken" value="<%= csrf %>">
+      <% if (mode === 'password') { %><label>現在のパスワード<input name="currentPassword" type="password" autocomplete="current-password" maxlength="128" required></label><% } %>
+      <label>新しいパスワード<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+      <label>新しいパスワード（確認）<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><button>パスワードを保存</button>
+    </form><% if (mode === 'password') { %><a href="/corporate">ダッシュボードへ戻る</a><% } %>
+  </section>
+  <% } else { %>
+  <section><h2>ダッシュボード</h2><p>登録されている法人ドメインとプランを確認できます。</p>
+  <div class="domain-grid"><% rows.forEach(row => { %><article class="domain-card"><h3><%= row.organizationName %></h3><dl>
+    <dt>ドメイン</dt><dd><%= row.domain %></dd><dt>プラン</dt><dd><%= ({trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'})[row.plan] || row.plan %></dd>
+    <dt>状態</dt><dd><%= ({ active: '有効', inactive: '無効', scheduled: '開始前' })[row.status] || '無効' %></dd></dl>
+  </article><% }) %></div><% if (!rows.length) { %><p>現在、このアカウントに紐づく法人ドメインはありません。管理者へお問い合わせください。</p><% } %>
+  </section>
+  <% } %>
+</main></body></html>

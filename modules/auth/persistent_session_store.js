@@ -31,7 +31,8 @@ class PersistentSessionStore extends session.Store {
 
   set(sid, value, callback = () => {}) {
     Promise.resolve().then(async () => {
-      const loginAt = this.scope === 'partner' ? value.partnerLogin?.at : Date.parse(value.adminUser?.signedInAt);
+      const loginAt = this.scope === 'corporate' ? value.corporateLogin?.at
+        : this.scope === 'partner' ? value.partnerLogin?.at : Date.parse(value.adminUser?.signedInAt);
       const cookieExpiry = Date.parse(value.cookie?.expires);
       const expiresAt = new Date(Math.min(
         Number.isFinite(cookieExpiry) ? cookieExpiry : this.now() + LOGIN_DURATION_MS,
