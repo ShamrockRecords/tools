@@ -1,0 +1,31 @@
+.mojidas-editor-intro {
+  display: flex;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #ddd5f4;
+  border-radius: 12px;
+  background: #f5f2fc;
+  color: #302940;
+}
+.mojidas-editor-intro-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+.mojidas-editor-intro-logo img { display: block; width: 160px; max-width: 100%; height: auto; }
+.mojidas-editor-intro-copy { flex: 1; min-width: 0; }
+.mojidas-editor-intro-copy h2 { margin: 0 0 .35rem; font-size: 1rem; font-weight: 700; }
+.mojidas-editor-intro-copy p { margin: 0; font-size: .875rem; line-height: 1.65; }
+.mojidas-editor-intro-link { color: #5936a8; font-weight: 600; font-size: .875rem; }
+.mojidas-editor-intro a:focus-visible { outline: 3px solid #5936a8; outline-offset: 4px; }
+@media (max-width: 767px) {
+  .mojidas-editor-intro { flex-wrap: wrap; }
+  .mojidas-editor-intro-copy { flex-basis: 100%; }
+}
