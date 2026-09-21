@@ -76,6 +76,14 @@ var createMojidasStripeWebhookHandler = require('./modules/billing/mojidas_strip
 
 var app = express();
 
+// Mojidas用ホストのトップだけ公式サイトへ案内する。APIやtools側のトップは維持する。
+app.get('/', function (req, res, next) {
+  const host = String(req.get('host') || '').toLowerCase();
+  if (!/^app\.mojidas\.jp(?::\d+)?$/.test(host)) return next();
+  res.set('Cache-Control', 'no-store');
+  return res.redirect(302, 'https://mojidas.jp/');
+});
+
 // Stripeは署名検証にJSON parse前のraw bodyを必要とするため、共通body parserより先に置く。
 app.post(
   '/api/mojidas/billing/stripe/webhook',

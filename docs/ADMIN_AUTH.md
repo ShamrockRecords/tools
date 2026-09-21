@@ -93,6 +93,12 @@ Mojidas関連機能の入口は管理者トップの「Mojidas管理」（`/admi
 - 金額不明の購入がある月の金額は「未確定」とし、判明分と不明件数を表示する。日時不明は警告し、削除済み履歴を残高から逆算しない。本機能は全履歴の読み取り集計であり、残高・予約・購入記録を書き換えない。
 - 自動検証：`node tests/mojidas_paid_balance_store.test.js`（月境界・複数区分・予約返却の除外・再確保の二重計上防止・返金テスト取消・消費済み購入・不明履歴・入力不変・EJS表示）。
 
+## Mojidas用ホストのトップページ
+
+`app.mojidas.jp`のルート`/`へのGET／HEADのみ、`https://mojidas.jp/`へ302リダイレクトする。クエリは転送せず、応答は`Cache-Control: no-store`とする。Hostで完全一致判定し、`X-Forwarded-Host`だけでは判定しない。`tools.udtalk.jp`・localhostのトップ、API・管理画面・販売店ポータル・字幕エディター等の個別URL、およびPOSTは変更しない。
+
+検証：`node tests/mojidas_root_redirect.test.js`。
+
 ## Mojidasとの分離
 
 MojidasのデスクトップアプリはFirebase Authenticationを引き続き使用します。JSON API、IDトークン、更新トークン、メール認証コードについては`docs/MOJIDAS_AUTH_API.md`を参照してください。
