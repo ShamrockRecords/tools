@@ -27,7 +27,7 @@ class SendGridMailer {
     this.requester = requester;
   }
 
-  async send({ to, subject, text, html, categories = [] }) {
+  async send({ to, subject, text, html, categories = [], replyTo }) {
     if (!this.apiKey || !this.fromEmail) {
       throw new SendGridMailerError(
         'SENDGRID_NOT_CONFIGURED',
@@ -36,6 +36,12 @@ class SendGridMailer {
     }
 
     const recipient = normalize(to);
+    const replyAddress = normalize(replyTo);
+    if (replyTo !== undefined && (typeof replyTo !== 'string'
+      || /[\x00-\x20\x7f]/.test(replyTo)
+      || replyAddress.length > 254 || !/^[^@<> ,;]+@[^@<> ,;]+\.[^@<> ,;]+$/.test(replyAddress))) {
+      throw new SendGridMailerError('INVALID_EMAIL_MESSAGE', '返信先メールアドレスが正しくありません。');
+    }
     const normalizedSubject = normalize(subject);
     if (!recipient || !normalizedSubject || (!text && !html)) {
       throw new SendGridMailerError('INVALID_EMAIL_MESSAGE', 'メールの内容が正しくありません。');
@@ -50,6 +56,7 @@ class SendGridMailer {
     const payload = {
       personalizations: [{ to: [{ email: recipient }] }],
       from,
+      ...(replyAddress ? { reply_to: { email: replyAddress } } : {}),
       subject: normalizedSubject,
       content,
       categories: categories.slice(0, 10),

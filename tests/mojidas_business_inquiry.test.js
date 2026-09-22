@@ -80,6 +80,10 @@ async function main() {
   await Promise.all([service(data), service(data)]);
   await service(data);
   assert.equal(sent.length, 2, '並行操作・再送でも宛先ごとに1通');
+  for (const [messages, email] of [[generalSent, general.email], [corporateSent, corporateContact.email], [sent, data.email]]) {
+    assert.equal(messages.find(mail => mail.to === 'app@mojidas.jp').replyTo, email);
+    assert(!Object.hasOwn(messages.find(mail => mail.to === email), 'replyTo'), '申込者宛て確認メールは変更しない');
+  }
   assert(sent.every(mail => mail.subject.includes('トライアル')));
   assert(sent.every(mail => mail.text.includes('2026-09-19 10:00') && mail.text.includes('2026-10-19 10:00')));
   assert.equal((await store.read(data.requestID)).trialEndsAt, '2026-10-19T10:00');

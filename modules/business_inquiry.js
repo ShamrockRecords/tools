@@ -129,6 +129,7 @@ function createInquiryService({ general = false, store = new InquiryStore({ gene
       try {
         await mailer.send({
           to: recipient === 'admin' ? 'app@mojidas.jp' : data.email,
+          ...(recipient === 'admin' ? { replyTo: data.email } : {}),
           subject: general
             ? (recipient === 'admin' ? `Mojidas ${contactKind}` : `Mojidas ${contactKind} 受付内容のご確認`)
             : (recipient === 'admin' ? 'Mojidas 法人向けトライアル申し込み' : 'Mojidas 法人向けトライアル 受付内容のご確認'),

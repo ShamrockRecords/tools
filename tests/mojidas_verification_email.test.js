@@ -52,10 +52,19 @@ async function main() {
   assert.strictEqual(request.apiKey, 'test-api-key');
   assert.strictEqual(request.payload.from.email, 'no-reply@mojidas.jp');
   assert.strictEqual(request.payload.from.name, 'Mojidas');
+  assert(!Object.hasOwn(request.payload, 'reply_to'));
   assert.strictEqual(request.payload.content[0].type, 'text/plain');
   assert.strictEqual(request.payload.content[1].type, 'text/html');
   assert.strictEqual(request.payload.tracking_settings.click_tracking.enable, false);
   assert.strictEqual(escapeHTML('a&"<>'), 'a&amp;&quot;&lt;&gt;');
+  await sendGridMailer.send({ to: 'app@mojidas.jp', subject: '問い合わせ', text: '内容', replyTo: 'contact@example.com' });
+  assert.deepStrictEqual(request.payload.reply_to, { email: 'contact@example.com' });
+  assert.deepStrictEqual(request.payload.from, { email: 'no-reply@mojidas.jp', name: 'Mojidas' });
+  for (const replyTo of ['', null, 'a@example.com\r\nBcc:b@example.com', 'a@example.com,b@example.com']) {
+    const before = request;
+    await assert.rejects(() => sendGridMailer.send({ to: 'app@mojidas.jp', subject: '問い合わせ', text: '内容', replyTo }), { code: 'INVALID_EMAIL_MESSAGE' });
+    assert.strictEqual(request, before, '不正な返信先は送信しない');
+  }
 
   const verificationIssues = [];
   await require('./mojidas_activity_notifications.test')();

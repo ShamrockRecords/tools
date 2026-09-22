@@ -29,6 +29,8 @@ Webの `business.html` から `POST /api/mojidas/business-inquiries` を呼び�
 
 ## 永続化・再送
 
+一般問い合わせ・法人相談・トライアルの管理者宛て通知は、Reply-Toに検証済みの申込者メールアドレスを設定します。Fromは`no-reply@mojidas.jp`のままで、管理者はメールソフトの返信操作で申込者へ返信できます。申込者宛て確認メールの返信先は変更しません。既送信メールの再送や書き換えは行いません。
+
 `Mojidas/{MOJIDAS_FIRESTORE_ENV}/businessInquiries/{requestID}` に受付内容、作成日時、payloadハッシュ、各宛先の送信状態を保存します。アクセスはサーバーのAdmin SDKのみです。受付本文やメールアドレスはサーバーログへ出力しません。
 
 - 同じUUID・同じ内容の再送は同じ受付を使います。異なる内容なら409。
