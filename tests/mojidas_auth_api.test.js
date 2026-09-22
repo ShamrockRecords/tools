@@ -261,6 +261,8 @@ async function main() {
 
     response = await request(server, 'GET', '/api/mojidas/version');
     assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.headers['access-control-allow-origin'], '*');
+    assert.strictEqual(response.headers['access-control-allow-credentials'], undefined);
     assert.deepStrictEqual(response.body, {
       schemaVersion: 1,
       macOSVersion: '1.2.3',

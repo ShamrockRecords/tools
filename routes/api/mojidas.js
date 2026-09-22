@@ -166,6 +166,8 @@ function createMojidasRouter({
   });
 
   router.get('/version', async function (req, res) {
+    // 公開情報のみ。Webサイトから認証情報なしで更新内容を参照する。
+    res.set('Access-Control-Allow-Origin', '*');
     try {
       res.set('Cache-Control', req.query.refresh ? 'no-store' : 'public, max-age=60, stale-while-revalidate=60');
       return res.json(await versionStore.getVersions());
