@@ -19,6 +19,7 @@ function userStatistics(users, clients, now = Date.now()) {
     { label: '両方', count: 0, color: '#8b5cf6' },
     { label: '未取得', count: 0, color: '#94a3b8' },
   ];
+  const versionCounts = { macos: new Map(), windows: new Map() };
   for (const user of users) {
     const created = Date.parse(user.metadata?.creationTime);
     const index = Math.floor((created + JST) / DAY) - (today - 6);
@@ -28,9 +29,22 @@ function userStatistics(users, clients, now = Date.now()) {
       const mac = validVersion(client?.macos, 'macos');
       const win = validVersion(client?.windows, 'windows');
       platforms[mac && win ? 2 : mac ? 0 : win ? 1 : 3].count++;
+      for (const platform of ['macos', 'windows']) {
+        if (validVersion(client?.[platform], platform)) {
+          const version = client[platform].version;
+          versionCounts[platform].set(version, (versionCounts[platform].get(version) || 0) + 1);
+        }
+      }
     }
   }
-  return { days, platforms: clients === null ? null : platforms, total: users.length };
+  const versions = Object.fromEntries(Object.entries(versionCounts).map(([platform, counts]) => {
+    const items = [...counts].sort(([a], [b]) => b.localeCompare(a, 'en', { numeric: true }))
+      .map(([version, count], index) => ({ version, count, color: `hsl(${(220 + index * 137.508) % 360}, 65%, 48%)` }));
+    const total = items.reduce((sum, item) => sum + item.count, 0);
+    return [platform, { items, total, unknown: users.length - total }];
+  }));
+  return { days, platforms: clients === null ? null : platforms,
+    versions: clients === null ? null : versions, total: users.length };
 }
 
 module.exports = { userStatistics };

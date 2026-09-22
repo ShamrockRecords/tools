@@ -35,12 +35,34 @@ async function render() {
   assert.deepStrictEqual(statistics.days.map(day => day.count), [1, 0, 0, 0, 0, 1, 1]);
   assert.strictEqual(statistics.days[6].date, '2026-09-19');
   assert.deepStrictEqual(statistics.platforms.map(item => item.count), [1, 1, 1, 1]);
+  assert.deepStrictEqual(statistics.versions.macos.items.map(({ version, count }) => [version, count]), [['1.2.3', 2]]);
+  assert.strictEqual(statistics.versions.windows.total, 2);
+  assert.strictEqual(statistics.versions.macos.unknown, 2);
+  const versionClients = new Map([
+    ['a', { macos: { version: '1.9.0' }, windows: { version: '1.2.0.0' } }],
+    ['b', { macos: { version: '1.10.0' }, windows: { version: '<script>' } }],
+    ['c', { macos: { version: '1.10.0' }, windows: { version: '1.3.0.0' } }],
+    ['d', { macos: { version: '1.2.3.4' } }],
+    ['deleted', { macos: { version: '9.0.0' } }],
+  ]);
+  const before = JSON.stringify([...versionClients]);
+  const versions = userStatistics(fixtures, versionClients, now).versions;
+  assert.deepStrictEqual(versions.macos.items.map(({ version, count }) => [version, count]), [['1.10.0', 2], ['1.9.0', 1]]);
+  assert.strictEqual(versions.macos.total, 3);
+  assert.strictEqual(versions.macos.unknown, 1);
+  assert.strictEqual(versions.windows.total, 2);
+  assert.strictEqual(JSON.stringify([...versionClients]), before);
   const charts = await ejs.renderFile(view, { ...locals, statistics });
   assert(charts.includes('conic-gradient('));
   assert(charts.includes('25.0%'));
   assert(charts.includes('過去7日間の新規ユーザー'));
+  assert(charts.includes('Macのバージョン割合'));
+  assert(charts.includes('Windowsのバージョン割合'));
+  assert(charts.includes('1.2.3：2人（100.0%）'));
+  assert.strictEqual((charts.match(/conic-gradient\(/g) || []).length, 3);
   const failedCharts = await ejs.renderFile(view, { ...locals, statistics: userStatistics(fixtures, null, now) });
   assert(failedCharts.includes('OS情報を取得できませんでした'));
+  assert.strictEqual(userStatistics(fixtures, null, now).versions, null);
   const emptyCharts = await ejs.renderFile(view, { ...locals, statistics: userStatistics([], new Map(), now) });
   assert(!emptyCharts.includes('NaN'));
   assert(!emptyCharts.includes('conic-gradient('));

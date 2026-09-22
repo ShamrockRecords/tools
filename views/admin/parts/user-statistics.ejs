@@ -40,3 +40,34 @@
     </div></div>
   </section>
 </div>
+<div class="row g-3 mb-4">
+  <% [['macos', 'Mac'], ['windows', 'Windows']].forEach(([platform, label]) => { %>
+    <section class="col-lg-6" aria-label="<%= label %>のバージョン割合">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h2 class="h6 fw-bold"><%= label %>のバージョン割合</h2>
+        <p class="small text-muted">一覧のページに関係なく、全ユーザーの最後に確認したOS別バージョンで集計します。両OSを使う方は両方に含めます。</p>
+        <% if (!statistics.versions) { %>
+          <p class="text-danger" role="status">バージョン情報を取得できませんでした。画面を再読み込みしてください。</p>
+        <% } else { const distribution = statistics.versions[platform]; %>
+          <p class="small text-muted">取得済み <%= distribution.total %>人が対象（未取得 <%= distribution.unknown %>人は割合から除外）。現在起動中のバージョンとは限りません。</p>
+          <% if (!distribution.total) { %>
+            <p class="text-muted">このOSのバージョン記録はありません。</p>
+          <% } else { let angle = 0;
+            const stops = distribution.items.map(item => {
+              const start = angle; angle += item.count / distribution.total * 360;
+              return `${item.color} ${start}deg ${angle}deg`;
+            }); %>
+            <div class="d-flex flex-wrap align-items-center justify-content-center gap-3">
+              <div style="width:160px;height:160px;flex-shrink:0;border-radius:50%;background:conic-gradient(<%= stops.join(',') %>)" role="img" aria-label="<%= label %>：<%= distribution.items.map(item => `${item.version} ${item.count}人（${(item.count / distribution.total * 100).toFixed(1)}%）`).join('、') %>"></div>
+              <ul class="list-unstyled small mb-0" style="max-width:100%;overflow-wrap:anywhere">
+                <% distribution.items.forEach(item => { %>
+                  <li class="mb-2"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;margin-right:6px;background:<%= item.color %>"></span><%= item.version %>：<%= item.count %>人（<%= (item.count / distribution.total * 100).toFixed(1) %>%）</li>
+                <% }); %>
+              </ul>
+            </div>
+          <% } %>
+        <% } %>
+      </div></div>
+    </section>
+  <% }); %>
+</div>
