@@ -83,6 +83,7 @@ class MojidasAccountDeletionService {
       'creditGrants',
       'creditReservations',
       'corporateReservations',
+      'corporateMembers',
       'billingRunKinds',
       'usageLedger',
       'dictionaryClients',

@@ -53,10 +53,15 @@ async function main() {
   put('corporateReservations', 'current', { corporate: { domain }, status: 'held' });
   await assert.rejects(store.deleteDomain(domain), { code: 'DOMAIN_IN_USE' });
   db.rows.delete(ref('corporateReservations', 'current').path);
+  put('corporateMembers', 'owned', { domain, userID: 'a', enabled: false });
+  put('corporateMembers', 'other', { domain: 'other.example', userID: 'b', enabled: true });
   db.fail = true; await assert.rejects(store.deleteDomain(domain), /commit failed/);
   assert.equal((await ref('corporateDomains', domain).get()).data().notes, '保持');
+  assert.equal((await ref('corporateMembers', 'owned').get()).exists, true);
   await store.deleteDomain(domain);
   assert.equal((await ref('corporateDomains', domain).get()).exists, false);
+  assert.equal((await ref('corporateMembers', 'owned').get()).exists, false);
+  assert.equal((await ref('corporateMembers', 'other').get()).data().enabled, true);
   console.log('法人実績リセット・無効かつ全期間ゼロの削除・未精算拒否・失敗保全・再送テスト成功');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

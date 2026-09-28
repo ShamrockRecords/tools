@@ -18,7 +18,7 @@ function createCorporateRouter({ store = corporatePortalStore, now = Date.now } 
     const host = String(req.get('host') || '').toLowerCase();
     if (!/^(app\.mojidas\.jp|localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return res.sendStatus(404);
     res.set('Cache-Control', 'no-store'); res.set('Referrer-Policy', 'no-referrer');
-    res.set('Content-Security-Policy', "default-src 'self'; style-src 'self'; script-src 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.set('Content-Security-Policy', "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'");
     if (!req.session.corporateCSRF) req.session.corporateCSRF = crypto.randomBytes(32).toString('hex');
     if (req.method === 'POST' && (typeof req.body.csrfToken !== 'string' || !/^[a-f0-9]{64}$/.test(req.body.csrfToken)
       || !crypto.timingSafeEqual(Buffer.from(req.body.csrfToken), Buffer.from(req.session.corporateCSRF)))) return res.sendStatus(403);
@@ -34,10 +34,34 @@ function createCorporateRouter({ store = corporatePortalStore, now = Date.now } 
     const mode = !user ? 'login' : user.mustChangePassword
       ? (req.session.corporateCodeVerified ? 'initial-password' : 'verify')
       : passwordPage ? 'password' : 'dashboard';
-    return res.status(status).render('corporate/index', { user, mode, error,
-      csrf: req.session.corporateCSRF, rows: mode === 'dashboard' ? await store.dashboard(user) : [] });
+    const rows = mode === 'dashboard' ? await store.dashboard(user) : [];
+    const domain = req.query.domain || rows[0]?.domain;
+    let overview = null;
+    if (mode === 'dashboard' && domain && store.management) {
+      try { overview = await store.management.overview(user, { ...req.query, domain }); }
+      catch (_) { error = error || '一覧を取得できませんでした。対象ドメイン・対象月を確認し、再度お試しください。'; status = 400; }
+    }
+    return res.status(status).render('corporate/index', { user, mode, error, overview,
+      csrf: req.session.corporateCSRF, rows });
   }
   router.get('/', wrap((req, res) => render(req, res)));
+  for (const [path, method] of [['member-policy', 'policy'], ['members', 'setMembers']]) {
+    router.post(`/${path}`, wrap(async (req, res) => {
+      const user = await current(req);
+      if (!user || user.mustChangePassword) return res.sendStatus(403);
+      try { await store.management[method](user, req.body); }
+      catch (_) {
+        if (path === 'member-policy' && req.get('Accept') === 'application/json') return res.status(400).json({ error: '保存できませんでした。再度お試しください。' });
+        return render(req, res, '保存できませんでした。対象・選択内容を確認し、再度お試しください。', 400);
+      }
+      if (path === 'member-policy' && req.get('Accept') === 'application/json') return res.json({ autoEnable: req.body.mode === 'auto' });
+      const query = new URLSearchParams({ domain: req.body.domain });
+      if (typeof req.body.month === 'string') query.set('month', req.body.month);
+      if (typeof req.body.q === 'string') query.set('q', req.body.q);
+      if (typeof req.body.page === 'string') query.set('page', req.body.page);
+      return res.redirect(303, `/corporate?${query}`);
+    }));
+  }
   router.post('/login', limited, wrap(async (req, res) => {
     let login;
     try { login = await store.login(req.body.email, req.body.password); }

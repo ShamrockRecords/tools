@@ -37,7 +37,7 @@ async function main() {
   await assert.rejects(store.addDomain(id, { ...input, domain: 'gmail.com' }), { code: 'INVALID_DOMAIN' });
   await store.addDomain(id, input, 'admin@example.org');
   await assert.rejects(store.addDomain(id, input), { code: 'DOMAIN_EXISTS' });
-  const user = { email: 'member@example.co.jp', emailVerified: true };
+  const user = { uid: 'member', email: 'member@example.co.jp', emailVerified: true };
   assert.equal((await store.entitlement(user)).partnerID, id, '追加直後から有効');
   await store.setDomainStatus(input.domain, 'active', 'admin@example.org');
   assert.equal((await store.entitlement(user)).partnerID, id);

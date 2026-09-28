@@ -31,7 +31,7 @@ async function main() {
   for (const bad of [{ plan: '__proto__' }, { validityStartsAt: '2026-02-30T10:00' }, { validityEndsAt: input.validityStartsAt }, { validityPeriod: 'invalid' }, { status: 'invalid' }]) assert.throws(() => parseLifecycle({ ...input, ...bad }));
   await store.addDomain('self', input, 'admin@example.org');
   const ref = store.collection('corporateDomains').doc(input.domain);
-  const user = { email: 'member@trial.example.org', emailVerified: true };
+  const user = { uid: 'member', email: 'member@trial.example.org', emailVerified: true };
   assert.equal(await store.entitlement(user), null);
   assert.equal((await store.dashboard('self', '2026-09'))[0].displayState, 'scheduled');
   assert.equal((await ref.get()).data().status, 'approved');

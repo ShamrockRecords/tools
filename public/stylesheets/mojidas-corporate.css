@@ -39,3 +39,22 @@ a:hover { color: var(--action-hover); }
 .domain-card { border: 1px solid var(--border); padding: 24px; border-radius: 16px; background: var(--surface); overflow-wrap: anywhere; }
 dt { color: var(--muted); margin-top: 16px; } dd { margin: 4px 0; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.management-section { margin-top: 28px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+select { display: block; max-width: 100%; font: inherit; padding: 10px; margin-top: 8px; color: var(--text); background: var(--surface); border: 1px solid #a9a9af; border-radius: 6px; }
+.filters, .bulk-actions, .pagination { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.filters label { margin: 8px 0; flex: 1 1 240px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,230px),1fr)); gap: 16px; margin-top: 20px; }
+.metrics article { background: var(--page); border-radius: 12px; padding: 20px; }
+.metrics h3 { margin: 0 0 12px; font-size: 1rem; }
+.metrics strong { font-size: 1.5rem; }
+.help, .muted, small { color: var(--muted); }
+.help { font-size: .9rem; }
+.enabled { color: #087c44; font-weight: 600; }
+.policy-form { padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { white-space: nowrap; }
+.member-checkbox { width: 20px; height: 20px; margin: 0; }
+.auto-enable-label { display: flex; align-items: center; gap: 10px; }
+.pagination { justify-content: space-between; margin-top: 16px; }

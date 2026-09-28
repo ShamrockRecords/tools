@@ -4,6 +4,7 @@ const { mojidasCollection } = require('../mojidas_firestore');
 const { createAdminPasswordHash, verifyPassword } = require('../auth/admin_credentials');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
 const { displayState } = require('./domain_lifecycle');
+const { CorporateManagementStore } = require('./corporate_management_store');
 
 const URL = 'https://app.mojidas.jp/corporate';
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -13,8 +14,9 @@ const validPassword = value => typeof value === 'string' && value.length >= 12 &
 const dummyHash = createAdminPasswordHash('corporate-login-dummy-password');
 
 class CorporatePortalStore {
-  constructor({ firestoreProvider = getFirestore, now = Date.now, mailer, secret = () => process.env.SESSION_SECRET } = {}) {
+  constructor({ firestoreProvider = getFirestore, now = Date.now, mailer, secret = () => process.env.SESSION_SECRET, authProvider } = {}) {
     this.provider = firestoreProvider; this.now = now; this.mailer = mailer; this.secret = secret;
+    this.management = new CorporateManagementStore({ firestoreProvider, now, authProvider });
   }
   collection(name) { return mojidasCollection(this.provider(), name); }
   key() {

@@ -6,6 +6,7 @@ const { UNLIMITED_AVAILABLE_MILLISECONDS } = require('../credit/mojidas_credit_s
 const { quotaStatus } = require('./quota_policy');
 const { readQuota, saveQuota, totalUsage, notifyQuota } = require('./quota_store');
 const { SELF_PARTNER_ID, inPeriod, refreshDomain } = require('./domain_lifecycle');
+const { membershipAllowed } = require('./corporate_membership');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const runID = (uid, run) => crypto.createHash('sha256').update(`${uid}:${run}`).digest('hex').slice(0, 32);
 const lease = (row, now) => new Date(now + Math.max(600000, row.operation === 'mediaFile' ? row.requestedMilliseconds + 1800000 : 600000));
@@ -56,6 +57,7 @@ class CorporateUsageStore {
         if (!domain.exists || domain.data().status !== 'approved' || domain.data().partnerID !== corporate.partnerID
             || !inPeriod(domain.data(), this.now())
             || (corporate.partnerID !== SELF_PARTNER_ID && (!partner.exists || partner.data().status !== 'active'))) fail('CORPORATE_DISABLED');
+        if (!await membershipAllowed(this.provider(), corporate.domain, args.userID, domain.data(), tx)) fail('CORPORATE_DISABLED');
       }
       tx.set(ref, { userID: args.userID, corporate, operation: args.operation, clientSessionID: args.clientSessionID, createdAt: new Date(this.now()) });
       return corporate;
@@ -67,6 +69,8 @@ class CorporateUsageStore {
     const id = `corporate_${runID(args.userID, args.recognitionRunID)}`;
     return this.provider().runTransaction(async tx => {
       const ref = this.collection('corporateReservations').doc(id), snapshot = await tx.get(ref);
+      const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
+      if (!domain.exists || !await membershipAllowed(this.provider(), corporate.domain, args.userID, domain.data(), tx)) fail('CORPORATE_DISABLED');
       if (snapshot.exists) {
         const row = snapshot.data();
         if (row.userID !== args.userID || row.operation !== args.operation || row.clientSessionID !== args.clientSessionID
@@ -74,7 +78,6 @@ class CorporateUsageStore {
         if (!['held', 'consuming'].includes(row.status)) fail('RESERVATION_CLOSED');
         return { ...present(id, row), alreadyReserved: true };
       }
-      const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
       if (!domain.exists) fail('CORPORATE_DISABLED');
       const settings = domain.exists ? domain.data() : {};
       if (settings.limitMilliseconds != null) {
@@ -120,13 +123,14 @@ class CorporateUsageStore {
         tx.set(statsRef, { ...old, domain: row.corporate.domain, partnerID: reportingPartnerID,
           month, [row.operation]: total });
         tx.set(this.collection('corporateUsageLedger').doc(`${ref.id}_${row.consumedMilliseconds}`), {
-          reservationID: ref.id, domain: row.corporate.domain, partnerID: reportingPartnerID,
+          reservationID: ref.id, userID: row.userID, domain: row.corporate.domain, partnerID: reportingPartnerID,
           operation: row.operation, month, milliseconds: result.delta, occurredAt: new Date(this.now()),
         });
       }
       return { reservation: present(ref.id, result.changed ? updated : row), settings, quota, domain: row.corporate.domain };
     });
     const current = await refreshDomain(this.provider(), outcome.domain, this.now());
+    if (!finish && current && !await membershipAllowed(this.provider(), outcome.domain, args.userID, current)) fail('CORPORATE_DISABLED');
     // 期限切れでも確定済み利用を失わない。精算後に継続だけを止める。
     if (!finish && current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')) fail('CORPORATE_DISABLED');
     if (outcome.quota) {
@@ -141,6 +145,8 @@ class CorporateUsageStore {
     const snapshot = await this.collection('corporateReservations').doc(args.reservationID).get();
     if (!snapshot.exists || snapshot.data().userID !== args.userID) fail('RESERVATION_NOT_FOUND');
     const row = snapshot.data(), expiry = row.leaseExpiresAt;
+    const domain = await this.collection('corporateDomains').doc(row.corporate.domain).get();
+    if (!domain.exists || !await membershipAllowed(this.provider(), row.corporate.domain, args.userID, domain.data())) fail('CORPORATE_DISABLED');
     if (!['held', 'consuming'].includes(row.status)
         || new Date(expiry.toDate ? expiry.toDate() : expiry).getTime() <= this.now()) fail('RESERVATION_EXPIRED');
     const status = await this.status(row.corporate);

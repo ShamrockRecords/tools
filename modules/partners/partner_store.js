@@ -10,6 +10,7 @@ const { readQuota, saveQuota, totalUsage } = require('./quota_store');
 const { monthAt } = require('./usage_policy');
 const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require('./domain_lifecycle');
 const { CorporatePortalStore } = require('./corporate_portal_store');
+const { enrollMember } = require('./corporate_membership');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -28,6 +29,8 @@ class PartnerStore {
     if (!domain || isSharedDomain(domain)) return null;
     const data = await refreshDomain(this.provider(), domain, this.now());
     if (!data || displayState(data, this.now()) !== 'active') return null;
+    const member = await enrollMember(this.provider(), domain, user.uid || user.id, this.now);
+    if (!member?.enabled) return null;
     if (data.partnerID !== SELF_PARTNER_ID) {
       const partner = await this.collection('partners').doc(data.partnerID).get();
       if (!partner.exists || partner.data().status !== 'active') return null;
@@ -243,9 +246,10 @@ class PartnerStore {
       const state = await deletionState(this.provider(), domain, query => tx.get(query));
       if (!state.canDelete) throw fail('DOMAIN_IN_USE', '利用実績または未精算の処理があるため削除できません。');
       const history = await tx.get(this.collection('corporateDomainAssignments').where('domain', '==', domain));
+      const members = await tx.get(this.collection('corporateMembers').where('domain', '==', domain));
       const periods = await tx.get(this.collection('corporateQuotaPeriods'));
       const notifications = await tx.get(this.collection('corporateQuotaNotifications'));
-      const docs = [...history.docs, ...state.ledger.docs, ...state.months.docs,
+      const docs = [...history.docs, ...members.docs, ...state.ledger.docs, ...state.months.docs,
         ...periods.docs.filter(doc => doc.id.startsWith(`${domain}_`)),
         ...notifications.docs.filter(doc => doc.id.startsWith(`${domain}_`))];
       if (docs.length > 400) throw fail('TOO_MANY_RECORDS', '管理者による個別対応が必要です。');

@@ -29,7 +29,7 @@ class DB extends FakeFirestore {
 async function main() {
   const db = new DB(); let now = Date.parse('2026-09-21T00:00:00Z'), failMail = false;
   const sent = [], mailer = { send: async message => { if (failMail) throw Error('mail failed'); sent.push(message); } };
-  const options = { firestoreProvider: () => db, now: () => now, mailer, secret: () => 'fixture-only-secret-for-corporate-portal-123456789' };
+  const options = { firestoreProvider: () => db, now: () => now, mailer, secret: () => 'fixture-only-secret-for-corporate-portal-123456789', authProvider: () => ({ listUsers: async () => ({ users: [] }) }) };
   const portal = new CorporatePortalStore(options);
   const store = new PartnerStore({ ...options, portalStore: portal });
   const input = { domain: 'company.example', organizationName: '法人A', contactEmail: 'admin@company.example', plan: 'trial', status: 'inactive', validityPeriod: 'limited', validityStartsAt: '2026-09-01T00:00', validityEndsAt: '2027-09-01T00:00' };
@@ -129,12 +129,14 @@ async function main() {
     const originalCookie = cookie;
     assert.equal((await send('/login', { email: input.contactEmail, password: 'another-password-123' })).status, 303);
     assert.notEqual(cookie, originalCookie);
-    let response = await send(''); assert(response.text.includes('ダッシュボード')); assert(!response.text.includes('other.example'));
+    let response = await send(''); assert.equal(response.status, 200); assert(response.text.includes('ダッシュボード')); assert(!response.text.includes('other.example'));
     assert((await send('/password')).text.includes('現在のパスワード'));
     assert.equal((await send('/logout', {})).status, 303); await send('');
     const retryTemp = sent.find(mail => mail.to === 'admin@retry.example').text.match(/仮パスワード：([^\n]+)/)[1];
     assert.equal((await send('/login', { email: 'admin@retry.example', password: retryTemp })).status, 303);
     response = await send(''); assert(response.text.includes('メールアドレスの認証')); assert(!response.text.includes('<h2>ダッシュボード'));
+    assert.equal((await send('/members', { domain: 'retry.example', userIDs: 'someone', action: 'enable' })).status, 403);
+    assert.equal((await send('/member-policy', { domain: 'retry.example', mode: 'auto' })).status, 403);
     assert.equal((await send('/password', { password: 'verified-password-123', confirmPassword: 'verified-password-123' })).status, 403);
     const currentCode = sent.at(-1).text.match(/認証コード：(\d{6})/)[1];
     assert.equal((await send('/verify', { code: currentCode })).status, 303);

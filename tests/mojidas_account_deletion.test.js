@@ -114,7 +114,7 @@ async function main() {
   add('creditGrants', 'grant-1', { userID: 'user-1' });
   add('creditGrants', 'grant-other', { userID: 'user-2' });
   add('creditReservations', 'reservation-1', { userID: 'user-1' });
-  for (const name of ['corporateReservations', 'billingRunKinds']) {
+  for (const name of ['corporateReservations', 'billingRunKinds', 'corporateMembers']) {
     add(name, 'owned', { userID: 'user-1' });
     add(name, 'other', { userID: 'user-2', value: 123 });
   }
@@ -133,7 +133,7 @@ async function main() {
   assert.deepStrictEqual(authDisabled, [['user-1', { disabled: true }]]);
   assert.deepStrictEqual(authRevoked, ['user-1']);
   assert.deepStrictEqual(firestore.recursivelyDeleted, ['dictionary-1']);
-  for (const name of ['corporateReservations', 'billingRunKinds']) {
+  for (const name of ['corporateReservations', 'billingRunKinds', 'corporateMembers']) {
     const rows = firestore.collection(`Mojidas/production/${name}`).documents;
     assert(!rows.has('owned'));
     assert.deepStrictEqual(rows.get('other'), { userID: 'user-2', value: 123 });
