@@ -9,7 +9,8 @@
   </nav></details><% } %></header>
   <% if (error) { %><p class="error" role="alert"><%= error %></p><% } %>
   <% if (mode === 'login') { %>
-  <section class="auth-card"><h2>ログイン</h2><p>Mojidasアプリ・販売店ポータルとは別のアカウントです。案内メールに記載されたメールアドレスとパスワードをご利用ください。</p>
+  <section class="auth-card"><h2>ログイン</h2><p>法人向けプランをご利用の管理者の方は、こちらからログインしてください。利用状況の確認や、法人プランの対象アカウントを管理できます。</p>
+    <p class="help">※ Mojidasアプリのアカウントとは別の、法人向けポータル専用アカウントです。初めてログインする場合は、案内メールをご確認ください。</p>
     <form method="post" action="/corporate/login"><input type="hidden" name="csrfToken" value="<%= csrf %>">
       <label>メールアドレス<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
       <label>パスワード<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><button>ログイン</button>
