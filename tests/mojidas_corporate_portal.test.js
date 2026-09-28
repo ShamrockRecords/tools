@@ -32,7 +32,7 @@ async function main() {
   const options = { firestoreProvider: () => db, now: () => now, mailer, secret: () => 'fixture-only-secret-for-corporate-portal-123456789' };
   const portal = new CorporatePortalStore(options);
   const store = new PartnerStore({ ...options, portalStore: portal });
-  const input = { domain: 'company.example', organizationName: '法人A', contactEmail: 'admin@company.example', plan: 'trial', status: 'inactive' };
+  const input = { domain: 'company.example', organizationName: '法人A', contactEmail: 'admin@company.example', plan: 'trial', status: 'inactive', validityPeriod: 'limited', validityStartsAt: '2026-09-01T00:00', validityEndsAt: '2027-09-01T00:00' };
   await store.collection('creditGrants').doc('personal-fixture').set({ userID: 'personal', remainingMilliseconds: 50000 });
   await store.collection('partners').doc('partner-fixture').set({ email: input.contactEmail, passwordHash: 'separate', status: 'active' });
   const unrelated = [db.records('Mojidas/production/creditGrants'), db.records('Mojidas/production/partners')];

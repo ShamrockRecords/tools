@@ -5,7 +5,7 @@ const { mojidasCollection } = require('../mojidas_firestore');
 const { normalizeDomain, isSharedDomain } = require('./domain_policy');
 const { createAdminPasswordHash, verifyPassword } = require('../auth/admin_credentials');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
-const { parseQuota, resetDay, boundary, quotaStatus, periodAt } = require('./quota_policy');
+const { parseQuota, resetDay, boundary, quotaStatus, periodAt, planLimitHours } = require('./quota_policy');
 const { readQuota, saveQuota, totalUsage } = require('./quota_store');
 const { monthAt } = require('./usage_policy');
 const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require('./domain_lifecycle');
@@ -107,6 +107,7 @@ class PartnerStore {
     if (!domain || isSharedDomain(domain) || !organizationName)
       throw fail('INVALID_DOMAIN', '組織名・独自ドメインを確認してください。');
     const lifecycle = parseLifecycle(input);
+    const initialQuota = parseQuota({ ...input, limitHours: planLimitHours[lifecycle.plan] ?? input.limitHours ?? '10' });
     await this.provider().runTransaction(async tx => {
       const partner = partnerID === SELF_PARTNER_ID ? null : await tx.get(this.collection('partners').doc(partnerID));
       const ref = this.collection('corporateDomains').doc(domain), previous = await tx.get(ref);
@@ -114,7 +115,7 @@ class PartnerStore {
       if (previous.exists) throw fail('DOMAIN_EXISTS', 'このドメインは登録済みです。');
       const createdAt = this.now();
       const data = { domain, partnerID, organizationName, contactEmail: emailValue(input.contactEmail),
-        ...lifecycle, status: lifecycle.hasValidityPeriod && createdAt >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status, createdAt, approvedAt: createdAt,
+        ...lifecycle, ...initialQuota, status: lifecycle.hasValidityPeriod && createdAt >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status, createdAt, approvedAt: createdAt,
         resetDay: resetDay({ approvedAt: createdAt }), createdBy: adminEmail };
       const portal = this.portal ? await this.portal.provision(tx, data) : {};
       tx.set(ref, { ...data, ...portal });
@@ -145,39 +146,59 @@ class PartnerStore {
   }
   async updateDomain(partnerID, input) {
     const domain = normalizeDomain(input.domain);
-    const name = typeof input.organizationName === 'string' ? input.organizationName.trim() : '';
-    const email = typeof input.contactEmail === 'string' ? input.contactEmail.trim() : '';
-    const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
-    const quota = input.resetDay === undefined ? null : parseQuota(input);
+    // 分割画面では対象外の値を送信せず、transaction内の最新値を維持する。
+    const section = input.section;
+    if (section !== undefined && !['details', 'plan'].includes(section))
+      throw fail('INVALID_DOMAIN', '編集画面を開き直してください。');
+    const detailsFields = ['organizationName', 'contactEmail', 'notes', 'partnerID', 'status'];
+    const planFields = ['plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt', 'limitHours', 'resetDay', 'stopAtLimit', 'notifyAtOneHour'];
+    if ((section === 'details' && planFields.some(key => input[key] !== undefined))
+      || (section === 'plan' && detailsFields.some(key => input[key] !== undefined)))
+      throw fail('INVALID_DOMAIN', '編集対象外の項目が含まれています。');
     const contractFields = ['plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt', 'status', 'partnerID'];
     if (partnerID !== null && contractFields.some(key => input[key] !== undefined))
       throw fail('FORBIDDEN', '契約設定は管理者のみ変更できます。');
-    const lifecycle = input.plan === undefined ? null : parseLifecycle(input);
-    if (lifecycle?.status === 'approved' && isSharedDomain(domain))
-      throw fail('INVALID_DOMAIN', '企業・団体の独自ドメインを指定してください。');
-    if (quota?.notifyAtOneHour && (!email || quota.limitMilliseconds === null))
-      throw fail('INVALID_QUOTA', '通知を有効にする場合は連絡先メールアドレスと上限を設定してください。');
-    if (!domain || !name || name.length > 200 || email.length > 254 || notes.length > 5000
-        || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
-      throw fail('INVALID_DOMAIN', '組織名・連絡先メールアドレス・備考を確認してください。');
+    if (input.status !== undefined && !['active', 'inactive'].includes(input.status))
+      throw fail('INVALID_DOMAIN_SETTINGS', '有効／無効の設定を確認してください。');
+    if (!domain) throw fail('INVALID_DOMAIN', 'ドメインを確認してください。');
     await this.provider().runTransaction(async tx => {
       const ref = this.collection('corporateDomains').doc(domain);
       const row = await tx.get(ref);
       if (!row.exists || (partnerID !== null && row.data().partnerID !== partnerID))
         throw fail('FORBIDDEN', 'このドメインは編集できません。');
+      const lifecycle = input.plan === undefined ? null : parseLifecycle({ ...input,
+        status: input.status === undefined ? (row.data().status === 'approved' ? 'active' : 'inactive') : input.status });
+      const changedPlan = lifecycle && lifecycle.plan !== (row.data().plan || 'custom');
+      const quotaInput = changedPlan && Object.hasOwn(planLimitHours, lifecycle.plan)
+        ? { ...input, limitHours: planLimitHours[lifecycle.plan] } : input;
+      const quota = quotaInput.limitHours === undefined ? null : parseQuota(quotaInput);
+      const requestedStatus = input.status === undefined ? row.data().status : input.status === 'active' ? 'approved' : 'suspended';
+      if ((lifecycle?.status === 'approved' || input.status === 'active') && isSharedDomain(domain))
+        throw fail('INVALID_DOMAIN', '企業・団体の独自ドメインを指定してください。');
+      if (input.status === 'active' && !lifecycle && row.data().hasValidityPeriod && this.now() >= row.data().validityEndsAt)
+        throw fail('INVALID_DOMAIN_SETTINGS', '有効期間が終了しています。プランの有効期間を変更してください。');
+      const name = section === 'plan' ? row.data().organizationName : typeof input.organizationName === 'string' ? input.organizationName.trim() : '';
+      const email = section === 'plan' ? row.data().contactEmail || '' : typeof input.contactEmail === 'string' ? input.contactEmail.trim() : '';
+      const notes = section === 'plan' ? row.data().notes || '' : typeof input.notes === 'string' ? input.notes.trim() : '';
+      const effectiveQuota = quota || row.data();
+      if (effectiveQuota.notifyAtOneHour && (!email || effectiveQuota.limitMilliseconds == null))
+        throw fail('INVALID_QUOTA', '通知を有効にする場合は連絡先メールアドレスと上限を設定してください。');
+      if (!name || name.length > 200 || email.length > 254 || notes.length > 5000
+          || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
+        throw fail('INVALID_DOMAIN', '組織名・連絡先メールアドレス・備考を確認してください。');
       if (partnerID !== null) {
         const dealer = await tx.get(this.collection('partners').doc(partnerID));
         if (!dealer.exists || dealer.data().status !== 'active') throw fail('FORBIDDEN', '販売店が無効です。');
       }
       const targetPartner = input.partnerID === undefined ? row.data().partnerID : input.partnerID;
-      if (partnerID === null && (lifecycle || input.partnerID !== undefined)) {
+      if (partnerID === null && (lifecycle || input.partnerID !== undefined || input.status !== undefined)) {
         if (typeof targetPartner !== 'string' || (targetPartner !== SELF_PARTNER_ID && !/^[a-f0-9]{64}$/.test(targetPartner)))
           throw fail('INVALID_PARTNER', '販売店を選択してください。');
         const dealer = targetPartner === SELF_PARTNER_ID ? null : await tx.get(this.collection('partners').doc(targetPartner));
-        if (targetPartner !== SELF_PARTNER_ID && (targetPartner !== row.data().partnerID || lifecycle?.status === 'approved') && (!dealer.exists || dealer.data().status !== 'active'))
+        if (targetPartner !== SELF_PARTNER_ID && (targetPartner !== row.data().partnerID || lifecycle?.status === 'approved' || input.status === 'active') && (!dealer.exists || dealer.data().status !== 'active'))
           throw fail('FORBIDDEN', '販売店が無効です。');
       }
-      const nextStatus = lifecycle ? (lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status) : row.data().status;
+      const nextStatus = lifecycle ? (lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status) : requestedStatus;
       const portal = this.portal && partnerID === null
         ? await this.portal.provision(tx, { ...row.data(), contactEmail: email, status: nextStatus }) : {};
       // 過去の利用台帳・集計と承認日は変更しない。契約設定は同じトランザクションで保存する。
@@ -189,11 +210,12 @@ class PartnerStore {
           resetDay: resetDay(previous), transferredAt: this.now(), status: 'suspended',
         });
       }
-      tx.update(ref, { ...portal, organizationName: name, contactEmail: email, notes,
+      tx.update(ref, { ...portal, ...(section === 'plan' ? {} : { organizationName: name, contactEmail: email, notes }),
         ...(lifecycle ? { ...lifecycle, status: lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status } : {}),
+        ...(input.status !== undefined ? { status: nextStatus } : {}),
         ...(partnerID === null && input.partnerID !== undefined ? { partnerID: targetPartner } : {}),
         ...(quota || {}),
-        ...(quota && quota.resetDay !== resetDay(row.data())
+        ...(Object.entries({ ...(quota || {}), ...(lifecycle || {}) }).some(([key, value]) => row.data()[key] !== value)
           ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) });
     });
     if (this.portal && partnerID === null) await this.portal.deliverForDomain(domain);

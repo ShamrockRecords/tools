@@ -17,6 +17,18 @@ function updateValidity(form) {
     form.elements.validityEndsAt.value = nextValidityMonth(form.elements.validityStartsAt.value);
   }
 }
+function updatePlan(form) {
+  const plan = form.elements.plan.value;
+  const limits = { metered: '0', light: '50', standard: '100', custom: '' };
+  if (form.elements.limitHours && Object.hasOwn(limits, plan)) form.elements.limitHours.value = limits[plan];
+  const label = form.querySelector('[data-limit-label]');
+  if (label) label.textContent = plan === 'trial' ? '有効期間内の上限（時間）' : '1か月の上限（時間）';
+  const note = form.querySelector('[data-limit-note]');
+  if (note) note.textContent = plan === 'trial'
+    ? '月をまたいでもリセットせず、有効期間内の利用時間を合計します。保存時に利用履歴から再計算します。'
+    : '毎月1日（日本時間0時）にリセットします。月途中でも日割りしません。保存時にその月の利用履歴から再計算します。';
+  if (plan === 'trial') { form.elements.validityPeriod.value = 'limited'; updateValidity(form); }
+}
 function updateAnnualOrganization(main, value) {
   const select = main.querySelector('[data-annual-organization]');
   if (!select) return;
@@ -29,6 +41,7 @@ function updateAnnualOrganization(main, value) {
   main.querySelector('[data-annual-empty]').hidden = !!select.value;
 }
 document.addEventListener('change', event => {
+  if (event.target.matches('[data-plan-toggle]')) updatePlan(event.target.form);
   if (event.target.matches('[data-validity-toggle]')) updateValidity(event.target.form);
   if (event.target.matches('[data-validity-start]')) event.target.form.elements.validityEndsAt.value = nextValidityMonth(event.target.value);
   if (event.target.matches('[data-auto-month]') && event.target.checkValidity()) {

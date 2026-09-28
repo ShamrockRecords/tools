@@ -14,6 +14,7 @@ function parseLifecycle(input) {
   const period = input.validityPeriod === undefined ? 'none' : input.validityPeriod;
   const state = input.status === undefined ? 'active' : input.status;
   if (!Object.hasOwn(PLANS, plan) || !['none', 'limited'].includes(period) || !['active', 'inactive'].includes(state)) invalid();
+  if (plan === 'trial' && period !== 'limited') invalid();
   const validityStartsAt = period === 'limited' ? parseDate(input.validityStartsAt) : null;
   const validityEndsAt = period === 'limited' ? parseDate(input.validityEndsAt) : null;
   if (period === 'limited' && (!Number.isFinite(validityStartsAt) || !Number.isFinite(validityEndsAt) || validityEndsAt <= validityStartsAt)) invalid();

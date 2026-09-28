@@ -54,7 +54,7 @@
     <label>メールドメイン<input name="domain" placeholder="example.co.jp" maxlength="253" required></label>
     <label>連絡先メールアドレス（法人ポータルのログイン・送信先）<input name="contactEmail" type="email" maxlength="254" required></label>
     <p>初回有効化時に法人ポータルを作成し、仮パスワードとURLを送信します。</p>
-    <label>プラン<select name="plan" required><option value="trial">トライアル</option><option value="metered">従量制</option><option value="light">ライト</option><option value="standard">スタンダード</option><option value="custom" selected>カスタム</option></select></label>
+    <label>プラン<select name="plan" data-plan-toggle required><option value="trial">トライアル</option><option value="metered">従量制</option><option value="light">ライト</option><option value="standard">スタンダード</option><option value="custom" selected>カスタム</option></select></label>
     <label>有効期間<select name="validityPeriod" data-validity-toggle><option value="none" selected>なし</option><option value="limited">あり</option></select></label>
     <fieldset data-validity-fields hidden disabled><legend>有効期間（日本時間）</legend><label>開始<input name="validityStartsAt" type="datetime-local" data-validity-start required></label><label>終了<input name="validityEndsAt" type="datetime-local" required></label></fieldset>
     <label>状態<select name="status"><option value="active" selected>有効</option><option value="inactive">無効</option></select></label>
@@ -65,16 +65,17 @@
 <p><%= user.name %> — <%= user.email %></p>
 <form method="post" action="/partners/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button class="secondary">ログアウト</button></form>
 <% } %>
-<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" data-auto-month required></label></form><p>認識は発話時間、正式翻訳は対象時間の50％を集計します。今月は現在の利用期間、過去の月はその月のリセット日からの期間を表示します。利用報告を受信・確定した期間に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
+<section><h2>ドメイン別の利用時間</h2><form method="get" action="<%= base %>"><label>対象月（日本時間）<input name="month" type="month" value="<%= month %>" data-auto-month required></label></form><p>認識は発話時間、正式翻訳は対象時間の50％を集計します。トライアルは有効期間全体、それ以外は選択した月の利用時間を表示します。利用報告を受信・確定した期間に計上します。時間は「時間:分:秒」（00:00:00）で表示します。</p>
 <div class="table"><table><thead><tr><% if (admin) { %><th>販売店</th><% } %><th>組織・ドメイン</th><th>リアルタイム</th><th>ファイル</th><th>正式翻訳</th><th>合計</th><th>超過</th><th>操作</th></tr></thead><tbody>
 <% const hours = value => { const seconds = Math.floor(Math.max(0, value) / 1000); return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(part => String(part).padStart(2, '0')).join(':'); }; %>
 <% visibleRows.forEach((row, index) => { const u = row.usage; %><tr class="domain-usage-row<%= row.status === 'approved' ? '' : ' is-inactive' %>">
 <% if (admin) { %><td><%= row.partnerID === 'self' ? '自社' : (partners.find(p => p.id === row.partnerID)?.name || row.partnerID) %></td><% } %>
-<td><strong><%= row.organizationName %></strong><br><%= row.domain %><br><small><%= ({trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'})[row.plan || 'custom'] %></small> <span class="domain-state"><%= ({scheduled:'開始前',active:'有効',inactive:'無効'})[row.displayState || (row.status === 'approved' ? 'active' : 'inactive')] %></span><% if (row.hasValidityPeriod) { %><br><small>有効期間：<%= new Date(row.validityStartsAt).toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}) %>〜<%= new Date(row.validityEndsAt).toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}) %></small><% } %><% if (row.periodStart != null) { %><br><small><%= new Date(row.periodStart).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>〜<%= new Date(row.periodEnd - 1).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) %></small><% } %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
+<td><strong><%= row.organizationName %></strong><br><%= row.domain %><br><small><%= ({trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'})[row.plan || 'custom'] %></small> <span class="domain-state"><%= ({scheduled:'開始前',active:'有効',inactive:'無効'})[row.displayState || (row.status === 'approved' ? 'active' : 'inactive')] %></span><% if (row.hasValidityPeriod) { %><br><small>有効期間：<%= new Date(row.validityStartsAt).toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}) %>〜<%= new Date(row.validityEndsAt).toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}) %></small><% } %></td><td><%= hours(u.realtime) %></td><td><%= hours(u.mediaFile) %></td><td><%= hours(u.formalTranslation) %></td><td><%= hours(u.realtime + u.mediaFile + u.formalTranslation) %></td>
 <td><%= row.excessMilliseconds > 0 ? hours(row.excessMilliseconds) : '—' %></td>
 <td><button type="button" class="secondary" data-dialog-open="domain-details-<%= index %>">詳細</button>
+<button type="button" class="secondary" data-dialog-open="domain-plan-<%= index %>">プラン</button>
 <% if (admin && row.status === 'suspended' && row.canDelete) { %><form method="post" action="<%= base %>/domains/delete" data-confirm-delete><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><button class="danger">削除</button></form><% } %>
-<% if (admin) { %><form method="post" action="<%= base %>/domains/status"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><select name="status" required><option value="active"<%= row.status === 'approved' ? ' selected' : '' %>>有効</option><option value="inactive"<%= row.status !== 'approved' ? ' selected' : '' %>>無効</option></select><button>適用</button></form><% } %></td></tr><% }); %>
+</td></tr><% }); %>
 </tbody></table></div><% if (!visibleRows.length) { %><p>登録されたドメインはありません。</p><% } %></section>
 <section aria-labelledby="annual-usage-title">
   <div class="section-heading">
@@ -84,7 +85,7 @@
       <form method="get" action="<%= base %>"><input type="hidden" name="month" value="<%= month %>"><input type="hidden" name="year" value="<%= year + 1 %>"><button class="secondary" <%= year >= 9999 ? 'disabled' : '' %>>翌年 →</button></form>
     </nav>
   </div>
-  <p>1月から12月までの暦月（日本時間）の実績です。上限判定のリセット期間とは異なり、利用報告を受信・確定した月に計上します。</p>
+  <p>1月から12月までの暦月（日本時間）の実績です。利用報告を受信・確定した月に計上します。</p>
     <label for="annual-organization">組織</label>
     <select id="annual-organization" data-annual-organization>
       <option value="">組織を選択してください</option>
@@ -105,41 +106,54 @@
   <% if (!visibleAnnualRows.length) { %><p>登録されたドメインはありません。</p><% } %>
 </section>
 <% visibleRows.forEach((row, index) => { %>
+<% const planNames = {trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'}; const localDate = value => value == null ? '' : new Date(value + 9 * 3600000).toISOString().slice(0,16); %>
 <dialog id="domain-details-<%= index %>" aria-labelledby="domain-details-title-<%= index %>">
   <h2 id="domain-details-title-<%= index %>">ドメインの詳細</h2>
-  <form method="post" action="<%= base %>/domains/edit">
+  <form id="domain-details-form-<%= index %>" method="post" action="<%= base %>/domains/edit">
+    <input type="hidden" name="section" value="details">
     <input type="hidden" name="csrfToken" value="<%= csrf %>">
     <input type="hidden" name="domain" value="<%= row.domain %>">
     <input type="hidden" name="month" value="<%= month %>">
     <p><%= row.domain %></p>
-    <% const planNames = {trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'}; const localDate = value => value == null ? '' : new Date(value + 9 * 3600000).toISOString().slice(0,16); %>
     <% if (admin) { %>
     <label>販売店<select name="partnerID" required><option value="self" <%= row.partnerID === 'self' ? 'selected' : '' %>>自社</option><% partners.filter(p => p.status === 'active' || p.id === row.partnerID).forEach(p => { %><option value="<%= p.id %>" <%= p.id === row.partnerID ? 'selected' : '' %>><%= p.name %>（<%= p.email %>）</option><% }); %></select></label>
     <p>販売店を変更しても、変更前の利用実績は元の販売店に残ります。</p>
-    <label>プラン<select name="plan" required><% Object.entries(planNames).forEach(([value,label]) => { %><option value="<%= value %>" <%= (row.plan || 'custom') === value ? 'selected' : '' %>><%= label %></option><% }); %></select></label>
-    <label>有効期間<select name="validityPeriod" data-validity-toggle><option value="none" <%= !row.hasValidityPeriod ? 'selected' : '' %>>なし</option><option value="limited" <%= row.hasValidityPeriod ? 'selected' : '' %>>あり</option></select></label>
-    <fieldset data-validity-fields <%= row.hasValidityPeriod ? '' : 'hidden disabled' %>><legend>有効期間（日本時間）</legend><label>開始<input name="validityStartsAt" type="datetime-local" value="<%= localDate(row.validityStartsAt) %>" data-validity-start required></label><label>終了<input name="validityEndsAt" type="datetime-local" value="<%= localDate(row.validityEndsAt) %>" required></label></fieldset>
-    <label>状態<select name="status"><option value="active" <%= row.status === 'approved' ? 'selected' : '' %>>有効</option><option value="inactive" <%= row.status !== 'approved' ? 'selected' : '' %>>無効</option></select></label>
-    <% } else { %>
-    <p>プラン：<%= planNames[row.plan || 'custom'] %> ／ 状態：<%= ({scheduled:'開始前',active:'有効',inactive:'無効'})[row.displayState || (row.status === 'approved' ? 'active' : 'inactive')] %></p>
-    <p>有効期間：<%= row.hasValidityPeriod ? localDate(row.validityStartsAt).replace('T',' ') + ' 〜 ' + localDate(row.validityEndsAt).replace('T',' ') + '（日本時間）' : 'なし' %></p>
     <% } %>
     <label>組織名<input name="organizationName" value="<%= row.organizationName %>" maxlength="200" required></label>
     <label>連絡先メールアドレス<input type="email" name="contactEmail" value="<%= row.contactEmail || '' %>" maxlength="254"></label>
     <% if (admin) { %><p>初回有効化時にこのメールアドレスで法人ポータルを作成します。作成後の連絡先変更ではログイン先は変わりません。</p>
     <% if (row.portalAccountID) { %><p>法人ポータルのログイン：<%= row.portalLoginEmail %></p><% } %><% } %>
     <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
-    <label>上限（時間）<input type="number" name="limitHours" min="0" step="0.01" value="<%= row.limitMilliseconds == null ? '' : row.limitMilliseconds / 3600000 %>" placeholder="空欄は上限なし"></label>
-    <label>毎月のリセット日<input type="number" name="resetDay" min="1" max="31" step="1" value="<%= row.resetDay || 1 %>" required></label>
-    <p>日本時間の指定日0時にリセットします。指定日がない月は月末です。リセット日を変更すると、その日付による期間で利用時間を再集計します。</p>
+    <% if (admin) { %><label>状態<select name="status" required><option value="active" <%= row.status === 'approved' ? 'selected' : '' %>>有効</option><option value="inactive" <%= row.status !== 'approved' ? 'selected' : '' %>>無効</option></select></label><% } %>
+  </form>
+  <% if (admin && row.portalAccountID) { %>
+  <form method="post" action="<%= base %>/domains/portal-invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><p>未送信・送信失敗の案内だけ再送します。送信済みの仮パスワードは再発行しません。</p><button class="secondary">ポータル案内を再送</button></form>
+  <% } %>
+  <div class="dialog-actions domain-details-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button type="submit" form="domain-details-form-<%= index %>">保存</button></div>
+</dialog>
+<dialog id="domain-plan-<%= index %>" aria-labelledby="domain-plan-title-<%= index %>">
+  <h2 id="domain-plan-title-<%= index %>">ドメインのプラン</h2>
+  <form method="post" action="<%= base %>/domains/edit">
+    <input type="hidden" name="section" value="plan">
+    <input type="hidden" name="csrfToken" value="<%= csrf %>">
+    <input type="hidden" name="domain" value="<%= row.domain %>">
+    <input type="hidden" name="month" value="<%= month %>">
+    <p><%= row.organizationName %>（<%= row.domain %>）</p>
+    <% if (admin) { %>
+    <label>プラン<select name="plan" data-plan-toggle required><% Object.entries(planNames).forEach(([value,label]) => { %><option value="<%= value %>" <%= (row.plan || 'custom') === value ? 'selected' : '' %>><%= label %></option><% }); %></select></label>
+    <label>有効期間<select name="validityPeriod" data-validity-toggle><option value="none" <%= !row.hasValidityPeriod ? 'selected' : '' %>>なし</option><option value="limited" <%= row.hasValidityPeriod ? 'selected' : '' %>>あり</option></select></label>
+    <fieldset data-validity-fields <%= row.hasValidityPeriod ? '' : 'hidden disabled' %>><legend>有効期間（日本時間）</legend><label>開始<input name="validityStartsAt" type="datetime-local" value="<%= localDate(row.validityStartsAt) %>" data-validity-start required></label><label>終了<input name="validityEndsAt" type="datetime-local" value="<%= localDate(row.validityEndsAt) %>" required></label></fieldset>
+    <% } else { %>
+    <p>プラン：<%= planNames[row.plan || 'custom'] %> ／ 状態：<%= ({scheduled:'開始前',active:'有効',inactive:'無効'})[row.displayState || (row.status === 'approved' ? 'active' : 'inactive')] %></p>
+    <p>有効期間：<%= row.hasValidityPeriod ? localDate(row.validityStartsAt).replace('T',' ') + ' 〜 ' + localDate(row.validityEndsAt).replace('T',' ') + '（日本時間）' : 'なし' %></p>
+    <% } %>
+    <label><span data-limit-label><%= row.plan === 'trial' ? '有効期間内の上限（時間）' : '1か月の上限（時間）' %></span><input type="number" name="limitHours" min="0" step="0.01" value="<%= row.limitMilliseconds == null ? '' : row.limitMilliseconds / 3600000 %>" placeholder="空欄は上限なし"></label>
+    <p data-limit-note><%= row.plan === 'trial' ? '月をまたいでもリセットせず、有効期間内の利用時間を合計します。保存時に利用履歴から再計算します。' : '毎月1日（日本時間0時）にリセットします。月途中でも日割りしません。保存時にその月の利用履歴から再計算します。' %></p>
     <label class="checkbox"><input type="checkbox" name="stopAtLimit" <%= row.stopAtLimit ? 'checked' : '' %>>上限に達したら利用不可にする</label>
     <label class="checkbox"><input type="checkbox" name="notifyAtOneHour" <%= row.notifyAtOneHour ? 'checked' : '' %>>残り1時間で連絡先と販売店にメールで通知する</label>
     <p>通知は利用報告の受信時に判定します。報告間隔・メール配送分の遅れがあります。認識中の停止も報告時の判定となり、超過する場合があります。</p>
     <div class="dialog-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button>保存</button></div>
   </form>
-  <% if (admin && row.portalAccountID) { %>
-  <form method="post" action="<%= base %>/domains/portal-invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><p>未送信・送信失敗の案内だけ再送します。送信済みの仮パスワードは再発行しません。</p><button class="secondary">ポータル案内を再送</button></form>
-  <% } %>
 </dialog>
 <% }); %>
 <% } %></main></body></html>

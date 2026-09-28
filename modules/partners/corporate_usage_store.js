@@ -108,7 +108,9 @@ class CorporateUsageStore {
       const updated = { ...row, leaseExpiresAt: lease(row, this.now()), updatedAt: new Date(this.now()) };
       if (result.changed) tx.set(ref, updated);
       if (quota) {
-        quota.usage[row.operation] += result.delta;
+        // 期間外の精算も台帳には残すが、トライアルの期間内利用には加えない。
+        if (this.now() >= quota.period.start && this.now() < quota.period.end)
+          quota.usage[row.operation] += result.delta;
         saveQuota(tx, quota);
       }
       if (result.delta > 0) {

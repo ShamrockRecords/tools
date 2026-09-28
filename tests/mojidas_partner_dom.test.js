@@ -33,6 +33,15 @@ module.exports = async function () {
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/javascripts/mojidas-partners.js'), 'utf8'), context);
+  const limitLabel = {}, limitNote = {};
+  const planForm = { elements: { plan: { value: '' }, limitHours: { value: '999' } },
+    querySelector: selector => selector === '[data-limit-label]' ? limitLabel : limitNote };
+  for (const [plan, hours] of [['metered', '0'], ['light', '50'], ['standard', '100'], ['custom', '']]) {
+    planForm.elements.plan.value = plan;
+    context.updatePlan(planForm);
+    assert.equal(planForm.elements.limitHours.value, hours);
+    assert.equal(limitLabel.textContent, '1か月の上限（時間）');
+  }
   for (const action of ['status', 'domains/status', 'edit', 'domains/edit', 'invite', 'domains']) {
     const form = {
       id: action, action: `https://app.mojidas.jp/admin/mojidas-partners/${action}`, method: 'post',

@@ -9,7 +9,7 @@ async function main() {
   const fixture = { mode: 'dashboard', admin: true, user: null, month: '2026-09', year: 2026, annualRows: [],
     partners: [], csrf: 'fixture', base: '/admin/mojidas-partners', error: '',
     rows: [{ partnerID: 'test', organizationName: 'テスト', domain: 'example.com',
-      website: 'https://example.com', contact: '', status: 'approved',
+      website: 'https://example.com', contact: '', status: 'approved', portalAccountID: 'portal-fixture', portalLoginEmail: 'contact@example.com',
       usage: { realtime: 0, mediaFile: 3661999, formalTranslation: 360000000 } }] };
   for (const admin of [true, false]) {
     const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
@@ -23,11 +23,32 @@ async function main() {
     const dialog = html.split('<dialog id="domain-details-0"')[1].split('</dialog>')[0];
     assert(dialog.includes(`action="${admin ? '/admin/mojidas-partners' : '/partners'}/domains/edit"`));
     assert(dialog.includes('name="domain" value="example.com"'));
-    for (const field of ['organizationName', 'contactEmail', 'notes', 'limitHours', 'resetDay', 'stopAtLimit', 'notifyAtOneHour'])
+    const planDialog = html.split('<dialog id="domain-plan-0"')[1].split('</dialog>')[0];
+    assert(html.includes('data-dialog-open="domain-plan-0"'));
+    assert(dialog.includes('name="section" value="details"'));
+    assert(planDialog.includes('name="section" value="plan"'));
+    for (const field of ['organizationName', 'contactEmail', 'notes']) {
       assert(dialog.includes(`name="${field}"`));
+      assert(!planDialog.includes(`name="${field}"`));
+    }
+    assert(!planDialog.includes('name="resetDay"'));
+    for (const field of ['limitHours', 'stopAtLimit', 'notifyAtOneHour']) {
+      assert(planDialog.includes(`name="${field}"`));
+      assert(!dialog.includes(`name="${field}"`));
+    }
     assert(dialog.includes('type="button" class="secondary" data-dialog-close'));
-    for (const field of ['partnerID', 'plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt', 'status'])
-      assert.equal(dialog.includes(`name="${field}"`), admin, '契約設定の編集は管理者のみ');
+    assert(dialog.includes('id="domain-details-form-0"'));
+    assert(dialog.includes('type="submit" form="domain-details-form-0">保存</button>'));
+    assert(dialog.indexOf('domain-details-actions') > dialog.lastIndexOf('</form>'), '操作ボタンは全フォームの後に配置する');
+    if (admin) assert(dialog.indexOf('domain-details-actions') > dialog.indexOf('ポータル案内を再送'));
+    assert.equal(dialog.includes('name="partnerID"'), admin);
+    assert.equal(dialog.includes('name="status"'), admin);
+    assert(!planDialog.includes('name="status"'));
+    assert(!html.includes('/domains/status'));
+    for (const field of ['plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt']) {
+      assert.equal(planDialog.includes(`name="${field}"`), admin, '契約設定の編集は管理者のみ');
+      assert(!dialog.includes(`name="${field}"`));
+    }
   }
   const calls = []; let active = true;
   for (const status of ['active', 'suspended', 'invited']) {
@@ -66,7 +87,7 @@ async function main() {
   assert(scheduledHTML.includes('<td>自社</td>'));
   assert(scheduledHTML.includes('class="domain-state">開始前</span>'));
   for (const field of ['plan', 'validityPeriod', 'validityStartsAt', 'validityEndsAt']) assert(scheduledHTML.includes(`name="${field}"`));
-  assert(scheduledHTML.split('/domains/status')[1].includes('value="active" selected'), '開始前でも操作上は有効を維持');
+  assert(scheduledHTML.split('<dialog id="domain-details-0"')[1].split('</dialog>')[0].includes('value="active" selected'), '開始前でも操作上は有効を維持');
   const dropdownHTML = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
     { ...fixture, partners: [
       { id: 'active-dealer', name: '<販売店>', email: 'active@example.com', status: 'active' },
@@ -123,7 +144,7 @@ async function main() {
     }
     const html = await require('ejs').renderFile(path.join(__dirname, '../views/partners/index.ejs'),
       { ...fixture, rows: [{ ...fixture.rows[0], status }] });
-    const select = html.split('/domains/status')[1].match(/<select name="status"[\s\S]*?<\/select>/)[0];
+    const select = html.split('<dialog id="domain-details-0"')[1].match(/<select name="status"[\s\S]*?<\/select>/)[0];
     assert(select.includes(`value="${status === 'approved' ? 'active' : 'inactive'}" selected`));
     assert.equal((select.match(/ selected/g) || []).length, 1);
   }
