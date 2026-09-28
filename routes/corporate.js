@@ -45,6 +45,43 @@ function createCorporateRouter({ store = corporatePortalStore, now = Date.now } 
       csrf: req.session.corporateCSRF, rows });
   }
   router.get('/', wrap((req, res) => render(req, res)));
+  const resetView = (req, res, mode, error = '', status = 200) => res.status(status).render('corporate/reset', {
+    mode, error, csrf: req.session.corporateCSRF,
+  });
+  const resetLimited = createMemoryRateLimiter({ windowMs: 15 * 60000, max: 5, keyPrefix: 'corporate-reset',
+    keyGenerator: req => req.ip || req.socket.remoteAddress,
+    onLimit: (req, res) => resetView(req, res, 'sent') });
+  router.get('/forgot-password', (req, res) => resetView(req, res, 'request'));
+  router.post('/forgot-password', resetLimited, (req, res) => {
+    // 存在確認・配送時間をHTTP応答から切り離し、登録の有無を返さない。
+    const email = req.body.email;
+    setImmediate(() => Promise.resolve().then(() => store.requestPasswordReset(email))
+      .catch(() => console.warn('[CorporatePortal] password reset delivery failed')));
+    return resetView(req, res, 'sent');
+  });
+  router.get('/reset-password', wrap(async (req, res) => {
+    if (req.query.token !== undefined) {
+      req.session.corporateResetToken = typeof req.query.token === 'string' && /^[a-f0-9]{64}\.[a-f0-9]{64}$/.test(req.query.token) ? req.query.token : null;
+      // メール検査のGETでは消費せず、以降のURLからトークンを除く。
+      return new Promise((resolve, reject) => req.session.save(error => {
+        if (error) return reject(error);
+        res.redirect(303, '/corporate/reset-password'); resolve();
+      }));
+    }
+    return resetView(req, res, req.session.corporateResetToken ? 'reset' : 'invalid');
+  }));
+  router.post('/reset-password', limited, wrap(async (req, res) => {
+    try {
+      if (req.body.password !== req.body.confirmPassword) throw new Error('パスワードと確認用の入力が一致しません。');
+      await store.resetPassword(req.session.corporateResetToken, req.body.password);
+    } catch (error) {
+      const safe = ['パスワードと確認用の入力が一致しません。', '新しいパスワードは12〜128文字で入力してください。',
+        'これまでと異なるパスワードを設定してください。', 'リンクが無効または期限切れです。再設定メールをもう一度申請してください。'];
+      return resetView(req, res, 'reset', safe.includes(error.message) ? error.message : '再設定できませんでした。時間をおいて再度お試しください。', 400);
+    }
+    await regenerate(req);
+    return resetView(req, res, 'complete');
+  }));
   for (const [path, method] of [['member-policy', 'policy'], ['members', 'setMembers']]) {
     router.post(`/${path}`, wrap(async (req, res) => {
       const user = await current(req);

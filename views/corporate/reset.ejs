@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>パスワード再設定 | Mojidas 法人向けポータル</title><link rel="stylesheet" href="/stylesheets/mojidas-corporate.css"></head>
+<body><main><header><h1>法人向けポータル</h1></header><section class="auth-card">
+<h2>パスワードの再設定</h2>
+<% if (error) { %><p class="error" role="alert"><%= error %></p><% } %>
+<% if (mode === 'request') { %>
+<p>ポータルに登録したメールアドレスを入力してください。</p>
+<form method="post" action="/corporate/forgot-password"><input type="hidden" name="csrfToken" value="<%= csrf %>">
+<label>メールアドレス<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button>再設定メールを送信</button></form>
+<% } else if (mode === 'sent') { %>
+<p role="status">入力されたメールアドレスが登録されている場合、パスワード再設定の案内を送信します。届かない場合は迷惑メールフォルダーをご確認のうえ、時間をおいて再度お試しください。</p>
+<% } else if (mode === 'reset') { %>
+<p>12〜128文字の、これまでと異なるパスワードを設定してください。再設定後はすべての端末で再ログインが必要です。</p>
+<form method="post" action="/corporate/reset-password"><input type="hidden" name="csrfToken" value="<%= csrf %>">
+<label>新しいパスワード<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+<label>新しいパスワード（確認）<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><button>パスワードを再設定</button></form>
+<p><a href="/corporate/forgot-password">再設定メールをもう一度申請する</a></p>
+<% } else if (mode === 'complete') { %>
+<p role="status">パスワードを再設定しました。新しいパスワードでログインしてください。</p>
+<% } else { %><p>リンクが無効または期限切れです。</p><p><a href="/corporate/forgot-password">再設定メールを申請する</a></p><% } %>
+<p><a href="/corporate">ログイン画面へ戻る</a></p>
+</section></main></body></html>

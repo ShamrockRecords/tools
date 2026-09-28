@@ -182,7 +182,8 @@ if (process.env.ROOT_URL != "http://localhost:3000") {
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-app.use(logger('dev'));
+// 再設定リンクの秘密トークンをアクセスログへ残さない。
+app.use(logger('dev', { skip: req => req.path === '/corporate/reset-password' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());

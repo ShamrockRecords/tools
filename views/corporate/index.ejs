@@ -14,6 +14,7 @@
       <label>メールアドレス<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
       <label>パスワード<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><button>ログイン</button>
     </form>
+    <p><a href="/corporate/forgot-password">パスワードをお忘れの方</a></p>
   </section>
   <% } else if (mode === 'verify') { %>
   <section class="auth-card"><h2>メールアドレスの認証</h2><p><%= user.email %> に届いた6桁のコードを入力してください。有効期限は10分です。認証後にパスワードを変更します。</p>

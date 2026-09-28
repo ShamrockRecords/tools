@@ -105,6 +105,44 @@ class CorporatePortalStore {
     if (!result) throw fail('メールアドレスまたはパスワードを確認してください。');
     return result;
   }
+  async requestPasswordReset(email) {
+    if (typeof email !== 'string' || email.length > 254) return;
+    const id = hash(emailOf(email)), ref = this.collection('corporatePortalAccounts').doc(id);
+    const token = crypto.randomBytes(32).toString('hex');
+    const account = await this.provider().runTransaction(async tx => {
+      const row = (await tx.get(ref)).data();
+      if (!row || (row.resetRequestedAt && this.now() - row.resetRequestedAt < 60000)) return null;
+      tx.update(ref, { resetHash: hash(token), resetExpiresAt: this.now() + 30 * 60000,
+        resetVersion: row.version, resetRequestedAt: this.now() });
+      return row;
+    });
+    if (!account) return;
+    try {
+      await this.send(account.email, 'Mojidas 法人向けポータルのパスワード再設定',
+        `以下のリンクから新しいパスワードを設定してください。有効期限は30分です。リンクは一度だけ利用できます。\n${URL}/reset-password?token=${id}.${token}\n\n心当たりがない場合は、このメールを無視してください。再設定を完了するまでパスワードは変更されません。`);
+    } catch (error) {
+      await this.provider().runTransaction(async tx => {
+        const row = (await tx.get(ref)).data();
+        if (row?.resetHash === hash(token)) tx.update(ref, { resetHash: null, resetExpiresAt: 0 });
+      });
+      throw error;
+    }
+  }
+  async resetPassword(token, password) {
+    if (!validPassword(password)) throw fail('新しいパスワードは12〜128文字で入力してください。');
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}\.[a-f0-9]{64}$/.test(token)) throw fail('リンクが無効または期限切れです。再設定メールをもう一度申請してください。');
+    const [id, secret] = token.split('.'), ref = this.collection('corporatePortalAccounts').doc(id);
+    const passwordHash = createAdminPasswordHash(password);
+    await this.provider().runTransaction(async tx => {
+      const row = (await tx.get(ref)).data();
+      if (!row || row.resetHash !== hash(secret) || row.resetExpiresAt <= this.now() || row.resetVersion !== row.version)
+        throw fail('リンクが無効または期限切れです。再設定メールをもう一度申請してください。');
+      if (verifyPassword(password, row.passwordHash)) throw fail('これまでと異なるパスワードを設定してください。');
+      tx.update(ref, { passwordHash, version: row.version + 1, mustChangePassword: false,
+        resetHash: null, resetExpiresAt: 0, failedLogins: 0, lockedUntil: 0,
+        invitation: null, invitationStatus: 'sent', latestChallengeID: null, passwordChangedAt: this.now() });
+    });
+  }
   codeHash(id, code) { return crypto.createHmac('sha256', this.key()).update(`${id}:${code}`).digest('hex'); }
   async challenge(login) {
     const id = crypto.randomBytes(24).toString('hex'), code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
