@@ -51,6 +51,8 @@ async function main() {
   const temporary = sent[0].text.match(/仮パスワード：([^\n]+)/)[1];
   let login = await portal.login(input.contactEmail.toUpperCase(), temporary);
   assert(login.mustChangePassword);
+  assert.equal((await store.dashboard(null, '2026-09'))[0].portalStatus.lastLoginAt, null, '仮パスワードだけでは利用開始としない');
+  assert((await store.dashboard(null, '2026-09'))[0].portalStatus.initialSetupPending);
   assert.equal(await portal.account(login), null, '仮パスワードだけでダッシュボード不可');
   assert(!JSON.stringify(db.records('Mojidas/production/corporatePortalAccounts')).includes(temporary));
   const id = login.id;
@@ -80,9 +82,14 @@ async function main() {
   assert.deepStrictEqual(db.collections, beforePassword, '変更失敗ではパスワード・認証コードを保持');
   login = await portal.changePassword(login, { password: 'new-secure-password', challengeID: challenge });
   assert(await portal.account(login));
+  assert.equal((await store.dashboard(null, '2026-09'))[0].portalStatus.lastLoginAt, now, '初回認証完了を記録');
+  assert.equal((await store.dashboard('self', '2026-09'))[0].portalStatus, null, '管理者以外へログイン履歴を渡さない');
   assert.equal(await portal.account(oldLogin, true), null);
   await assert.rejects(portal.login(input.contactEmail, temporary));
+  assert.equal((await store.dashboard(null, '2026-09'))[0].portalStatus.lastLoginAt, now, '失敗ログインでは更新しない');
+  now += 1000;
   assert.equal((await portal.login(input.contactEmail, 'new-secure-password')).mustChangePassword, false);
+  assert.equal((await store.dashboard(null, '2026-09'))[0].portalStatus.lastLoginAt, now, '通常ログインで更新');
   await assert.rejects(portal.changePassword(login, { password: 'another-password-123', currentPassword: 'wrong' }));
   login = await portal.changePassword(login, { password: 'another-password-123', currentPassword: 'new-secure-password' });
 

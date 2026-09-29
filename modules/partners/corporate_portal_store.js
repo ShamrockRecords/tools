@@ -99,7 +99,8 @@ class CorporatePortalStore {
           lockedUntil: failures >= 5 ? this.now() + 15 * 60000 : 0 });
         return null;
       }
-      tx.update(ref, { failedLogins: 0, lockedUntil: 0 });
+      tx.update(ref, { failedLogins: 0, lockedUntil: 0,
+        ...(!row.mustChangePassword ? { lastLoginAt: this.now() } : {}) });
       return { id, email: row.email, version: row.version, mustChangePassword: row.mustChangePassword };
     });
     if (!result) throw fail('メールアドレスまたはパスワードを確認してください。');
@@ -202,7 +203,8 @@ class CorporatePortalStore {
           || challenge.expiresAt <= this.now() || row.latestChallengeID !== challengeID) throw fail('メール認証からやり直してください。');
       }
       tx.update(ref, { passwordHash, mustChangePassword: false, version: row.version + 1,
-        invitation: null, invitationStatus: 'sent', passwordChangedAt: this.now(), latestChallengeID: null });
+        invitation: null, invitationStatus: 'sent', passwordChangedAt: this.now(), latestChallengeID: null,
+        ...(row.mustChangePassword ? { lastLoginAt: this.now() } : {}) });
       if (challengeRef) tx.delete(challengeRef);
       return { id: login.id, email: row.email, version: row.version + 1, mustChangePassword: false };
     });

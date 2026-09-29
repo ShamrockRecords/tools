@@ -285,7 +285,12 @@ class PartnerStore {
         if (item.partnerID === data.partnerID && Object.hasOwn(usage, item.operation)) usage[item.operation] += item.milliseconds;
       }
       const canDelete = !quota.settings.historical && quota.settings.status === 'suspended' && (await deletionState(this.provider(), id)).canDelete;
-      return { ...quota.settings, canDelete, historical: !!quota.settings.historical, displayState: displayState(quota.settings, this.now()), resetDay: resetDay(quota.settings), id,
+      let portalStatus = null;
+      if (partnerID === null && !quota.settings.historical && quota.settings.portalAccountID) {
+        const account = (await this.collection('corporatePortalAccounts').doc(quota.settings.portalAccountID).get()).data();
+        if (account) portalStatus = { lastLoginAt: account.lastLoginAt || null, initialSetupPending: !!account.mustChangePassword };
+      }
+      return { ...quota.settings, portalStatus, canDelete, historical: !!quota.settings.historical, displayState: displayState(quota.settings, this.now()), resetDay: resetDay(quota.settings), id,
         usage, periodStart: quota.period.start, periodEnd: quota.period.end,
         ...quotaStatus(quota.settings, totalUsage(quota.usage)) };
     }));
