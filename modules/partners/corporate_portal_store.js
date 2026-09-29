@@ -12,6 +12,9 @@ const emailOf = value => String(value || '').trim().toLowerCase();
 const fail = message => new Error(message);
 const validPassword = value => typeof value === 'string' && value.length >= 12 && value.length <= 128;
 const dummyHash = createAdminPasswordHash('corporate-login-dummy-password');
+// 旧版の初回設定完了はそのままログインする動作。再設定だけの完了とは区別する。
+const portalState = account => !account ? 'not-created' : account.lastLoginAt
+  || (!account.mustChangePassword && account.passwordChangedAt && account.resetVersion == null) ? 'logged-in' : 'not-logged-in';
 
 class CorporatePortalStore {
   constructor({ firestoreProvider = getFirestore, now = Date.now, mailer, secret = () => process.env.SESSION_SECRET, authProvider } = {}) {
@@ -85,6 +88,24 @@ class CorporatePortalStore {
       throw fail('ドメインとポータルは保存済みですが、案内メールを送信できませんでした。詳細の「ポータル案内を再送」から再試行してください。');
     }
   }
+  async inviteForDomain(domain) {
+    const ref = this.collection('corporateDomains').doc(domain);
+    await this.provider().runTransaction(async tx => {
+      const row = (await tx.get(ref)).data();
+      if (!row) throw fail('ドメインが見つかりません。');
+      if (row.portalAccountID) return;
+      // 明示的な案内操作はプランの有効・無効や利用期間を変更しない。
+      const link = await this.provision(tx, { ...row, status: 'approved' });
+      tx.update(ref, link);
+    });
+    const domainRow = (await ref.get()).data();
+    const account = (await this.collection('corporatePortalAccounts').doc(domainRow.portalAccountID).get()).data();
+    if (!account) throw fail('ポータルアカウントが見つかりません。');
+    if (portalState(account) === 'logged-in') return;
+    if (account.invitation && account.invitationStatus !== 'sent') return this.deliverForDomain(domain);
+    // 送信済み仮パスワードは復元しない。本人だけが設定できるリンクを再送する。
+    return this.requestPasswordReset(account.email, true);
+  }
   async login(email, password) {
     const id = hash(emailOf(email)), ref = this.collection('corporatePortalAccounts').doc(id);
     const first = await ref.get(), data = first.data();
@@ -106,13 +127,18 @@ class CorporatePortalStore {
     if (!result) throw fail('メールアドレスまたはパスワードを確認してください。');
     return result;
   }
-  async requestPasswordReset(email) {
+  async requestPasswordReset(email, reportCooldown = false) {
     if (typeof email !== 'string' || email.length > 254) return;
     const id = hash(emailOf(email)), ref = this.collection('corporatePortalAccounts').doc(id);
     const token = crypto.randomBytes(32).toString('hex');
     const account = await this.provider().runTransaction(async tx => {
       const row = (await tx.get(ref)).data();
-      if (!row || (row.resetRequestedAt && this.now() - row.resetRequestedAt < 60000)) return null;
+      if (!row) return null;
+      if (reportCooldown && portalState(row) === 'logged-in') return null;
+      if (row.resetRequestedAt && this.now() - row.resetRequestedAt < 60000) {
+        if (reportCooldown) throw fail('案内の再送は1分以上あけてください。');
+        return null;
+      }
       tx.update(ref, { resetHash: hash(token), resetExpiresAt: this.now() + 30 * 60000,
         resetVersion: row.version, resetRequestedAt: this.now() });
       return row;
@@ -218,4 +244,5 @@ class CorporatePortalStore {
   }
 }
 module.exports = { CorporatePortalStore };
+module.exports.portalState = portalState;
 module.exports.corporatePortalStore = new CorporatePortalStore();

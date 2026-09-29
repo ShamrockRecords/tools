@@ -122,16 +122,16 @@
     <label>組織名<input name="organizationName" value="<%= row.organizationName %>" maxlength="200" required></label>
     <label>連絡先メールアドレス<input type="email" name="contactEmail" value="<%= row.contactEmail || '' %>" maxlength="254"></label>
     <% if (admin) { %><p>初回有効化時にこのメールアドレスで法人ポータルを作成します。作成後の連絡先変更ではログイン先は変わりません。</p>
+    <p>ポータル利用状況：<%= ({'not-created':'未作成','not-logged-in':'作成済み・未ログイン','logged-in':'ログイン済み'})[row.portalStatus?.state || 'not-created'] %></p>
     <% if (row.portalAccountID) { %><p>法人ポータルのログイン：<%= row.portalLoginEmail %></p>
-    <p>ポータル利用状況：<%= row.portalStatus?.lastLoginAt ? 'ログイン済み' : row.portalStatus?.initialSetupPending ? '初回設定未完了' : 'ログイン記録なし' %></p>
     <% if (row.portalStatus?.lastLoginAt) { %><p>最終ログイン：<%= new Date(row.portalStatus.lastLoginAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>（日本時間）</p><% } else { %><p class="help">過去のログイン日時は記録されていません。今後のログインから記録します。</p><% } %>
     <p class="help">同じポータルアカウントで複数ドメインを管理している場合、利用状況は共通です。現在オンラインかどうかを示すものではありません。</p>
     <% } %><% } %>
     <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
     <% if (admin) { %><label>状態<select name="status" required><option value="active" <%= row.status === 'approved' ? 'selected' : '' %>>有効</option><option value="inactive" <%= row.status !== 'approved' ? 'selected' : '' %>>無効</option></select></label><% } %>
   </form>
-  <% if (admin && row.portalAccountID && row.portalStatus?.initialSetupPending && !row.portalStatus?.lastLoginAt) { %>
-  <form method="post" action="<%= base %>/domains/portal-invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><p>未送信・送信失敗の案内だけ再送します。送信済みの仮パスワードは再発行しません。</p><button class="secondary">ポータル案内を再送</button></form>
+  <% if (admin && row.portalStatus?.state !== 'logged-in') { %>
+  <form method="post" action="<%= base %>/domains/portal-invite"><input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>"><p class="help"><%= row.portalStatus?.state === 'not-logged-in' ? '登録済みのログインメールアドレスに案内を再送します。初回案内が送信済みの場合は、パスワード設定用リンクを送ります。' : '保存済みの連絡先メールアドレスでポータルを作成し、案内を送信します。既存アカウントがある場合は紐付けます。' %></p><button class="secondary"><%= row.portalStatus?.state === 'not-logged-in' ? 'ポータル案内を再送' : 'ポータルを作成して案内を送信' %></button></form>
   <% } %>
   <div class="dialog-actions domain-details-actions"><button type="button" class="secondary" data-dialog-close>キャンセル</button><button type="submit" form="domain-details-form-<%= index %>">保存</button></div>
 </dialog>

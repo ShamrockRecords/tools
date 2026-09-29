@@ -27,6 +27,45 @@ class DB extends FakeFirestore {
   }
 }
 async function main() {
+  // 3状態と作成・再送を独立したデータで検証する。
+  {
+    const isolated = new DB(), delivered = [];
+    const portal = new CorporatePortalStore({ firestoreProvider: () => isolated, now: () => 1900000000000,
+      secret: () => 'isolated-invitation-secret-1234567890', mailer: { send: async mail => delivered.push(mail) } });
+    const { portalState } = require('../modules/partners/corporate_portal_store');
+    const domain = portal.collection('corporateDomains').doc('fixture.example');
+    const original = { domain: 'fixture.example', status: 'approved', contactEmail: 'owner@fixture.example', plan: 'light', limitMilliseconds: 12345 };
+    await domain.set(original);
+    assert.equal(portalState(null), 'not-created');
+    isolated.fail = true;
+    await assert.rejects(portal.inviteForDomain('fixture.example'));
+    assert.deepStrictEqual((await domain.get()).data(), original);
+    assert.equal(delivered.length, 0);
+    await portal.inviteForDomain('fixture.example');
+    const linked = (await domain.get()).data();
+    const accountRef = portal.collection('corporatePortalAccounts').doc(linked.portalAccountID);
+    const account = (await accountRef.get()).data();
+    assert.equal(portalState(account), 'not-logged-in');
+    assert.equal(linked.plan, original.plan); assert.equal(linked.limitMilliseconds, original.limitMilliseconds);
+    assert.equal(delivered.length, 1);
+    await portal.inviteForDomain('fixture.example');
+    assert.equal(delivered.length, 2, '送信済みでも未ログインなら実際に再送');
+    assert(delivered[1].text.includes('/reset-password?token='));
+    assert.equal((await accountRef.get()).data().passwordHash, account.passwordHash, '再送だけではパスワード変更しない');
+    await assert.rejects(portal.inviteForDomain('fixture.example'), /1分/);
+    await accountRef.update({ lastLoginAt: 1900000000000, mustChangePassword: false });
+    assert.equal(portalState((await accountRef.get()).data()), 'logged-in');
+    await portal.inviteForDomain('fixture.example'); assert.equal(delivered.length, 2, 'ログイン済みには送らない');
+    assert.equal(portalState({ mustChangePassword: false, passwordChangedAt: 123 }), 'logged-in', '旧版の初回設定完了');
+    assert.equal(portalState({ mustChangePassword: false, passwordChangedAt: 123, resetVersion: 1 }), 'not-logged-in', '再設定完了だけではログイン済みとしない');
+    const source = require('fs').readFileSync(require('path').join(__dirname, '../views/partners/index.ejs'), 'utf8');
+    const start = source.indexOf('  <% if (admin && row.portalStatus?.state');
+    const fragment = source.slice(start, source.indexOf('  <% } %>', start) + 10);
+    for (const [state, label] of [['not-created', 'ポータルを作成して案内を送信'], ['not-logged-in', 'ポータル案内を再送'], ['logged-in', null]]) {
+      const html = require('ejs').render(fragment, {admin:true,row:{domain:'fixture.example',portalStatus:{state}},base:'/admin/mojidas-partners',csrf:'fixture'});
+      if (label) assert(html.includes(label)); else assert(!html.includes('<button'));
+    }
+  }
   const db = new DB(); let now = Date.parse('2026-09-21T00:00:00Z'), failMail = false;
   const sent = [], mailer = { send: async message => { if (failMail) throw Error('mail failed'); sent.push(message); } };
   const options = { firestoreProvider: () => db, now: () => now, mailer, secret: () => 'fixture-only-secret-for-corporate-portal-123456789', authProvider: () => ({ listUsers: async () => ({ users: [] }) }) };

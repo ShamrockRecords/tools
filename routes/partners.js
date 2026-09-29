@@ -74,7 +74,7 @@ function createPartnerRouter({ store = defaultStore, admin = false, now = Date.n
         const { normalizeDomain } = require('../modules/partners/domain_policy');
         const domain = normalizeDomain(req.body.domain);
         if (!domain) throw new Error('ドメインを確認してください。');
-        await store.portal.deliverForDomain(domain);
+        await store.portal.inviteForDomain(domain);
       } catch (error) { return render(req, res, 'dashboard', 400, error.message); }
       return adminUpdated(req, res);
     }));

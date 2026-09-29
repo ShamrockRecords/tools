@@ -9,7 +9,7 @@ const { parseQuota, resetDay, boundary, quotaStatus, periodAt, planLimitHours } 
 const { readQuota, saveQuota, totalUsage } = require('./quota_store');
 const { monthAt } = require('./usage_policy');
 const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require('./domain_lifecycle');
-const { CorporatePortalStore } = require('./corporate_portal_store');
+const { CorporatePortalStore, portalState } = require('./corporate_portal_store');
 const { enrollMember } = require('./corporate_membership');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -285,10 +285,10 @@ class PartnerStore {
         if (item.partnerID === data.partnerID && Object.hasOwn(usage, item.operation)) usage[item.operation] += item.milliseconds;
       }
       const canDelete = !quota.settings.historical && quota.settings.status === 'suspended' && (await deletionState(this.provider(), id)).canDelete;
-      let portalStatus = null;
+      let portalStatus = partnerID === null ? { state: 'not-created', lastLoginAt: null } : null;
       if (partnerID === null && !quota.settings.historical && quota.settings.portalAccountID) {
         const account = (await this.collection('corporatePortalAccounts').doc(quota.settings.portalAccountID).get()).data();
-        if (account) portalStatus = { lastLoginAt: account.lastLoginAt || null, initialSetupPending: !!account.mustChangePassword };
+        if (account) portalStatus = { state: portalState(account), lastLoginAt: account.lastLoginAt || null, initialSetupPending: !!account.mustChangePassword };
       }
       return { ...quota.settings, portalStatus, canDelete, historical: !!quota.settings.historical, displayState: displayState(quota.settings, this.now()), resetDay: resetDay(quota.settings), id,
         usage, periodStart: quota.period.start, periodEnd: quota.period.end,
