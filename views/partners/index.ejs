@@ -124,8 +124,8 @@
     <% if (admin) { %><p>初回有効化時にこのメールアドレスで法人ポータルを作成します。作成後の連絡先変更ではログイン先は変わりません。</p>
     <% if (row.portalAccountID) { %><p>法人ポータルのログイン：<%= row.portalLoginEmail %></p>
     <p>ポータル利用状況：<%= row.portalStatus?.lastLoginAt ? 'ログイン済み' : row.portalStatus?.initialSetupPending ? '初回設定未完了' : 'ログイン記録なし' %></p>
-    <% if (row.portalStatus?.lastLoginAt) { %><p>最終ログイン：<%= new Date(row.portalStatus.lastLoginAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>（日本時間）</p><% } else { %><p>過去のログイン日時は記録されていません。今後のログインから記録します。</p><% } %>
-    <p>同じポータルアカウントで複数ドメインを管理している場合、利用状況は共通です。現在オンラインかどうかを示すものではありません。</p>
+    <% if (row.portalStatus?.lastLoginAt) { %><p>最終ログイン：<%= new Date(row.portalStatus.lastLoginAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) %>（日本時間）</p><% } else { %><p class="help">過去のログイン日時は記録されていません。今後のログインから記録します。</p><% } %>
+    <p class="help">同じポータルアカウントで複数ドメインを管理している場合、利用状況は共通です。現在オンラインかどうかを示すものではありません。</p>
     <% } %><% } %>
     <label>備考<textarea name="notes" rows="5" maxlength="5000"><%= row.notes || '' %></textarea></label>
     <% if (admin) { %><label>状態<select name="status" required><option value="active" <%= row.status === 'approved' ? 'selected' : '' %>>有効</option><option value="inactive" <%= row.status !== 'approved' ? 'selected' : '' %>>無効</option></select></label><% } %>
