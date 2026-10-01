@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <%- include('../parts/head', {title: 'Mojidas利用実績'}) %>
+  <style>body { background: #f8f9fa; min-height: 100vh; } .usage-number { font-variant-numeric: tabular-nums; }</style>
+</head>
+<body>
+  <main class="container py-5">
+    <a href="/admin/mojidas" class="text-decoration-none small">Mojidas管理へ戻る</a>
+    <div class="d-flex justify-content-between flex-wrap gap-2 mt-2 mb-4">
+      <h1 class="h3 fw-bold">Mojidas利用実績</h1><span class="small text-muted"><%= user.email || '管理者' %></span>
+    </div>
+    <form method="get" action="/admin/mojidas-usage" class="d-flex align-items-end flex-wrap gap-3 mb-4">
+      <div><label for="usage-month" class="form-label">対象月</label><input id="usage-month" class="form-control" type="month" name="month" min="2000-01" max="2099-12" value="<%= report.month %>" required></div>
+    </form>
+    <div class="card shadow-sm mb-4"><div class="card-body">
+      <h2 class="h5"><%= report.month %> の合計</h2>
+      <div class="d-flex flex-wrap gap-4 usage-number">
+        <% [['free', '無料分'], ['paid', '有料分'], ['corporate', '法人プラン'], ['unknown', '区分不明'], ['total', '合計']].forEach(([key, label]) => { %>
+          <div><div class="text-muted small"><%= label %></div><strong><%= formatHours(report.totals[key]) %> 時間</strong></div>
+        <% }); %>
+      </div>
+    </div></div>
+    <p class="small text-muted">日本時間の日別・時間単位（小数第3位まで）で表示します。無料分は月次無料枠とプレゼント等の無償提供、有料分は購入した時間の消費です。法人プランは無料・有料に振り分けず別列に表示します。テスト枠は含みません。</p>
+    <p class="small text-muted">リアルタイムは消費報告日、ファイル認識・翻訳版の作成は精算日に確定した消費を計上します。予約・返却は含めず、取消でも確定消費がある場合は含めます。過去の区分を判定できない分は「区分不明」に含めます。削除済み履歴は復元できません。<%= formatDate(report.asOf) %> 現在。</p>
+    <% if (report.undatedRecords) { %><div class="alert alert-warning">日時不明で対象月を判定できない記録が全期間で <%= report.undatedRecords %> 件あります。</div><% } %>
+    <div class="card shadow-sm table-responsive">
+      <table class="table table-striped align-middle text-nowrap mb-0 usage-number">
+        <caption class="px-3"><%= report.month %> の日別利用時間（時間）</caption>
+        <thead><tr><th scope="col">日付</th><% ['無料分', '有料分', '法人プラン', '区分不明', '合計'].forEach(label => { %><th scope="col" class="text-end"><%= label %></th><% }); %></tr></thead>
+        <tbody><% report.rows.forEach(row => { %><tr><th scope="row"><%= row.date %></th><% ['free', 'paid', 'corporate', 'unknown', 'total'].forEach(key => { %><td class="text-end"><%= formatHours(row[key]) %></td><% }); %></tr><% }); %></tbody>
+        <tfoot><tr><th scope="row">月合計</th><% ['free', 'paid', 'corporate', 'unknown', 'total'].forEach(key => { %><td class="text-end fw-bold"><%= formatHours(report.totals[key]) %></td><% }); %></tr></tfoot>
+      </table>
+    </div>
+  </main>
+  <script>
+    document.getElementById('usage-month').addEventListener('change', function () {
+      if (this.value && this.checkValidity()) this.form.requestSubmit();
+    });
+  </script>
+</body>
+</html>

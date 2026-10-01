@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "pretest": "node tests/mojidas_admin_users_view.test.js && node tests/persistent_session_store.test.js && node tests/mojidas_editor_intro.test.js && node tests/mojidas_root_redirect.test.js && npm run test:corporate-portal",
+    "pretest": "node tests/mojidas_daily_usage_report.test.js && node tests/mojidas_admin_users_view.test.js && node tests/persistent_session_store.test.js && node tests/mojidas_editor_intro.test.js && node tests/mojidas_root_redirect.test.js && npm run test:corporate-portal",
     "start": "node ./bin/www",
     "test:business-inquiry": "node tests/mojidas_business_inquiry.test.js",
     "test:corporate-portal": "node tests/mojidas_corporate_portal.test.js && node tests/mojidas_corporate_management.test.js && node tests/mojidas_corporate_reset.test.js",

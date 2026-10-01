@@ -1,6 +1,7 @@
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 const { summarizeMonthlyCredits } = require('./mojidas_monthly_credit_report');
+const { validMonth, summarizeDailyUsage } = require('./mojidas_daily_usage_report');
 
 const REPORTING_THRESHOLD_JPY = 10_000_000;
 
@@ -37,6 +38,17 @@ class MojidasPaidBalanceStore {
 
   get firestore() {
     return this.firestoreProvider();
+  }
+
+  async getDailyReport(month) {
+    if (!validMonth(month)) throw new RangeError('対象月が不正です。');
+    const now = new Date(this.now());
+    const snapshots = await this.firestore.runTransaction(transaction => Promise.all(
+      ['creditGrants', 'usageLedger', 'creditReservations', 'corporateUsageLedger']
+        .map(name => transaction.get(this.collection(name)))
+    ), { readOnly: true });
+    return summarizeDailyUsage({ grantDocuments: snapshots[0].docs, ledgerDocuments: snapshots[1].docs,
+      reservationDocuments: snapshots[2].docs, corporateDocuments: snapshots[3].docs, now }, month);
   }
 
   collection(name) {

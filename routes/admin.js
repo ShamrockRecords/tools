@@ -8,6 +8,7 @@ const {
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
 const mojidasPaidBalanceStore = require('../modules/billing/mojidas_paid_balance_store');
+const { validMonth } = require('../modules/billing/mojidas_daily_usage_report');
 const mojidasVersionStore = require('../modules/mojidas_version_store');
 const mojidasBroadcastService = require('../modules/email/mojidas_broadcast_service');
 
@@ -342,6 +343,20 @@ router.get('/mojidas-users', ensureAdmin, async function (req, res, next) {
   } catch (error) {
     return next(error);
   }
+});
+
+router.get('/mojidas-usage', ensureAdmin, async function (req, res, next) {
+  const month = req.query.month === undefined
+    ? new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 7) : req.query.month;
+  if (!validMonth(month)) return res.status(400).send('対象月はYYYY-MM形式で指定してください。');
+  try {
+    return res.render('admin/mojidas-usage', {
+      user: await resolveUserRecord(req.adminUser),
+      report: await getMojidasPaidBalanceStore(req).getDailyReport(month),
+      formatDate: formatAdminDate,
+      formatHours: value => (value / 3600000).toLocaleString('ja-JP', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+    });
+  } catch (error) { return next(error); }
 });
 
 router.get('/mojidas-paid-balance', ensureAdmin, async function (req, res, next) {

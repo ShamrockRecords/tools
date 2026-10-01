@@ -1,5 +1,5 @@
 // 月別実績は残高差分ではなく消費履歴・確定予約から集計する。読み取り専用。
-function summarizeMonthlyCredits({ grantDocuments, ledgerDocuments, reservationDocuments, now }) {
+function summarizeMonthlyCredits({ grantDocuments, ledgerDocuments, reservationDocuments, now, dailyMonth = null }) {
   const grants = new Map(grantDocuments.map(doc => [doc.id, doc.data()]));
   const ledger = ledgerDocuments.map(doc => ({ id: doc.id, ...doc.data() }));
   const reservations = new Map(reservationDocuments.map(doc => [doc.id, doc.data()]));
@@ -10,7 +10,9 @@ function summarizeMonthlyCredits({ grantDocuments, ledgerDocuments, reservationD
     const date = asDate(value);
     if (!date) { undatedRecords += 1; return null; }
     if (date > now) return null;
-    const month = new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 7);
+    const localDate = new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString();
+    if (dailyMonth && localDate.slice(0, 7) !== dailyMonth) return null;
+    const month = localDate.slice(0, dailyMonth ? 10 : 7);
     if (!rows.has(month)) rows.set(month, { month, monthlyFree: 0, purchased: 0, promotional: 0,
       unknown: 0, total: 0, purchasedMilliseconds: 0, purchaseJPY: 0, unvaluedPurchases: 0 });
     return rows.get(month);
@@ -70,6 +72,7 @@ function summarizeMonthlyCredits({ grantDocuments, ledgerDocuments, reservationD
     }
     addUsage(event.occurredAt, positive(-event.milliseconds), allocations);
   }
+  if (dailyMonth) return { rows: [...rows.values()], undatedRecords };
   // 実績のない月も現在月まではゼロ行を表示する。
   rowAt(now);
   const earliest = [...rows.keys()].sort()[0];
