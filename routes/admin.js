@@ -147,7 +147,7 @@ function formatAdminDate(value) {
 
 function getSendGridConfig() {
   const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+  const fromEmail = (process.env.SENDGRID_FROM_EMAIL || '').trim();
 
   if (!apiKey || !fromEmail) {
     throw new Error('SendGridの設定が不足しています（SENDGRID_API_KEY / SENDGRID_FROM_EMAIL）。');
@@ -208,8 +208,14 @@ function sendGridRequest({ recipients, subject, body, apiKey, fromEmail }) {
 }
 
 async function sendBulkMail({ recipients, subject, body, apiKey, fromEmail }) {
-  for (let i = 0; i < recipients.length; i += SENDGRID_BATCH_SIZE) {
-    const batch = recipients.slice(i, i + SENDGRID_BATCH_SIZE);
+  // 送信元への控えは、入力済みの宛先やバッチ数によらず配信全体で1通にする。
+  const deliveryRecipients = recipients.filter(
+    (email) => email.toLowerCase() !== fromEmail.toLowerCase()
+  );
+  deliveryRecipients.push(fromEmail);
+
+  for (let i = 0; i < deliveryRecipients.length; i += SENDGRID_BATCH_SIZE) {
+    const batch = deliveryRecipients.slice(i, i + SENDGRID_BATCH_SIZE);
     await sendGridRequest({ recipients: batch, subject, body, apiKey, fromEmail });
   }
 }
