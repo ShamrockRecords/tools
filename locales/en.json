@@ -192,6 +192,7 @@
 	"udtalk": {
 		"claim": {
 			"accountName": "Word registration account name",
+			"accountNameHint": "This is not a corporate plan account.",
 			"accountSection": "Account information",
 			"admin": {
 				"back": "← Admin dashboard",
@@ -227,6 +228,7 @@
 				"title": "Application received"
 			},
 			"description": "We are collecting information from account holders to restore email addresses lost during the word registration server incident.",
+			"eligibilityNotice": "Please note that this application does not apply to people who were issued an account under a corporate plan.",
 			"email": "Requested email address",
 			"emailConfirmation": "Confirm email address",
 			"emailSection": "Requested email address",

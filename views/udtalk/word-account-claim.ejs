@@ -13,7 +13,10 @@
     <header class="page-heading">
       <p class="brand">UDトーク <span><%= t('support') %></span></p>
       <h1><%= t('title') %></h1>
-      <% if (!receipt) { %><p class="lead"><%= t('description') %></p><% } %>
+      <% if (!receipt) { %>
+        <p class="lead"><%= t('description') %></p>
+        <p class="lead eligibility-notice"><%= t('eligibilityNotice') %></p>
+      <% } %>
     </header>
     <% if (receipt) { %>
       <section class="panel complete" aria-labelledby="complete-title">
@@ -37,7 +40,8 @@
           <h2 id="account-heading"><span class="step">01</span><%= t('accountSection') %></h2>
           <div class="field">
             <label for="account-name"><%= t('accountName') %> <span class="required"><%= t('required') %></span></label>
-            <input id="account-name" name="accountName" type="text" value="<%= value('accountName') %>" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+            <input id="account-name" name="accountName" type="text" value="<%= value('accountName') %>" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="account-name-hint" required>
+            <p class="hint field-hint" id="account-name-hint"><%= t('accountNameHint') %></p>
           </div>
           <div class="field">
             <label for="screenshot"><%= t('screenshot') %> <span class="required"><%= t('required') %></span></label>

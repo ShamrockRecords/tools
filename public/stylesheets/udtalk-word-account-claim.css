@@ -17,6 +17,7 @@ a { color: #126b84; text-underline-offset: 4px; }
 h1 { font-size: clamp(23px, 4vw, 30px); line-height: 1.5; margin: 16px 0; letter-spacing: .02em; }
 h2 { font-size: 19px; margin: 0 0 22px; line-height: 1.6; }
 .lead { color: #526371; margin: 0; }
+.eligibility-notice { margin-top: 12px; }
 .notice { color: #405869; background: #e5eff3; border-left: 3px solid #167c98; padding: 13px 18px; margin-bottom: 22px; font-size: 14px; }
 .panel { background: #fff; border: 1px solid #dfe7ec; border-radius: 12px; box-shadow: 0 5px 20px #17344e05; padding: 32px; }
 .form-section + .form-section { border-top: 1px solid #e5ebee; padding-top: 30px; margin-top: 30px; }
@@ -29,6 +30,7 @@ input[type='file'] { border: 0; background: transparent; padding: 0; font-size: 
 input::file-selector-button { padding: 9px 12px; margin-right: 12px; border: 1px solid #aebec9; border-radius: 5px; background: #fff; color: #203342; cursor: pointer; }
 :focus-visible { outline: 3px solid #268eb5; outline-offset: 3px; }
 .hint { color: #596b78; font-size: 13px; margin: 8px 0 14px; }
+.field-hint { margin-bottom: 0; }
 .upload-box { background: #f7fafb; border: 1px dashed #aebec9; border-radius: 7px; padding: 20px; }
 .screenshot-preview { display: block; max-width: 100%; max-height: 260px; margin: 20px auto 0; object-fit: contain; }
 [hidden] { display: none !important; }
