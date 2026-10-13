@@ -10,10 +10,11 @@ const validClaim = {
   word1: '東京', reading1: 'とうきょう', word2: '京都', reading2: 'きょうと', word3: '大阪', reading3: 'おおさか',
 };
 
-function createFixture() {
+function createFixture({ mailer } = {}) {
   const records = new Map();
   const objects = new Map();
   const paths = [];
+  const deliveries = [];
   const snapshot = id => ({ id, exists: records.has(id), data: () => records.get(id) });
   let queue = Promise.resolve();
   const db = {
@@ -24,7 +25,11 @@ function createFixture() {
       let after;
       let limit;
       return {
-        doc(id) { return { id, get: async () => snapshot(id) }; },
+        doc(id) { return { id, get: async () => snapshot(id), update: async data => {
+          if (db.failUpdate) { db.failUpdate = false; throw new Error('更新失敗'); }
+          assert(records.has(id));
+          records.set(id, { ...records.get(id), ...data });
+        } }; },
         orderBy(field, direction) { assert.equal(field, 'createdAt'); assert.equal(direction, 'desc'); return this; },
         startAfter(cursor) { after = cursor.id; return this; },
         limit(size) { limit = size; return this; },
@@ -38,9 +43,17 @@ function createFixture() {
     runTransaction(callback) {
       const task = queue.then(async () => {
         const writes = [];
-        await callback({ get: ref => ref.get(), create: (ref, data) => writes.push([ref.id, data]) });
+        const result = await callback({
+          get: ref => ref.get(),
+          create: (ref, data) => writes.push(['create', ref.id, data]),
+          update: (ref, data) => writes.push(['update', ref.id, data]),
+        });
         if (db.fail) { db.fail = false; throw new Error('保存失敗'); }
-        for (const [id, value] of writes) { assert(!records.has(id)); records.set(id, value); }
+        for (const [operation, id, value] of writes) {
+          assert.equal(records.has(id), operation === 'update');
+          records.set(id, operation === 'update' ? { ...records.get(id), ...value } : value);
+        }
+        return result;
       });
       queue = task.catch(() => {});
       return task;
@@ -62,8 +75,9 @@ function createFixture() {
       };
     },
   };
-  const store = new WordAccountClaimStore({ firestoreProvider: () => db, bucketProvider: () => bucket });
-  return { store, db, bucket, records, objects, paths };
+  const store = new WordAccountClaimStore({ firestoreProvider: () => db, bucketProvider: () => bucket,
+    mailer: mailer || { send: async message => deliveries.push(message) } });
+  return { store, db, bucket, records, objects, paths, deliveries };
 }
 
 module.exports = { createFixture, validClaim, screenshot };

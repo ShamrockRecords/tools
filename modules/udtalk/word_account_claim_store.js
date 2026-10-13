@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const firebaseAdmin = require('firebase-admin');
 const { getFirestore } = require('../firestore');
 const { udtalkCollection, udtalkRootPath } = require('../udtalk_firestore');
+const { SendGridMailer } = require('../email/sendgrid_mailer');
+const { claimReceiptMessage } = require('../email/udtalk_claim_receipt');
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const PAGE_SIZE = 20;
@@ -59,10 +61,11 @@ function getBucket() {
 }
 
 class WordAccountClaimStore {
-  constructor({ firestoreProvider = getFirestore, bucketProvider = getBucket, now = () => new Date() } = {}) {
+  constructor({ firestoreProvider = getFirestore, bucketProvider = getBucket, now = () => new Date(), mailer } = {}) {
     this.firestoreProvider = firestoreProvider;
     this.bucketProvider = bucketProvider;
     this.now = now;
+    this.mailer = mailer;
   }
 
   collection() {
@@ -78,6 +81,7 @@ class WordAccountClaimStore {
     const existing = await ref.get();
     if (existing.exists) {
       if (existing.data().fingerprint !== fingerprint) throw new ClaimError('alreadySubmitted', 409);
+      await this.sendReceipt(id);
       return id;
     }
 
@@ -111,10 +115,46 @@ class WordAccountClaimStore {
         ...claim,
         fingerprint,
         createdAt: this.now(),
+        receiptEmail: { status: 'pending' },
         screenshot: { path, bucket: bucket.name, contentType: screenshot.contentType, size: screenshot.size },
       });
     });
+    await this.sendReceipt(id);
     return id;
+  }
+
+  async sendReceipt(id) {
+    try {
+      const ref = this.collection().doc(id);
+      const attemptedAt = this.now();
+      // 送信権を永続化してからメールを送る。並行送信・再送・再起動でも同じ申請の重複送信を避ける。
+      const claim = await this.firestoreProvider().runTransaction(async transaction => {
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists || snapshot.data().receiptEmail?.status !== 'pending') return null;
+        const data = snapshot.data();
+        transaction.update(ref, { receiptEmail: { status: 'sending', attemptedAt } });
+        return data;
+      });
+      if (!claim) return;
+
+      let result;
+      try {
+        // 通常の一斉メールと同じSENDGRID_API_KEY・SENDGRID_FROM_EMAILを使用する。
+        const mailer = this.mailer || new SendGridMailer({ fromName: 'UDトーク' });
+        await mailer.send(claimReceiptMessage({ id, accountName: claim.accountName, email: claim.email }));
+        result = { status: 'sent', acceptedAt: this.now() };
+      } catch (error) {
+        const rejected = error.code === 'SENDGRID_NOT_CONFIGURED'
+          || error.code === 'INVALID_EMAIL_MESSAGE'
+          || (error.statusCode >= 400 && error.statusCode < 500);
+        result = { status: rejected ? 'failed' : 'unknown', checkedAt: this.now() };
+        console.warn('UDTalk申請の受付メールを送信できませんでした。');
+      }
+      // 送信後の記録失敗や通信結果不明の場合は自動再送しない。申請自体は受け付け済みとする。
+      await ref.update({ receiptEmail: { ...result, attemptedAt } });
+    } catch (_) {
+      console.warn('UDTalk申請の受付メール送信状態を確認できませんでした。');
+    }
   }
 
   async list(after) {

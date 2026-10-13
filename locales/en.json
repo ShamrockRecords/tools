@@ -195,20 +195,33 @@
 			"accountSection": "Account information",
 			"admin": {
 				"back": "← Admin dashboard",
+				"close": "Close",
 				"createdAt": "Submitted (Japan time)",
 				"description": "Review account names, registered words, requested email addresses, and screenshots.",
+				"details": "Details",
+				"detailsTitle": "Application details",
 				"empty": "No applications yet.",
 				"first": "Latest applications",
+				"imageError": "Unable to load the image. Reopen the details or use the link below.",
 				"next": "Next 20",
 				"openForm": "Open application form",
 				"order": "Showing up to 20 applications, newest first.",
 				"pagination": "Application pages",
+				"receiptEmail": "Acknowledgment email",
+				"receiptStatus": {
+					"failed": "Send failed (check required)",
+					"legacy": "Submitted before automatic emails were introduced",
+					"pending": "Awaiting send",
+					"sending": "Sending; check if interrupted",
+					"sent": "Accepted for delivery",
+					"unknown": "Send result unknown (check required)"
+				},
 				"title": "UD Talk account ownership applications",
 				"viewImage": "View image"
 			},
 			"back": "Go back",
 			"complete": {
-				"description": "We will review your application to restore the email address associated with your account. Submission does not complete the email update.",
+				"description": "Please allow 2–3 days for us to review your application. Thank you for your patience. We will proceed with restoring the associated email address after review. Submission does not complete the email update.",
 				"keep": "Save this page or keep your reference number.",
 				"receipt": "Reference number",
 				"title": "Application received"

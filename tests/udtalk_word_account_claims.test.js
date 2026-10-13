@@ -133,15 +133,19 @@ async function main() {
     assert.equal((await send(body, { ...screenshot, buffer: Buffer.alloc(MAX_IMAGE_BYTES + 1) })).status, 413);
     assert.equal((await send(body, screenshot, form.cookie, true)).status, 400);
     assert.equal(httpFixture.records.size, 0);
+    assert.equal(httpFixture.deliveries.length, 0);
     const xssBody = { ...body, accountName: '<script>alert(1)</script>' };
     const submitted = await send(xssBody, screenshot);
     assert.equal(submitted.status, 303);
     assert.equal(submitted.headers.location, `${FORM}/complete`);
     assert.equal((await send(xssBody, screenshot)).status, 303);
     assert.equal(httpFixture.records.size, 1);
+    assert.equal(httpFixture.deliveries.length, 1);
+    assert.equal(httpFixture.deliveries[0].to, validClaim.email);
     const complete = await request(server, `${FORM}/complete`, { cookie: submitted.cookie || form.cookie });
     assert(complete.text.includes('申請を受け付けました'));
     assert(complete.text.includes(body.formToken));
+    assert(complete.text.includes('2〜3日'));
     assert.equal((await send(body, screenshot)).status, 409);
     const limited = await send(body, screenshot);
     assert.equal(limited.status, 429);
@@ -159,6 +163,7 @@ async function main() {
     assert(list.text.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
     assert(list.text.includes('とうきょう'));
     assert(list.text.includes('owner@example.com'));
+    assert(list.text.includes('送信受付済み'));
     assert(list.headers['cache-control'].includes('no-store'));
     const image = await request(server, `${ADMIN}/${body.formToken}/screenshot`, { cookie: login.cookie });
     assert.equal(image.status, 200);

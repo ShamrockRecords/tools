@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= t('admin.title') %> | UDトーク</title>
   <link rel="stylesheet" href="/stylesheets/udtalk-word-account-claim.css">
+  <script src="/javascripts/udtalk-word-account-claims-admin.js" defer></script>
 </head>
 <body>
   <main class="admin-container">
@@ -20,27 +21,51 @@
         <p class="empty"><%= t('admin.empty') %></p>
       <% } else { %>
         <div class="table-scroll" tabindex="0" role="region" aria-label="<%= t('admin.title') %>">
-          <table>
+          <table class="claim-table">
             <thead><tr>
               <th scope="col"><%= t('admin.createdAt') %></th>
               <th scope="col"><%= t('accountName') %></th>
               <th scope="col"><%= t('email') %></th>
-              <th scope="col"><%= t('wordsSection') %></th>
-              <th scope="col"><%= t('screenshot') %></th>
+              <th scope="col" class="claim-actions"><%= t('admin.details') %></th>
             </tr></thead>
             <tbody>
               <% rows.forEach(row => { %>
                 <tr>
-                  <td><time><%= formatDate(row.createdAt) %></time><details class="receipt-detail"><summary><%= t('complete.receipt') %></summary><span><%= row.id %></span></details></td>
+                  <td><time><%= formatDate(row.createdAt) %></time></td>
                   <td class="account-cell"><%= row.accountName %></td>
                   <td><%= row.email %></td>
-                  <td><ol class="word-list"><% row.words.forEach(word => { %><li><strong><%= word.word %></strong><span><%= word.reading %></span></li><% }); %></ol></td>
-                  <td><a class="image-link" href="<%= base %>/<%= row.id %>/screenshot" target="_blank" rel="noopener noreferrer"><%= t('admin.viewImage') %> ↗</a></td>
+                  <td class="claim-actions"><button type="button" class="claim-details-button" data-claim-dialog="claim-<%= row.id %>" aria-haspopup="dialog" aria-controls="claim-<%= row.id %>"><%= t('admin.details') %></button></td>
                 </tr>
               <% }); %>
             </tbody>
           </table>
         </div>
+        <% rows.forEach(row => { %>
+          <dialog class="claim-dialog" id="claim-<%= row.id %>" aria-labelledby="claim-title-<%= row.id %>">
+            <header class="claim-dialog-header">
+              <div>
+                <h2 id="claim-title-<%= row.id %>"><%= t('admin.detailsTitle') %></h2>
+                <p class="claim-dialog-account"><%= row.accountName %></p>
+              </div>
+              <button type="button" class="claim-dialog-close" data-close-dialog autofocus><%= t('admin.close') %></button>
+            </header>
+            <div class="claim-dialog-body">
+              <section aria-labelledby="claim-words-<%= row.id %>">
+                <h3 id="claim-words-<%= row.id %>"><%= t('wordsSection') %></h3>
+                <ol class="word-list"><% row.words.forEach(word => { %><li><strong><%= word.word %></strong><span><%= word.reading %></span></li><% }); %></ol>
+              </section>
+              <section aria-labelledby="claim-image-<%= row.id %>">
+                <h3 id="claim-image-<%= row.id %>"><%= t('screenshot') %></h3>
+                <img class="claim-dialog-image" data-src="<%= base %>/<%= row.id %>/screenshot" alt="<%= t('screenshot') %>" hidden>
+                <p class="hint" data-image-error role="status" hidden><%= t('admin.imageError') %></p>
+                <a href="<%= base %>/<%= row.id %>/screenshot" target="_blank" rel="noopener noreferrer"><%= t('admin.viewImage') %> ↗</a>
+              </section>
+              <dl class="receipt"><dt><%= t('complete.receipt') %></dt><dd><%= row.id %></dd></dl>
+              <% const mailStatus = row.receiptEmail ? (['pending', 'sending', 'sent', 'failed', 'unknown'].includes(row.receiptEmail.status) ? row.receiptEmail.status : 'unknown') : 'legacy'; %>
+              <p class="hint"><%= t('admin.receiptEmail') %>：<%= t('admin.receiptStatus.' + mailStatus) %></p>
+            </div>
+          </dialog>
+        <% }); %>
       <% } %>
       <nav class="pagination" aria-label="<%= t('admin.pagination') %>">
         <% if (hasCursor) { %><a href="<%= base %><%= language === 'en' ? '?lang=en' : '' %>"><%= t('admin.first') %></a><% } %>

@@ -57,13 +57,25 @@ th { background: #f3f6f8; white-space: nowrap; font-size: 13px; }
 td { min-width: 160px; max-width: 300px; overflow-wrap: anywhere; }
 td:first-child { min-width: 180px; }
 .account-cell { font-weight: 650; }
+.claim-table th, .claim-table td { padding: 8px 12px; vertical-align: middle; }
+.claim-table time { white-space: nowrap; }
+.claim-table .claim-actions { min-width: 76px; width: 76px; white-space: nowrap; }
+.claim-details-button { width: auto; margin: 0; padding: 5px 14px; font-size: 13px; }
+.claim-dialog-open { overflow: hidden; }
+.claim-dialog { width: min(720px, calc(100% - 32px)); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid #dfe7ec; border-radius: 12px; color: inherit; background: #fff; box-shadow: 0 16px 64px #17344e30; }
+.claim-dialog::backdrop { background: #10253299; }
+.claim-dialog-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 20px 24px; border-bottom: 1px solid #e3eaee; position: sticky; top: 0; background: #fff; }
+.claim-dialog-header h2 { margin: 0; }
+.claim-dialog-account { margin: 4px 0 0; color: #596b78; font-size: 14px; overflow-wrap: anywhere; }
+.claim-dialog-close { flex: none; width: auto; margin: 0; padding: 7px 14px; font-size: 13px; }
+.claim-dialog-body { padding: 24px; overflow-wrap: anywhere; }
+.claim-dialog-body section + section { margin-top: 26px; }
+.claim-dialog-body h3 { margin: 0 0 12px; font-size: 15px; }
+.claim-dialog-image { display: block; max-width: 100%; max-height: 50vh; margin: 0 auto 12px; object-fit: contain; border: 1px solid #e3eaee; border-radius: 6px; }
 .word-list { margin: 0; padding-left: 20px; }
 .word-list li + li { margin-top: 10px; }
 .word-list span { display: block; color: #596b78; font-size: 13px; }
 .word-list strong { font-weight: 600; }
-.receipt-detail { font-size: 12px; color: #596b78; margin-top: 10px; }
-.receipt-detail summary { cursor: pointer; }
-.receipt-detail span { font-family: monospace; }
 .pagination { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 24px; }
 .pagination:empty { display: none; }
 .empty { padding: 32px 0; text-align: center; }
