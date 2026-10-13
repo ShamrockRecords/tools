@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="<%= language %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= t('title') %> | UDトーク</title>
+  <link rel="stylesheet" href="/stylesheets/udtalk-word-account-claim.css">
+</head>
+<body>
+  <main class="claim-container">
+    <h1><%= admin ? t('admin.title') : t('title') %></h1>
+    <div class="panel"><p role="alert"><%= message %></p><a href="<%= back %>"><%= t('back') %></a></div>
+  </main>
+</body>
+</html>

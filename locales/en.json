@@ -188,5 +188,69 @@
 	"「動作設定」に「エンターキー押下で移動した時に自動的にその場所から再生を開始する」を追加しました。誤認識がほとんどない場合に内容を確認していく作業がとても効率よく行えます。従来の操作がお好みの場合はチェックを外してお使いください。": "[Automatically start from next focused subtitle when you finish editing by pressing the Enter key.] was added in operation settings. If you want to use in environment of previous version, you don't check it.",
 	"韓国語_汎用": "General Korean",
 	"発話の結合時に常に確認する": "Always confirm when appending data",
-	"発話の分割時に常に確認する": "Always confirm when dividing data"
+	"発話の分割時に常に確認する": "Always confirm when dividing data",
+	"udtalk": {
+		"claim": {
+			"accountName": "Word registration account name",
+			"accountSection": "Account information",
+			"admin": {
+				"back": "← Admin dashboard",
+				"createdAt": "Submitted (Japan time)",
+				"description": "Review account names, registered words, requested email addresses, and screenshots.",
+				"empty": "No applications yet.",
+				"first": "Latest applications",
+				"next": "Next 20",
+				"openForm": "Open application form",
+				"order": "Showing up to 20 applications, newest first.",
+				"pagination": "Application pages",
+				"title": "UD Talk account ownership applications",
+				"viewImage": "View image"
+			},
+			"back": "Go back",
+			"complete": {
+				"description": "We will review your application to restore the email address associated with your account. Submission does not complete the email update.",
+				"keep": "Save this page or keep your reference number.",
+				"receipt": "Reference number",
+				"title": "Application received"
+			},
+			"description": "We are collecting information from account holders to restore email addresses lost during the word registration server incident.",
+			"email": "Requested email address",
+			"emailConfirmation": "Confirm email address",
+			"emailSection": "Requested email address",
+			"errors": {
+				"account": "Enter your account name using no more than 200 characters.",
+				"alreadySubmitted": "This form has already been submitted. Reload the page to start another application.",
+				"duplicateWords": "Enter three different registered words.",
+				"email": "Enter a valid email address in both fields (up to 254 characters).",
+				"emailMismatch": "The email addresses do not match.",
+				"formExpired": "This form has expired. Please submit again using the displayed form.",
+				"imageRequired": "Select a screenshot showing your registered account.",
+				"imageSize": "Select an image no larger than 5 MB.",
+				"imageType": "Select a PNG, JPEG, or WebP image.",
+				"load": "Unable to load applications. Please try again later.",
+				"notFound": "The requested screenshot was not found.",
+				"page": "This page was not found. Return to the latest applications.",
+				"rateLimit": "Too many submissions. Please wait about 15 minutes and try again.",
+				"save": "We could not confirm receipt. Select the image again and resubmit this form.",
+				"upload": "Select one image and check each field before submitting.",
+				"words": "Enter three registered words and their readings, each up to 200 characters."
+			},
+			"preview": "Preview of the selected screenshot",
+			"privacy": "Your information and image will be used to confirm account ownership and restore the associated email address.",
+			"reading": "Reading",
+			"required": "Required",
+			"requiredNotice": "All fields are required. Prepare a screenshot showing your registered account.",
+			"reselect": "Check your entries and select the image file again.",
+			"screenshot": "Screenshot showing the registered account",
+			"screenshotHint": "Select one screenshot showing your account name. PNG, JPEG, or WebP, up to 5 MB.",
+			"submit": "Submit application",
+			"submitting": "Submitting. Please keep this page open.",
+			"support": "Account support",
+			"title": "Word registration account ownership application",
+			"word": "Registered word",
+			"wordNumber": "Word",
+			"wordsHint": "Enter three registered words you remember, together with their readings.",
+			"wordsSection": "Three registered words you remember"
+		}
+	}
 }

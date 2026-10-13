@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="<%= language %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= t('admin.title') %> | UDトーク</title>
+  <link rel="stylesheet" href="/stylesheets/udtalk-word-account-claim.css">
+</head>
+<body>
+  <main class="admin-container">
+    <header class="page-heading">
+      <a href="/admin"><%= t('admin.back') %></a>
+      <h1><%= t('admin.title') %></h1>
+      <p class="lead"><%= t('admin.description') %></p>
+      <a href="<%= formPath %>" target="_blank" rel="noopener noreferrer"><%= t('admin.openForm') %> ↗</a>
+    </header>
+    <div class="panel">
+      <p class="hint"><%= t('admin.order') %></p>
+      <% if (!rows.length) { %>
+        <p class="empty"><%= t('admin.empty') %></p>
+      <% } else { %>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="<%= t('admin.title') %>">
+          <table>
+            <thead><tr>
+              <th scope="col"><%= t('admin.createdAt') %></th>
+              <th scope="col"><%= t('accountName') %></th>
+              <th scope="col"><%= t('email') %></th>
+              <th scope="col"><%= t('wordsSection') %></th>
+              <th scope="col"><%= t('screenshot') %></th>
+            </tr></thead>
+            <tbody>
+              <% rows.forEach(row => { %>
+                <tr>
+                  <td><time><%= formatDate(row.createdAt) %></time><details class="receipt-detail"><summary><%= t('complete.receipt') %></summary><span><%= row.id %></span></details></td>
+                  <td class="account-cell"><%= row.accountName %></td>
+                  <td><%= row.email %></td>
+                  <td><ol class="word-list"><% row.words.forEach(word => { %><li><strong><%= word.word %></strong><span><%= word.reading %></span></li><% }); %></ol></td>
+                  <td><a class="image-link" href="<%= base %>/<%= row.id %>/screenshot" target="_blank" rel="noopener noreferrer"><%= t('admin.viewImage') %> ↗</a></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+      <nav class="pagination" aria-label="<%= t('admin.pagination') %>">
+        <% if (hasCursor) { %><a href="<%= base %><%= language === 'en' ? '?lang=en' : '' %>"><%= t('admin.first') %></a><% } %>
+        <% if (next) { %><a class="button" href="<%= base %>?after=<%= next %><%= language === 'en' ? '&lang=en' : '' %>"><%= t('admin.next') %> →</a><% } %>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

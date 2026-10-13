@@ -60,6 +60,8 @@ return res.json({
 
 ## ローカルエミュレーター
 
+UDトークの単語登録アカウント所持申請は、`Mojidas`と分離した`UDTalk/{environment}/wordAccountClaims`に保存します。画像保存先と設定は[申請機能の仕様](UDTALK_WORD_ACCOUNT_CLAIMS.md)を参照してください。
+
 Firestore Emulator を利用する場合は、アプリ起動前に `FIRESTORE_EMULATOR_HOST` を設定します。Admin SDK が自動的にエミュレーターへ接続します。
 
 ```bash

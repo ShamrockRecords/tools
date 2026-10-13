@@ -1,0 +1,148 @@
+const crypto = require('crypto');
+const firebaseAdmin = require('firebase-admin');
+const { getFirestore } = require('../firestore');
+const { udtalkCollection, udtalkRootPath } = require('../udtalk_firestore');
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const PAGE_SIZE = 20;
+const ID_PATTERN = /^[a-f0-9]{64}$/;
+
+class ClaimError extends Error {
+  constructor(key, status = 400) {
+    super(key);
+    this.key = key;
+    this.status = status;
+  }
+}
+
+function requiredText(value, max, key) {
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > max
+      || /[\u0000-\u001f\u007f]/.test(value)) throw new ClaimError(key);
+  return value.trim();
+}
+
+function normalizeClaim(body = {}) {
+  const accountName = requiredText(body.accountName, 200, 'account');
+  const email = requiredText(body.email, 254, 'email');
+  const confirm = requiredText(body.emailConfirmation, 254, 'email');
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email) || !emailPattern.test(confirm)) throw new ClaimError('email');
+  if (email !== confirm) throw new ClaimError('emailMismatch');
+  const words = [1, 2, 3].map(index => ({
+    word: requiredText(body[`word${index}`], 200, 'words'),
+    reading: requiredText(body[`reading${index}`], 200, 'words'),
+  }));
+  if (new Set(words.map(value => `${value.word}\0${value.reading}`)).size !== 3) {
+    throw new ClaimError('duplicateWords');
+  }
+  return { accountName, email, words };
+}
+
+function validateScreenshot(file) {
+  if (!file || !Buffer.isBuffer(file.buffer) || !file.buffer.length) throw new ClaimError('imageRequired');
+  const data = file.buffer;
+  if (data.length > MAX_IMAGE_BYTES) throw new ClaimError('imageSize', 413);
+  let type;
+  if (data.length > 24 && data.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))
+      && data.toString('ascii', 12, 16) === 'IHDR') type = 'image/png';
+  if (data.length > 4 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) type = 'image/jpeg';
+  if (data.length > 16 && data.toString('ascii', 0, 4) === 'RIFF'
+      && data.toString('ascii', 8, 12) === 'WEBP') type = 'image/webp';
+  if (!type || (file.mimetype && file.mimetype !== type)) throw new ClaimError('imageType');
+  return { buffer: data, contentType: type, size: data.length };
+}
+
+function getBucket() {
+  const name = String(process.env.UDTALK_STORAGE_BUCKET || '').trim();
+  if (!name || !firebaseAdmin.apps.length) throw new Error('UDTalkの画像保存先が設定されていません。');
+  return firebaseAdmin.storage().bucket(name);
+}
+
+class WordAccountClaimStore {
+  constructor({ firestoreProvider = getFirestore, bucketProvider = getBucket, now = () => new Date() } = {}) {
+    this.firestoreProvider = firestoreProvider;
+    this.bucketProvider = bucketProvider;
+    this.now = now;
+  }
+
+  collection() {
+    return udtalkCollection(this.firestoreProvider(), 'wordAccountClaims');
+  }
+
+  async submit(id, body, file) {
+    if (!ID_PATTERN.test(id)) throw new ClaimError('formExpired', 403);
+    const claim = normalizeClaim(body);
+    const screenshot = validateScreenshot(file);
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify(claim)).update(screenshot.buffer).digest('hex');
+    const ref = this.collection().doc(id);
+    const existing = await ref.get();
+    if (existing.exists) {
+      if (existing.data().fingerprint !== fingerprint) throw new ClaimError('alreadySubmitted', 409);
+      return id;
+    }
+
+    const bucket = this.bucketProvider();
+    const path = `${udtalkRootPath()}/wordAccountClaims/${id}/screenshot`;
+    const object = bucket.file(path);
+    try {
+      await object.save(screenshot.buffer, {
+        resumable: false,
+        preconditionOpts: { ifGenerationMatch: 0 },
+        metadata: {
+          contentType: screenshot.contentType,
+          cacheControl: 'private, no-store',
+          metadata: { fingerprint },
+        },
+      });
+    } catch (error) {
+      if (Number(error.code) !== 412) throw error;
+      const [metadata] = await object.getMetadata();
+      if (metadata.metadata?.fingerprint !== fingerprint) throw new ClaimError('alreadySubmitted', 409);
+    }
+
+    // 保存結果が不明な場合でも画像を削除しない。同じフォームからの再送で安全に回復する。
+    await this.firestoreProvider().runTransaction(async transaction => {
+      const snapshot = await transaction.get(ref);
+      if (snapshot.exists) {
+        if (snapshot.data().fingerprint !== fingerprint) throw new ClaimError('alreadySubmitted', 409);
+        return;
+      }
+      transaction.create(ref, {
+        ...claim,
+        fingerprint,
+        createdAt: this.now(),
+        screenshot: { path, bucket: bucket.name, contentType: screenshot.contentType, size: screenshot.size },
+      });
+    });
+    return id;
+  }
+
+  async list(after) {
+    let query = this.collection().orderBy('createdAt', 'desc');
+    if (after) {
+      if (typeof after !== 'string' || !ID_PATTERN.test(after)) throw new ClaimError('page', 400);
+      const cursor = await this.collection().doc(after).get();
+      if (!cursor.exists) throw new ClaimError('page', 400);
+      query = query.startAfter(cursor);
+    }
+    const snapshot = await query.limit(PAGE_SIZE + 1).get();
+    const rows = snapshot.docs.slice(0, PAGE_SIZE).map(doc => ({ id: doc.id, ...doc.data() }));
+    return { rows, next: snapshot.docs.length > PAGE_SIZE ? rows[rows.length - 1].id : null };
+  }
+
+  async screenshot(id) {
+    if (!ID_PATTERN.test(id)) throw new ClaimError('notFound', 404);
+    const snapshot = await this.collection().doc(id).get();
+    if (!snapshot.exists) throw new ClaimError('notFound', 404);
+    const stored = snapshot.data().screenshot;
+    const bucket = this.bucketProvider();
+    if (stored.bucket !== bucket.name || stored.path !== `${udtalkRootPath()}/wordAccountClaims/${id}/screenshot`
+        || !['image/png', 'image/jpeg', 'image/webp'].includes(stored.contentType)) {
+      throw new Error('UDTalkの画像情報が正しくありません。');
+    }
+    const [buffer] = await bucket.file(stored.path).download();
+    return { buffer, contentType: stored.contentType };
+  }
+}
+
+module.exports = { ClaimError, ID_PATTERN, MAX_IMAGE_BYTES, WordAccountClaimStore, normalizeClaim, validateScreenshot };

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="<%= language %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= t('title') %> | UDトーク</title>
+  <link rel="stylesheet" href="/stylesheets/udtalk-word-account-claim.css">
+  <script src="/javascripts/udtalk-word-account-claim.js" defer></script>
+</head>
+<body>
+  <main class="claim-container">
+    <header class="page-heading">
+      <p class="brand">UDトーク <span><%= t('support') %></span></p>
+      <h1><%= t('title') %></h1>
+      <% if (!receipt) { %><p class="lead"><%= t('description') %></p><% } %>
+    </header>
+    <% if (receipt) { %>
+      <section class="panel complete" aria-labelledby="complete-title">
+        <span class="complete-mark" aria-hidden="true">✓</span>
+        <h2 id="complete-title"><%= t('complete.title') %></h2>
+        <p><%= t('complete.description') %></p>
+        <dl class="receipt"><dt><%= t('complete.receipt') %></dt><dd><%= receipt %></dd></dl>
+        <p class="hint"><%= t('complete.keep') %></p>
+      </section>
+    <% } else { %>
+      <% const value = name => typeof values[name] === 'string' ? values[name].slice(0, 254) : ''; %>
+      <div class="notice"><%= t('requiredNotice') %></div>
+      <% if (error) { %>
+        <div class="error-message" role="alert" tabindex="-1" id="server-error"><strong><%= error %></strong><p><%= t('reselect') %></p></div>
+      <% } %>
+      <form class="panel" id="claim-form" action="<%= formPath %><%= language === 'en' ? '?lang=en' : '' %>" method="post" enctype="multipart/form-data"
+        data-email-mismatch="<%= t('errors.emailMismatch') %>" data-image-size="<%= t('errors.imageSize') %>" data-submitting="<%= t('submitting') %>">
+        <input type="hidden" name="requestID" value="<%= requestID %>">
+        <input type="hidden" name="formToken" value="<%= formToken %>">
+        <section class="form-section" aria-labelledby="account-heading">
+          <h2 id="account-heading"><span class="step">01</span><%= t('accountSection') %></h2>
+          <div class="field">
+            <label for="account-name"><%= t('accountName') %> <span class="required"><%= t('required') %></span></label>
+            <input id="account-name" name="accountName" type="text" value="<%= value('accountName') %>" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
+          <div class="field">
+            <label for="screenshot"><%= t('screenshot') %> <span class="required"><%= t('required') %></span></label>
+            <p class="hint" id="screenshot-hint"><%= t('screenshotHint') %></p>
+            <div class="upload-box">
+              <input id="screenshot" name="screenshot" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="screenshot-hint" required>
+              <img id="screenshot-preview" class="screenshot-preview" alt="<%= t('preview') %>" hidden>
+            </div>
+          </div>
+        </section>
+        <section class="form-section" aria-labelledby="words-heading">
+          <h2 id="words-heading"><span class="step">02</span><%= t('wordsSection') %></h2>
+          <p class="hint"><%= t('wordsHint') %></p>
+          <% for (let index = 1; index <= 3; index += 1) { %>
+            <fieldset class="word-row">
+              <legend><%= t('wordNumber') %> <%= index %></legend>
+              <div class="word-fields">
+                <div class="field">
+                  <label for="word-<%= index %>"><%= t('word') %> <span class="required"><%= t('required') %></span></label>
+                  <input id="word-<%= index %>" name="word<%= index %>" type="text" value="<%= value('word' + index) %>" maxlength="200" required>
+                </div>
+                <div class="field">
+                  <label for="reading-<%= index %>"><%= t('reading') %> <span class="required"><%= t('required') %></span></label>
+                  <input id="reading-<%= index %>" name="reading<%= index %>" type="text" value="<%= value('reading' + index) %>" maxlength="200" required>
+                </div>
+              </div>
+            </fieldset>
+          <% } %>
+        </section>
+        <section class="form-section" aria-labelledby="email-heading">
+          <h2 id="email-heading"><span class="step">03</span><%= t('emailSection') %></h2>
+          <div class="field">
+            <label for="email"><%= t('email') %> <span class="required"><%= t('required') %></span></label>
+            <input id="email" name="email" type="email" value="<%= value('email') %>" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false" required>
+          </div>
+          <div class="field">
+            <label for="email-confirmation"><%= t('emailConfirmation') %> <span class="required"><%= t('required') %></span></label>
+            <input id="email-confirmation" name="emailConfirmation" type="email" value="<%= value('emailConfirmation') %>" maxlength="254" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
+        </section>
+        <div class="form-footer">
+          <p class="hint"><%= t('privacy') %></p>
+          <button type="submit" id="submit-button"><%= t('submit') %></button>
+          <p class="hint" role="status" id="submit-status"></p>
+        </div>
+      </form>
+    <% } %>
+    <footer class="page-footer">UDトーク</footer>
+  </main>
+</body>
+</html>

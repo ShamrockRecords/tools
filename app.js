@@ -203,6 +203,8 @@ app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/partners', require('./routes/partners').createPartnerRouter());
 app.use('/corporate', require('./routes/corporate').createCorporateRouter());
 app.use('/admin/mojidas-partners', require('./routes/partners').createPartnerRouter({ admin: true }));
+app.use('/udtalk/word-account-claim', require('./routes/udtalk').createUdtalkRouter());
+app.use('/admin/udtalk-word-account-claims', require('./routes/udtalk').createUdtalkRouter({ admin: true }));
 app.use('/admin', adminRouter);
 app.use('/api/mojidas/business-inquiries', require('./routes/api/mojidas_business_inquiry').createBusinessInquiryRouter());
 app.use('/api/mojidas/contact-inquiries', require('./routes/api/mojidas_business_inquiry').createBusinessInquiryRouter({ general: true }));
