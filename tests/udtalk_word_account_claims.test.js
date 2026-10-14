@@ -62,7 +62,11 @@ async function main() {
   }
   assert.throws(() => normalizeClaim({ ...validClaim, emailConfirmation: 'wrong@example.com' }), /emailMismatch/);
   assert.throws(() => normalizeClaim({ ...validClaim, word2: validClaim.word1, reading2: validClaim.reading1 }), /duplicateWords/);
-  assert.equal(normalizeClaim({ ...validClaim, accountName: ' 名前 ' }).accountName, '名前');
+  const asciiAccount = Array.from({ length: 94 }, (_, index) => String.fromCharCode(33 + index)).join('');
+  assert.equal(normalizeClaim({ ...validClaim, accountName: asciiAccount }).accountName, asciiAccount);
+  for (const accountName of ['名前', 'ＡＢＣ１２３', 'ｱｶｳﾝﾄ', 'test account', ' test', 'test ', 'test😀']) {
+    assert.throws(() => normalizeClaim({ ...validClaim, accountName }), /account/);
+  }
   assert(!('emailConfirmation' in normalizeClaim(validClaim)));
   assert.equal(validateScreenshot(screenshot).contentType, 'image/png');
   for (const file of [undefined, { ...screenshot, buffer: Buffer.alloc(0) }, { ...screenshot, mimetype: 'image/jpeg' },
@@ -76,7 +80,7 @@ async function main() {
   assert.equal(fixture.records.size, 1);
   assert.equal(fixture.objects.size, 1);
   await fixture.store.submit(firstID, validClaim, screenshot);
-  await assert.rejects(fixture.store.submit(firstID, { ...validClaim, accountName: '別の名前' }, screenshot), /alreadySubmitted/);
+  await assert.rejects(fixture.store.submit(firstID, { ...validClaim, accountName: 'another-account' }, screenshot), /alreadySubmitted/);
   assert.equal(fixture.records.get(firstID).accountName, validClaim.accountName);
   assert.deepStrictEqual((await fixture.store.screenshot(firstID)).buffer, screenshot.buffer);
   await assert.rejects(fixture.store.screenshot('../secret'), /notFound/);
@@ -127,7 +131,7 @@ async function main() {
     const invalid = await send({ ...body, emailConfirmation: 'mismatch@example.com' }, screenshot);
     assert.equal(invalid.status, 400);
     assert(invalid.text.includes('メールアドレスが一致'));
-    assert(invalid.text.includes('value="テストアカウント"'));
+    assert(invalid.text.includes('value="test-account_123"'));
     assert.equal((await send(body, null)).status, 400);
     assert.equal((await send(body, { ...screenshot, buffer: Buffer.from('<html>偽装画像</html>') })).status, 400);
     assert.equal((await send(body, { ...screenshot, buffer: Buffer.alloc(MAX_IMAGE_BYTES + 1) })).status, 413);

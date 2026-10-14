@@ -90,3 +90,6 @@ td:first-child { min-width: 180px; }
   .brand { margin-bottom: 20px; }
   .table-scroll { margin: 0 -8px; }
 }
+
+.screenshot-example { margin: 16px 0 20px; }
+.screenshot-example img { display: block; width: 240px; max-width: 100%; height: auto; border: 1px solid #dfe7ec; border-radius: 7px; }

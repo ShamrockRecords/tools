@@ -192,7 +192,7 @@
 	"udtalk": {
 		"claim": {
 			"accountName": "Word registration account name",
-			"accountNameHint": "This is not a corporate plan account.",
+			"accountNameHint": "Use ASCII letters, numbers, and symbols (no spaces). This is not a corporate plan account.",
 			"accountSection": "Account information",
 			"admin": {
 				"back": "← Admin dashboard",
@@ -233,7 +233,7 @@
 			"emailConfirmation": "Confirm email address",
 			"emailSection": "Requested email address",
 			"errors": {
-				"account": "Enter your account name using no more than 200 characters.",
+				"account": "Enter your account name using up to 200 ASCII letters, numbers, and symbols (no spaces).",
 				"alreadySubmitted": "This form has already been submitted. Reload the page to start another application.",
 				"duplicateWords": "Enter three different registered words.",
 				"email": "Enter a valid email address in both fields (up to 254 characters).",
@@ -256,8 +256,9 @@
 			"required": "Required",
 			"requiredNotice": "All fields are required. Prepare a screenshot showing your registered account.",
 			"reselect": "Check your entries and select the image file again.",
-			"screenshot": "Screenshot showing the registered account",
-			"screenshotHint": "Select one screenshot showing your account name. PNG, JPEG, or WebP, up to 5 MB.",
+			"screenshot": "Screenshot showing the account",
+			"screenshotExample": "Example: Settings showing the account in the Word registration account row",
+			"screenshotHint": "Select one screenshot of Settings showing your account in the Word registration account row. PNG, JPEG, or WebP, up to 5 MB.",
 			"submit": "Submit application",
 			"submitting": "Submitting. Please keep this page open.",
 			"support": "Account support",

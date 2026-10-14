@@ -40,12 +40,16 @@
           <h2 id="account-heading"><span class="step">01</span><%= t('accountSection') %></h2>
           <div class="field">
             <label for="account-name"><%= t('accountName') %> <span class="required"><%= t('required') %></span></label>
-            <input id="account-name" name="accountName" type="text" value="<%= value('accountName') %>" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="account-name-hint" required>
+            <input id="account-name" name="accountName" type="text" value="<%= value('accountName') %>" maxlength="200" pattern="[!-~]+" title="<%= t('errors.account') %>" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="account-name-hint" required>
             <p class="hint field-hint" id="account-name-hint"><%= t('accountNameHint') %></p>
           </div>
           <div class="field">
             <label for="screenshot"><%= t('screenshot') %> <span class="required"><%= t('required') %></span></label>
             <p class="hint" id="screenshot-hint"><%= t('screenshotHint') %></p>
+            <figure class="screenshot-example">
+              <figcaption class="hint"><%= t('screenshotExample') %></figcaption>
+              <a href="/images/udtalk-word-account-settings-example.png" target="_blank" rel="noopener"><img src="/images/udtalk-word-account-settings-example.png" alt="<%= t('screenshotExample') %>" width="1125" height="2436" loading="lazy"></a>
+            </figure>
             <div class="upload-box">
               <input id="screenshot" name="screenshot" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="screenshot-hint" required>
               <img id="screenshot-preview" class="screenshot-preview" alt="<%= t('preview') %>" hidden>

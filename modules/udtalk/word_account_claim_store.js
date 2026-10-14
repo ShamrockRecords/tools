@@ -25,6 +25,7 @@ function requiredText(value, max, key) {
 
 function normalizeClaim(body = {}) {
   const accountName = requiredText(body.accountName, 200, 'account');
+  if (!/^[\x21-\x7e]+$/.test(body.accountName)) throw new ClaimError('account');
   const email = requiredText(body.email, 254, 'email');
   const confirm = requiredText(body.emailConfirmation, 254, 'email');
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

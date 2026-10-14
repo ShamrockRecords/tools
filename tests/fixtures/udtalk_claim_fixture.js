@@ -6,7 +6,7 @@ const screenshot = {
   buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1sAAAAASUVORK5CYII=', 'base64'),
 };
 const validClaim = {
-  accountName: 'テストアカウント', email: 'owner@example.com', emailConfirmation: 'owner@example.com',
+  accountName: 'test-account_123', email: 'owner@example.com', emailConfirmation: 'owner@example.com',
   word1: '東京', reading1: 'とうきょう', word2: '京都', reading2: 'きょうと', word3: '大阪', reading3: 'おおさか',
 };
 
