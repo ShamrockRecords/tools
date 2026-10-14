@@ -34,7 +34,13 @@
                   <td><time><%= formatDate(row.createdAt) %></time></td>
                   <td class="account-cell"><%= row.accountName %></td>
                   <td><%= row.email %></td>
-                  <td class="claim-actions"><button type="button" class="claim-details-button" data-claim-dialog="claim-<%= row.id %>" aria-haspopup="dialog" aria-controls="claim-<%= row.id %>"><%= t('admin.details') %></button></td>
+                  <td class="claim-actions"><button type="button" class="claim-details-button" data-claim-dialog="claim-<%= row.id %>" aria-haspopup="dialog" aria-controls="claim-<%= row.id %>"><%= t('admin.details') %></button>
+                    <form class="recovery-mail-form" action="<%= base %>/<%= row.id %>/recovery-email<%= language === 'en' ? '?lang=en' : '' %>" method="post" data-resend="<%= t('admin.resend') %>" data-sent="<%= t('admin.recoverySent') %>" data-error="<%= t('errors.recoverySend') %>">
+                      <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+                      <button type="submit" class="claim-details-button" <%= row.recoveryEmail?.status === 'sending' ? 'disabled' : '' %>><%= t(row.recoveryEmail?.acceptedAt ? 'admin.resend' : 'admin.sendRecovery') %></button>
+                      <span class="hint recovery-mail-status" role="status"><%= row.recoveryEmail?.status === 'sending' ? t('admin.recoverySending') : row.recoveryEmail?.status === 'sent' ? t('admin.recoverySent') : row.recoveryEmail?.status === 'unknown' ? t('admin.recoveryUnknown') : row.recoveryEmail?.status === 'failed' ? t('errors.recoverySend') : '' %></span>
+                    </form>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>

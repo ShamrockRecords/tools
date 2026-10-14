@@ -29,14 +29,28 @@ function createUdtalkRouter({ admin = false, store = defaultStore, rateLimitMax 
   if (admin) {
     router.get('/', wrap(async (req, res) => {
       const result = await currentStore(req).list(req.query.after);
+      if (!req.session.udtalkAdminToken) req.session.udtalkAdminToken = crypto.randomBytes(32).toString('hex');
       return res.render('admin/udtalk-word-account-claims', {
-        ...result, t: t(req), language: req.getLocale(), base: ADMIN_PATH, formPath: FORM_PATH,
+        ...result, csrfToken: req.session.udtalkAdminToken, t: t(req), language: req.getLocale(), base: ADMIN_PATH, formPath: FORM_PATH,
         hasCursor: !!req.query.after,
         formatDate(value) {
           const date = value?.toDate ? value.toDate() : new Date(value);
           return new Intl.DateTimeFormat('ja-JP', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Tokyo' }).format(date);
         },
       });
+    }));
+    router.post('/:id/recovery-email', wrap(async (req, res) => {
+      if (!req.session.udtalkAdminToken || req.body.csrfToken !== req.session.udtalkAdminToken) {
+        return res.status(403).json({ error: t(req)('errors.formExpired') });
+      }
+      try {
+        await currentStore(req).sendRecovery(req.params.id);
+        return res.json({ sent: true });
+      } catch (error) {
+        return res.status(error instanceof ClaimError ? error.status : 503).json({
+          error: t(req)(`errors.${error instanceof ClaimError ? error.key : 'recoverySave'}`),
+        });
+      }
     }));
     router.get('/:id/screenshot', wrap(async (req, res) => {
       const screenshot = await currentStore(req).screenshot(req.params.id);

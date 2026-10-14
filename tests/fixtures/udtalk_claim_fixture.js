@@ -10,7 +10,7 @@ const validClaim = {
   word1: '東京', reading1: 'とうきょう', word2: '京都', reading2: 'きょうと', word3: '大阪', reading3: 'おおさか',
 };
 
-function createFixture({ mailer } = {}) {
+function createFixture({ mailer, adminEmail = '' } = {}) {
   const records = new Map();
   const objects = new Map();
   const paths = [];
@@ -75,7 +75,7 @@ function createFixture({ mailer } = {}) {
       };
     },
   };
-  const store = new WordAccountClaimStore({ firestoreProvider: () => db, bucketProvider: () => bucket,
+  const store = new WordAccountClaimStore({ adminEmail, firestoreProvider: () => db, bucketProvider: () => bucket,
     mailer: mailer || { send: async message => deliveries.push(message) } });
   return { store, db, bucket, records, objects, paths, deliveries };
 }

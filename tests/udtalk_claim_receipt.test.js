@@ -63,6 +63,7 @@ async function main() {
   assert.equal(unsaved.deliveries.length, 1);
   const legacy = { ...unsaved.records.get(id) };
   delete legacy.receiptEmail;
+  delete legacy.adminNotificationEmail;
   unsaved.records.set(id, legacy);
   await unsaved.store.submit(id, validClaim, screenshot);
   assert.equal(unsaved.deliveries.length, 1, '導入前の申請へ遡及送信しない');
@@ -72,6 +73,71 @@ async function main() {
   await pending.store.submit(id, validClaim, screenshot);
   assert.equal(pending.deliveries.length, 1, '送信開始前の中断は再送で回復');
   assert.equal(pending.records.get(id).receiptEmail.status, 'sent');
+  const adminRequests = [];
+  process.env.ADMIN_EMAIL = 'admin@example.com';
+  process.env.ROOT_URL = 'https://support.example.com/';
+  const notified = createFixture({ adminEmail: process.env.ADMIN_EMAIL,
+    mailer: new SendGridMailer({ requester: async request => adminRequests.push(request) }) });
+  await Promise.all([notified.store.submit(id, validClaim, screenshot), notified.store.submit(id, validClaim, screenshot)]);
+  assert.equal(adminRequests.length, 2, '申請者と管理者にそれぞれ1通');
+  const adminPayload = adminRequests.find(request => request.payload.categories.includes('udtalk-word-account-claim-admin')).payload;
+  assert.deepStrictEqual(adminPayload.personalizations, [{ to: [{ email: 'admin@example.com' }] }]);
+  const adminBody = adminPayload.content[0].value;
+  for (const value of [validClaim.accountName, validClaim.email, id, 'https://support.example.com/admin/udtalk-word-account-claims']) assert(adminBody.includes(value));
+  assert(!adminBody.includes(validClaim.word1));
+  assert.equal(notified.records.get(id).adminNotificationEmail.status, 'sent');
+  const adminRestarted = new WordAccountClaimStore({ firestoreProvider: () => notified.db, bucketProvider: () => notified.bucket,
+    mailer: { send: async () => { throw new Error('再送不可'); } } });
+  await adminRestarted.submit(id, validClaim, screenshot);
+  assert.equal(adminRequests.length, 2, '再起動・再送でも通知は重複しない');
+
+  for (const failAdmin of [false, true]) {
+    const calls = [];
+    const independent = createFixture({ adminEmail: process.env.ADMIN_EMAIL, mailer: { send: async message => {
+      calls.push(message.to);
+      if ((message.to === process.env.ADMIN_EMAIL) === failAdmin) throw new SendGridMailerError('SENDGRID_REQUEST_FAILED', '拒否', 403);
+    } } });
+    await independent.store.submit(id, validClaim, screenshot);
+    assert.equal(independent.records.get(id).receiptEmail.status, failAdmin ? 'sent' : 'failed');
+    assert.equal(independent.records.get(id).adminNotificationEmail.status, failAdmin ? 'failed' : 'sent');
+    await independent.store.submit(id, validClaim, screenshot);
+    assert.equal(calls.length, 2, '片方の失敗で他方の送信や申請を妨げず重複送信もしない');
+  }
+  const past = createFixture({ adminEmail: process.env.ADMIN_EMAIL });
+  past.records.set(id, legacy);
+  await past.store.submit(id, validClaim, screenshot);
+  assert.equal(past.deliveries.length, 0, '既存申請へ管理者通知を遡及しない');
+  const notSavedAdmin = createFixture({ adminEmail: process.env.ADMIN_EMAIL });
+  notSavedAdmin.db.fail = true;
+  await assert.rejects(notSavedAdmin.store.submit(id, validClaim, screenshot));
+  assert.equal(notSavedAdmin.deliveries.length, 0, '保存失敗時は管理者にも送信しない');
+  const recovery = createFixture();
+  await recovery.store.submit(id, validClaim, screenshot);
+  recovery.deliveries.length = 0;
+  let releaseRecovery;
+  let recoveryStarted;
+  const started = new Promise(resolve => { recoveryStarted = resolve; });
+  const release = new Promise(resolve => { releaseRecovery = resolve; });
+  recovery.store.mailer = { send: async message => { recovery.deliveries.push(message); recoveryStarted(); await release; } };
+  const firstRecovery = recovery.store.sendRecovery(id);
+  await started;
+  await assert.rejects(recovery.store.sendRecovery(id), /recoveryBusy/);
+  releaseRecovery();
+  await firstRecovery;
+  assert.equal(recovery.deliveries.length, 1, '並行クリックでも1通');
+  const recoveryMessage = recovery.deliveries[0];
+  assert.equal(recoveryMessage.to, validClaim.email);
+  assert.equal(recoveryMessage.subject, '【UDトーク】単語登録アカウントの復旧が完了しました');
+  assert(recoveryMessage.text.includes('「パスワードを忘れてしまった方は」'));
+  for (const value of [validClaim.accountName, validClaim.word1, validClaim.email, id, 'https://']) assert(!recoveryMessage.text.includes(value));
+  assert.equal(recovery.records.get(id).recoveryEmail.status, 'sent');
+  await recovery.store.sendRecovery(id);
+  assert.equal(recovery.deliveries.length, 2, '明示的な再送は送れる');
+  const recoveryFailed = createFixture({ mailer: { send: async () => { throw new SendGridMailerError('SENDGRID_REQUEST_FAILED', '拒否', 403); } } });
+  recoveryFailed.records.set(id, { ...legacy });
+  await assert.rejects(recoveryFailed.store.sendRecovery(id), /recoverySend/);
+  assert.equal(recoveryFailed.records.get(id).recoveryEmail.status, 'failed');
+  await assert.rejects(recovery.store.sendRecovery('invalid'), /notFound/);
   console.log('UDTalk受付メール: 宛先・共通送り元・本文・並行再送・再起動・送信障害・保存障害・過去申請の保全を確認しました。');
 }
 

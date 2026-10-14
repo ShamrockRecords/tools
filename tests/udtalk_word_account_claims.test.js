@@ -169,6 +169,17 @@ async function main() {
     assert(list.text.includes('owner@example.com'));
     assert(list.text.includes('送信受付済み'));
     assert(list.headers['cache-control'].includes('no-store'));
+    const recoveryPath = `${ADMIN}/${body.formToken}/recovery-email`;
+    assert.equal((await request(server, recoveryPath, { method: 'POST' })).status, 302);
+    const sendRecovery = csrfToken => request(server, recoveryPath, { method: 'POST', cookie: login.cookie,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, data: Buffer.from(new URLSearchParams({ csrfToken }).toString()) });
+    assert.equal((await sendRecovery('invalid')).status, 403);
+    const csrfToken = list.text.match(/name="csrfToken" value="([a-f0-9]+)"/)[1];
+    assert.equal((await sendRecovery(csrfToken)).status, 200);
+    const sentList = await request(server, ADMIN, { cookie: login.cookie });
+    assert(sentList.text.includes('再送'));
+    assert(sentList.text.includes('送信済み'));
+    assert.equal((await sendRecovery(csrfToken)).status, 200);
     const image = await request(server, `${ADMIN}/${body.formToken}/screenshot`, { cookie: login.cookie });
     assert.equal(image.status, 200);
     assert.equal(image.headers['content-type'], 'image/png');

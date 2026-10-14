@@ -1,4 +1,29 @@
 (() => {
+  document.querySelectorAll('.recovery-mail-form').forEach(form => {
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      const status = form.querySelector('[role="status"]');
+      if (button.disabled) return;
+      button.disabled = true;
+      status.textContent = '';
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(new FormData(form)),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.sent) throw new Error(result.error || form.dataset.error);
+        button.textContent = form.dataset.resend;
+        status.textContent = form.dataset.sent;
+      } catch (error) {
+        status.textContent = error.message || form.dataset.error;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
   document.querySelectorAll('[data-claim-dialog]').forEach(button => {
     const dialog = document.getElementById(button.dataset.claimDialog);
     if (!dialog) return;
