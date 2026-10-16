@@ -59,7 +59,7 @@ class SendGridMailer {
       ...(replyAddress ? { reply_to: { email: replyAddress } } : {}),
       subject: normalizedSubject,
       content,
-      categories: categories.slice(0, 10),
+      ...(categories.length ? { categories: categories.slice(0, 10) } : {}),
       tracking_settings: {
         click_tracking: { enable: false, enable_text: false },
         open_tracking: { enable: false },
