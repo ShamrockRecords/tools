@@ -183,3 +183,21 @@ UIDと`signup-gift-v1`から決まるIDを使い、grantと付与台帳を同一
 
 - 管理画面の「詳細」の右にある「復旧完了メールを送信」は、メールアドレスの設定を済ませた後に押してください。申請者にパスワードの再設定を案内します。このボタン自体はアカウントの設定を変更しません。
 - 復旧完了メールにはアカウント名・登録単語・受付番号・リンクを含めません。送信成功後は「送信済み」と表示し、ボタンは「再送」に変わります。明示的な再送を可能にしつつ、並行クリックでの重複送信を防ぎます。
+
+## セキュリティ更新（2026-10-22）
+
+- 実行環境はNode.js 24系です。`package.json`の`engines`と`.node-version`に指定しています。依存関係を再現する場合はNode.js 24で`npm ci`を実行してください。Firebase Admin 14のモジュールAPIへ移行し、アプリで必要なFirestore・Storageを明示依存にしました。
+- 共通の試行回数制限はExpressの`req.ip`を利用し、`X-Forwarded-For`の先頭を直接信用しません。本番は信頼するプロキシを1段とする構成のため、インターネットからアプリへの直結を許可せず、実際のプロキシ構成と一致させてください。回数カウンターは従来どおりプロセス内です。
+- 通常の一斉メールにも管理者セッションに紐づくCSRFトークンを必須とします。
+- 管理画面などの通常リクエストは1MBを上限とします。大きな字幕を扱う`/srt2csv`・`/yomifuri`・`/yomifuri_ex`・`/jimakueditor`・`/jimakueditor4file`は従来の100MBを維持します。Mojidas APIの専用制限は変更しません。
+- 費用が発生する`/youyaku`は2段階認証済みの管理者だけが利用できます。管理ログイン後に要約画面を開いてください。画面からの送信にはセッションに紐づくCSRFトークンを付けます。入力は本文合計50,000文字・指示2,000文字まで、出力は2,048トークンまで、外部接続は30秒で打ち切ります。要約とLINEデバッグは共通でIPごとに1時間120リクエストまでです。複数プロセスではそれぞれの上限になります。
+- `/line/webhook`と`/lineKyodoshi/webhook`は、それぞれ`LINE_CHANNEL_SECRET`と`LINE_KYODOSHI_CHANNEL_SECRET`を使い、受信した生の本文と`x-line-signature`の署名を検証します。秘密鍵未設定・署名なし・本文改変は拒否します。LINE SDK 11の返信APIへ移行しました。
+- `/line/debug`と`/lineKyodoshi/debug`も管理者認証・CSRF確認を必須にしました。デバッグ呼び出しは要約画面で発行する`X-CSRF-Token`を同じセッションで使用してください。
+
+検証コマンドは`npm test`、`npm run test:business-inquiry`、`npm audit`です。`npm run test:security`では外部API・LINE返信を置き換えて通常利用と不正アクセスの拒否を確認します。実メール送信・実課金・本番データの変更は行いません。
+
+### 今回の確認結果
+
+Node.js 24.22.0で`npm ci`後に`npm test`と`npm run test:business-inquiry`が成功しました。`npm audit`はCritical・High・Moderate・Lowとも0件です。Firebaseの実モジュールを使った初期化・Auth・Firestore・Storageの互換性も通信なしで確認しています。
+
+`npm start`によるローカル起動では、管理ログイン画面200、未ログインの要約画面302、署名なしのLINE Webhook403を確認し、ブラウザーで管理ログイン画面の表示も確認しました。本番へのデプロイ・実API課金・実メール送信はこの検証に含みません。

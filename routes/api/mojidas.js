@@ -1,5 +1,5 @@
 const express = require('express');
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('../../modules/firebase_admin');
 const crypto = require('crypto');
 
 const {

@@ -320,6 +320,7 @@ router.get('/bulk-mail', ensureAdmin, async function (req, res, next) {
     return res.render('admin/bulk-mail', {
       user: userRecord,
       flash: null,
+      csrfToken: ensureAdminCSRFToken(req),
       form: { recipients: '', subject: '', body: '' },
     });
   } catch (error) {
@@ -518,8 +519,8 @@ router.post('/mojidas-users/:uid/invited-unlimited', ensureAdmin, async function
 });
 
 router.post('/login', adminLoginRateLimit, async function (req, res) {
-  const email = (req.body.email || '').trim();
-  const password = req.body.password || '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
 
   if (!email || !password) {
     req.session.adminError = 'メールアドレスとパスワードを入力してください。';
@@ -588,9 +589,11 @@ router.post('/cancel-code', function (req, res, next) {
 });
 
 router.post('/bulk-mail', ensureAdmin, async function (req, res) {
-  const recipientsRaw = req.body.recipients || '';
-  const subject = (req.body.subject || '').trim();
-  const body = (req.body.body || '').trim();
+  if (!hasValidAdminCSRFToken(req)) return res.status(403).json({ success: false, message: '画面を開き直してください。' });
+  if (['recipients', 'subject', 'body'].some(key => typeof req.body[key] !== 'string')) return res.status(400).json({ success: false, message: '入力形式が正しくありません。' });
+  const recipientsRaw = req.body.recipients;
+  const subject = req.body.subject.trim();
+  const body = req.body.body.trim();
 
   const parsedRecipients = recipientsRaw
     .split(/\r?\n/)

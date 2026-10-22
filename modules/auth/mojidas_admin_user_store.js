@@ -1,4 +1,4 @@
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('../firebase_admin');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 const creditStore = require('../credit/mojidas_credit_store');

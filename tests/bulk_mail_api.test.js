@@ -8,7 +8,7 @@ process.env.NODE_ENV = 'test';
 
 function request(server, body, authenticated = true) {
   return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
+    const data = JSON.stringify({ csrfToken: 'fixture-csrf', ...body });
     const req = http.request({
       host: '127.0.0.1', port: server.address().port,
       method: 'POST', path: '/admin/bulk-mail', agent: false,
@@ -62,7 +62,7 @@ async function main() {
     // 管理者セッションだけを用意し、実DBや実際のログイン資格情報を使わない。
     app.use((req, res, next) => {
       req.session = req.headers['x-test-admin'] === '1'
-        ? { adminUser: { email: 'admin@example.invalid' } } : {};
+        ? { adminUser: { email: 'admin@example.invalid' }, adminCSRFToken: 'fixture-csrf' } : {};
       next();
     });
     app.use('/admin', require('../routes/admin'));
@@ -85,7 +85,13 @@ async function main() {
       }
     }
 
-    let response = await request(server, { ...message, recipients: 'reader@example.invalid' });
+    let response = await request(server, { ...message, recipients: 'reader@example.invalid', csrfToken: '' });
+    assert.equal(response.status, 403);
+    assert.equal(calls.length, 0);
+    response = await request(server, { ...message, recipients: 'reader@example.invalid', csrfToken: 'invalid' });
+    assert.equal(response.status, 403);
+    assert.equal(calls.length, 0);
+    response = await request(server, { ...message, recipients: 'reader@example.invalid' });
     assert.equal(response.status, 200);
     assert.equal(JSON.parse(response.text).success, true);
     assert.deepStrictEqual(deliveredEmails(), ['reader@example.invalid', sender]);

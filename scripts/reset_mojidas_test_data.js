@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('path');
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('../modules/firebase_admin');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 

@@ -255,6 +255,7 @@
 				submitButton.disabled = true;
 				submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>送信中...';
 				const payload = {
+					csrfToken: <%- JSON.stringify(csrfToken) %>,
 					recipients: pendingRecipients.join('\n'),
 					subject: subjectInput.value.trim(),
 					body: bodyInput.value.trim(),

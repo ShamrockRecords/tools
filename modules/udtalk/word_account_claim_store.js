@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('../firebase_admin');
 const { getFirestore } = require('../firestore');
 const { udtalkCollection, udtalkRootPath } = require('../udtalk_firestore');
 const { SendGridMailer } = require('../email/sendgrid_mailer');

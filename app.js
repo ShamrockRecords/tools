@@ -3,7 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var firebaseAdmin = require('firebase-admin');
+var firebaseAdmin = require('./modules/firebase_admin');
 var crypto = require('crypto');
 const {
   resolveMojidasApiBodyLimit,
@@ -169,8 +169,16 @@ app.use('/api/mojidas', function (req, res, next) {
   });
 });
 
-app.use(express.json({limit: '100mb'}));
-app.use(express.urlencoded({ extended: false, limit: '100mb' }));
+// 大きな字幕ファイルを扱う経路だけ従来の上限を維持する。
+const largeFilePaths = ['/srt2csv', '/yomifuri', '/yomifuri_ex', '/jimakueditor', '/jimakueditor4file'];
+for (const routePath of largeFilePaths) {
+  app.use(routePath, express.json({ limit: '100mb' }), express.urlencoded({ extended: false, limit: '100mb' }));
+}
+// LINE署名検証に使う受信時のバイト列を保持する。
+app.use(express.json({ limit: '1mb', verify(req, res, buffer) {
+  if (/^\/line(?:Kyodoshi)?\/webhook\/?$/.test(req.path)) req.lineRawBody = buffer;
+} }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 if (process.env.ROOT_URL != "http://localhost:3000") {
   var secure = require('ssl-express-www');
@@ -184,8 +192,6 @@ app.set('view engine', 'ejs');
 
 // 再設定リンクの秘密トークンをアクセスログへ残さない。
 app.use(logger('dev', { skip: req => req.path === '/corporate/reset-password' }));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -197,8 +203,10 @@ app.use('/jimakueditor', captionEditorIndexRouter);
 app.use('/jimakueditor4file', captionEditor4FileIndexRouter);
 app.use('/appmap', appMapIndexRouter);
 app.use('/locale_change', localeChangeRouter);
-app.use('/youyaku', youyakuIndexRouter);
+app.use('/youyaku', require('./modules/auth/admin_second_factor').adminActivity, youyakuIndexRouter);
+app.use('/line/debug', require('./modules/auth/admin_second_factor').adminActivity);
 app.use('/line', lineIndexRouter);
+app.use('/lineKyodoshi/debug', require('./modules/auth/admin_second_factor').adminActivity);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/partners', require('./routes/partners').createPartnerRouter());
 app.use('/corporate', require('./routes/corporate').createCorporateRouter());

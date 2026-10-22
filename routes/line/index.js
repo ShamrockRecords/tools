@@ -1,10 +1,15 @@
 var express = require('express');
 var router = express.Router() ;
-const line = require("@line/bot-sdk");
+const line = require('@line/bot-sdk');
+const access = require('../../modules/auth/paid_tool_access');
 
 const wrap = fn => (...args) => fn(...args).catch(args[2]) ;
 
-router.post('/webhook', wrap(async function(req, res, next) {
+router.post('/webhook', function(req, res, next) {
+    const secret = process.env.LINE_CHANNEL_SECRET;
+    if (!secret || !req.lineRawBody || !line.validateSignature(req.lineRawBody, secret, req.get('x-line-signature') || '')) return res.sendStatus(403);
+    next();
+}, wrap(async function(req, res, next) {
     
     try {
         const config = { 
@@ -12,22 +17,22 @@ router.post('/webhook', wrap(async function(req, res, next) {
             channelSecret: process.env.LINE_CHANNEL_SECRET,
         } ;
 
-        const bot = new line.Client (config);
+        const bot = new line.messagingApi.MessagingApiClient(config);
 
         const events = req.body.events ;
 
-        events.forEach (async (event) => {
+        for (const event of events) {
 
-            if (event.type === 'message') {
+            if (event.type === 'message' && event.message?.type === 'text' && event.message.text.length <= 50000) {
                 
                 let content = await makeReplyContent(event.message.text) ;
                 
-                bot.replyMessage (event.replyToken, {
+                await bot.replyMessage ({ replyToken: event.replyToken, messages: [{
                     type: 'text',
                     text: content,
-                }) ;
+                }] }) ;
             }
-        }) ;
+        }
     } catch (e) {
 
     }
@@ -35,7 +40,8 @@ router.post('/webhook', wrap(async function(req, res, next) {
     res.status(200).send("OK") ;
 })) ;
 
-router.post('/debug', wrap(async function(req, res, next) {
+router.post('/debug', access.requireAdmin, access.checkCSRF, access.limited, wrap(async function(req, res, next) {
+    if (typeof req.body.prompt !== 'string' || req.body.prompt.length > 50000) return res.sendStatus(400);
     let content = await makeReplyContent(req.body.prompt) ;
           
     res.send(content) ;
@@ -85,10 +91,11 @@ async function getReplyMessage(prompt) {
         "model": process.env.OPEN_AI_MODEL,
         "messages": messages,
         "temperature": 0.0,
-        "max_tokens": Number(process.env.OPEN_AI_MAX_TOKENS),
+        "max_tokens": Math.min(2048, Math.max(1, Number(process.env.OPEN_AI_MAX_TOKENS) || 2048)),
     } ;
 
     const param = {
+        signal: AbortSignal.timeout(30000),
         method: "POST",
         headers: {"Authorization": "Bearer " + authorization, "Content-Type": "application/json"},
         body: JSON.stringify(body)
@@ -125,6 +132,7 @@ async function geKeywords(prompt) {
     } ;
 
     const param = {
+        signal: AbortSignal.timeout(30000),
         method: "POST",
         headers: {"Authorization": "Bearer " + authorization, "Content-Type": "application/json"},
         body: JSON.stringify(body)

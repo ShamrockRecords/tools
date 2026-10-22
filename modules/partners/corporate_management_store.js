@@ -15,7 +15,7 @@ function estimate(plan, excess) {
     total: monthlyFees[plan] == null ? null : monthlyFees[plan] + charge };
 }
 class CorporateManagementStore {
-  constructor({ firestoreProvider, now = Date.now, authProvider = () => require('firebase-admin').auth() }) {
+  constructor({ firestoreProvider, now = Date.now, authProvider = () => require('../firebase_admin').auth() }) {
     this.provider = firestoreProvider; this.now = now; this.authProvider = authProvider;
   }
   collection(name) { return mojidasCollection(this.provider(), name); }

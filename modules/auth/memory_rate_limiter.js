@@ -5,8 +5,8 @@ function createMemoryRateLimiter({ windowMs, max, keyPrefix, keyGenerator, onLim
 
   return function (req, res, next) {
     const now = Date.now();
-    const forwarded = (req.get('X-Forwarded-For') || '').split(',')[0].trim();
-    const address = forwarded || req.ip || req.socket.remoteAddress || 'unknown';
+    // 信頼するプロキシの判定はExpressへ任せ、利用者の転送ヘッダーを直接信用しない。
+    const address = req.ip || req.socket.remoteAddress || 'unknown';
     const generatedKey = typeof keyGenerator === 'function' ? keyGenerator(req) : '';
     const identity = typeof generatedKey === 'string' && generatedKey.trim()
       ? generatedKey.trim()

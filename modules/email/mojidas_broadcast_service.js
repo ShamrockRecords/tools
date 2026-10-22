@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('../firebase_admin');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 const { sendGridRequest } = require('./sendgrid_mailer');

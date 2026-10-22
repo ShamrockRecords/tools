@@ -1,4 +1,4 @@
-const firebaseAdmin = require('firebase-admin');
+const firebaseAdmin = require('./firebase_admin');
 
 function getFirestore() {
   if (!firebaseAdmin.apps.length) {

@@ -47,7 +47,7 @@ function planReset(users, grants, now) {
 
 async function main() {
   require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-  const admin = require('firebase-admin');
+  const admin = require('../modules/firebase_admin');
   const raw = process.env.FIREBASE_ADMIN_CREDENTIALS || '';
   const credential = JSON.parse(raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString());
   const projectId = process.env.FIREBASE_PROJECT_ID || credential.project_id;
