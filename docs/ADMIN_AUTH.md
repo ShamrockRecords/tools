@@ -201,3 +201,26 @@ UIDと`signup-gift-v1`から決まるIDを使い、grantと付与台帳を同一
 Node.js 24.22.0で`npm ci`後に`npm test`と`npm run test:business-inquiry`が成功しました。`npm audit`はCritical・High・Moderate・Lowとも0件です。Firebaseの実モジュールを使った初期化・Auth・Firestore・Storageの互換性も通信なしで確認しています。
 
 `npm start`によるローカル起動では、管理ログイン画面200、未ログインの要約画面302、署名なしのLINE Webhook403を確認し、ブラウザーで管理ログイン画面の表示も確認しました。本番へのデプロイ・実API課金・実メール送信はこの検証に含みません。
+
+
+## Node.js 2026年10月セキュリティリリースへの対応
+
+[公式告知](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)に従い、Node.js 24.22.1以降の24系を必須とします。従来の24.22.0は修正前のため使用しません。これはNode.js本体の更新であり、`npm audit`で依存パッケージが0件でも別途対応が必要です。
+
+`package.json`とロックファイルの`engines.node`を`>=24.22.1 <25`にし、`.node-version`とnvm用の`.nvmrc`を24.22.1に揃えています。
+
+```sh
+cd /Users/shamrock/Documents/StudyNodeJS/tools
+nvm install
+nvm use
+node -v
+npm ci
+npm test
+npm start
+```
+
+本番でもNode.js 24.22.1以降を指定して再ビルド・再起動してください。既に動作中のプロセスはNode.jsのインストールだけでは更新されません。本番プロセスの実バージョンを確認し、起動後にMojidasのログイン・残時間取得・認識・単語同期を確認します。本番へのデプロイや再起動は別途実施します。
+
+このアプリはHTTPSでFirebase・SendGrid・翻訳サービス等と通信するため、TLS・HTTP・Undici等の修正を含むランタイム更新を適用します。起動スナップショット・SEA・Permission Modelはこのリポジトリの起動構成では使用していません。個別機能を使っていないことを理由に更新を省略しません。
+
+24.22.1で`npm test`・`npm run test:business-inquiry`が成功し、`npm start`での管理ログイン画面のHTTP 200を確認しました。実行時のOpenSSLは3.5.9、Undiciは7.30.1です。本番の実行バージョンと再起動は未確認です。
