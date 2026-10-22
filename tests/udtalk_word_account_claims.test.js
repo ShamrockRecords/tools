@@ -112,6 +112,8 @@ async function main() {
   process.env.ADMIN_EMAIL = 'admin@example.com';
   process.env.ADMIN_PASSWORD_HASH = require('../modules/auth/admin_credentials').createAdminPasswordHash('fixture-password-1234');
   const app = require('../app');
+  let loginCode;
+  app.locals.adminLoginMailer = { async send(message) { loginCode = message.text.match(/\d{6}/)[0]; } };
   const httpFixture = createFixture();
   app.locals.udtalkWordAccountClaimStore = httpFixture.store;
   const server = await new Promise(resolve => { const active = app.listen(0, '127.0.0.1', () => resolve(active)); });
@@ -154,11 +156,17 @@ async function main() {
     const limited = await send(body, screenshot);
     assert.equal(limited.status, 429);
     assert(limited.headers['retry-after']);
-    const login = await request(server, '/admin/login', { method: 'POST',
+    let login = await request(server, '/admin/login', { method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: Buffer.from(new URLSearchParams({ email: process.env.ADMIN_EMAIL, password: 'fixture-password-1234' }).toString()),
     });
     assert.equal(login.status, 302);
+    const challengePage = await request(server, '/admin', { cookie: login.cookie });
+    const otpCsrf = challengePage.text.match(/name="csrf" value="([a-f0-9]+)"/)[1];
+    login = await request(server, '/admin/verify-code', { method: 'POST', cookie: login.cookie,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: Buffer.from(new URLSearchParams({ code: loginCode, csrf: otpCsrf }).toString()),
+    });
     const dashboard = await request(server, '/admin', { cookie: login.cookie });
     assert(dashboard.text.includes(ADMIN));
     const list = await request(server, ADMIN, { cookie: login.cookie });

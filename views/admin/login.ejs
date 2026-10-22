@@ -18,12 +18,25 @@
 	<div class="container py-5" id="admin-login">
 		<div class="text-center mb-4">
 			<h1 class="h3 fw-bold">管理ログイン</h1>
-			<p class="text-muted mb-0">管理者用に設定されたメールアドレスとパスワードを入力してください。</p>
+			<p class="text-muted mb-0"><%= pending ? '管理者メールに送信した6桁の認証コードを入力してください。' : '管理者用に設定されたメールアドレスとパスワードを入力してください。' %></p>
 		</div>
 
 		<% if (error) { %>
 			<div class="alert alert-danger" role="alert"><%= error %></div>
 		<% } %>
+
+        <% if (pending) { %>
+        <form class="card shadow-sm p-4" method="post" action="/admin/verify-code">
+            <input type="hidden" name="csrf" value="<%= pending.csrf %>">
+            <label for="admin-code" class="form-label">認証コード（10分間有効）</label>
+            <input id="admin-code" class="form-control mb-3" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+            <button class="btn btn-primary" type="submit">認証してログイン</button>
+        </form>
+        <form method="post" action="/admin/cancel-code" class="mt-3">
+            <input type="hidden" name="csrf" value="<%= pending.csrf %>">
+            <button class="btn btn-link" type="submit">ログインからやり直す・コードを再送する</button>
+        </form>
+        <% } else { %>
 
 		<form class="card shadow-sm p-4" method="post" action="/admin/login" autocomplete="on">
 			<div class="mb-3">
@@ -39,6 +52,7 @@
 			</button>
 		</form>
 
+        <% } %>
 		<p class="text-muted small text-center mt-3">
 			管理者の変更はサーバーの環境変数で行います。
 		</p>

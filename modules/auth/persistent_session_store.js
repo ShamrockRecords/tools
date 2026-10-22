@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 
+const { IDLE_MS } = require('./admin_second_factor');
+
 const LOGIN_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 class PersistentSessionStore extends session.Store {
@@ -32,11 +34,11 @@ class PersistentSessionStore extends session.Store {
   set(sid, value, callback = () => {}) {
     Promise.resolve().then(async () => {
       const loginAt = this.scope === 'corporate' ? value.corporateLogin?.at
-        : this.scope === 'partner' ? value.partnerLogin?.at : Date.parse(value.adminUser?.signedInAt);
+        : this.scope === 'partner' ? value.partnerLogin?.at : value.adminUser?.lastAccessAt;
       const cookieExpiry = Date.parse(value.cookie?.expires);
       const expiresAt = new Date(Math.min(
         Number.isFinite(cookieExpiry) ? cookieExpiry : this.now() + LOGIN_DURATION_MS,
-        Number.isFinite(loginAt) ? loginAt + LOGIN_DURATION_MS : this.now() + LOGIN_DURATION_MS
+        Number.isFinite(loginAt) ? loginAt + (this.scope === 'admin' ? IDLE_MS : LOGIN_DURATION_MS) : this.now() + LOGIN_DURATION_MS
       ));
       await this.document(sid).set({ payload: JSON.stringify(value), expiresAt });
     }).then(() => callback(), callback);
@@ -46,7 +48,7 @@ class PersistentSessionStore extends session.Store {
     Promise.resolve().then(() => this.document(sid).delete()).then(() => callback(), callback);
   }
 
-  // 読み取りだけでは期限を延長しない。ログインから30日で再認証する。
+  // 管理者は管理画面アクセス時にlastAccessAtを保存する。他のスコープの期限は維持する。
   touch(sid, value, callback = () => {}) { callback(); }
 }
 

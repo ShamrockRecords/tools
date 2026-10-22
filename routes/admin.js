@@ -15,7 +15,8 @@ const mojidasBroadcastService = require('../modules/email/mojidas_broadcast_serv
 var router = express.Router();
 
 const LEGACY_FIREBASE_COOKIE_NAME = 'sessionCookie';
-const { LOGIN_DURATION_MS: SESSION_DURATION_MS } = require('../modules/auth/persistent_session_store');
+const { IDLE_MS: SESSION_DURATION_MS, CODE_MS } = require('../modules/auth/admin_second_factor');
+const { SendGridMailer } = require('../modules/email/sendgrid_mailer');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RECIPIENTS = 1500;
 const SENDGRID_BATCH_SIZE = 500;
@@ -68,6 +69,8 @@ async function createAdminSession(adminUser, req, res) {
   req.session.adminUser = {
     email: adminUser.email,
     signedInAt: new Date().toISOString(),
+    secondFactorVerified: true,
+    lastAccessAt: req.app.locals.adminAuthNow ? req.app.locals.adminAuthNow() : Date.now(),
   };
   req.session.cookie.maxAge = SESSION_DURATION_MS;
   res.clearCookie(LEGACY_FIREBASE_COOKIE_NAME);
@@ -230,6 +233,7 @@ router.get('/', async function (req, res, next) {
 
       return res.render('admin/login', {
         error: message,
+        pending: req.session.adminPending || null,
       });
     }
 
@@ -529,7 +533,22 @@ router.post('/login', adminLoginRateLimit, async function (req, res) {
       return res.redirect('/admin');
     }
 
-    await createAdminSession(adminUser, req, res);
+    if (req.session.adminPending) await req.app.locals.adminChallengeStore.remove(req.session.adminPending.id);
+    await regenerateSession(req);
+    res.clearCookie(LEGACY_FIREBASE_COOKIE_NAME);
+    const store = req.app.locals.adminChallengeStore;
+    const challenge = await store.create(adminUser.email);
+    try {
+      const mailer = req.app.locals.adminLoginMailer || new SendGridMailer();
+      await mailer.send({ to: adminUser.email, subject: '管理ログインの認証コード',
+        text: `管理ログインの認証コードは ${challenge.code} です。\n\n有効期限は10分です。心当たりがない場合は、このメールを破棄してください。`,
+      });
+    } catch (error) {
+      await store.remove(challenge.id);
+      throw error;
+    }
+    req.session.adminPending = { id: challenge.id, csrf: crypto.randomBytes(32).toString('hex') };
+    req.session.cookie.maxAge = CODE_MS;
     return res.redirect('/admin');
   } catch (error) {
     req.session.adminError = error instanceof AdminAuthConfigurationError
@@ -537,6 +556,35 @@ router.post('/login', adminLoginRateLimit, async function (req, res) {
       : 'ログインに失敗しました。';
     return res.redirect('/admin');
   }
+});
+
+router.post('/verify-code', adminLoginRateLimit, async function (req, res) {
+  const pending = req.session.adminPending;
+  if (!pending || typeof req.body.csrf !== 'string' || req.body.csrf !== pending.csrf) {
+    return res.status(403).send('認証画面を開き直してください。');
+  }
+  try {
+    const user = await req.app.locals.adminChallengeStore.consume(pending.id, String(req.body.code || ''));
+    if (!user) {
+      req.session.adminError = '認証コードが正しくないか、有効期限または入力回数の上限を超えています。';
+      return res.redirect('/admin');
+    }
+    await createAdminSession(user, req, res);
+    return res.redirect('/admin');
+  } catch (error) {
+    req.session.adminError = '認証に失敗しました。もう一度ログインしてください。';
+    delete req.session.adminPending;
+    return res.redirect('/admin');
+  }
+});
+
+router.post('/cancel-code', function (req, res, next) {
+  const pending = req.session.adminPending;
+  if (!pending || req.body.csrf !== pending.csrf) return res.sendStatus(403);
+  req.app.locals.adminChallengeStore.remove(pending.id).then(() => {
+    delete req.session.adminPending;
+    return res.redirect('/admin');
+  }).catch(next);
 });
 
 router.post('/bulk-mail', ensureAdmin, async function (req, res) {

@@ -21,14 +21,23 @@ async function main() {
   const admin = make('admin');
   const partner = make('partner');
   const original = { cookie: { expires: new Date(now + LOGIN_DURATION_MS).toISOString() },
-    adminUser: { email: 'fixture@example.invalid', signedInAt: new Date(now).toISOString() }, adminCSRFToken: 'fixture-csrf' };
+    adminUser: { email: 'fixture@example.invalid', signedInAt: new Date(now).toISOString(), lastAccessAt: now, secondFactorVerified: true }, adminCSRFToken: 'fixture-csrf' };
   await call(admin, 'set', 'secret-session', original);
   // 別プロセス相当のストアでも復元し、管理者・販売店を混同しない。
   assert.deepStrictEqual(await call(make('admin'), 'get', 'secret-session'), original);
   assert.strictEqual(await call(partner, 'get', 'secret-session'), null);
-  const partnerData = { cookie: original.cookie, partnerLogin: { id: 'partner-fixture', at: now } };
+  const partnerData = { cookie: { ...original.cookie }, partnerLogin: { id: 'partner-fixture', at: now } };
   await call(partner, 'set', 'secret-session', partnerData);
   assert.deepStrictEqual(await call(make('partner'), 'get', 'secret-session'), partnerData);
+  const idle = 3 * 24 * 60 * 60 * 1000;
+  now += idle - 1;
+  assert(await call(admin, 'get', 'secret-session'));
+  original.adminUser.lastAccessAt = now;
+  original.cookie.expires = new Date(now + idle).toISOString();
+  await call(admin, 'set', 'secret-session', original);
+  now += idle;
+  assert.equal(await call(admin, 'get', 'secret-session'), null);
+  now -= 2 * idle - 1;
   await call(admin, 'destroy', 'secret-session');
   assert.strictEqual(await call(make('admin'), 'get', 'secret-session'), null);
   assert.deepStrictEqual(await call(partner, 'get', 'secret-session'), partnerData);

@@ -202,6 +202,11 @@ app.use('/line', lineIndexRouter);
 app.use('/lineKyodoshi', lineKyodoshiIndexRouter);
 app.use('/partners', require('./routes/partners').createPartnerRouter());
 app.use('/corporate', require('./routes/corporate').createCorporateRouter());
+const { AdminChallengeStore, adminActivity } = require('./modules/auth/admin_second_factor');
+app.locals.adminChallengeStore = new AdminChallengeStore({
+  persistent: process.env.NODE_ENV !== 'test' && firebaseAdmin.apps.length > 0,
+});
+app.use('/admin', adminActivity);
 app.use('/admin/mojidas-partners', require('./routes/partners').createPartnerRouter({ admin: true }));
 app.use('/udtalk/word-account-claim', require('./routes/udtalk').createUdtalkRouter());
 app.use('/admin/udtalk-word-account-claims', require('./routes/udtalk').createUdtalkRouter({ admin: true }));

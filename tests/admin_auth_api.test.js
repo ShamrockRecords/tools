@@ -9,6 +9,13 @@ process.env.ADMIN_EMAIL = 'admin@example.com';
 process.env.ADMIN_PASSWORD_HASH = createAdminPasswordHash('correct horse battery staple');
 
 const app = require('../app');
+let loginCode;
+let failLoginMail = false;
+app.locals.adminLoginMailer = { async send(message) {
+  assert.equal(message.to, process.env.ADMIN_EMAIL);
+  if (failLoginMail) throw new Error('fixture mail failure');
+  loginCode = message.text.match(/\d{6}/)[0];
+} };
 
 function request(server, method, path, { body, cookie } = {}) {
   return new Promise((resolve, reject) => {
@@ -156,6 +163,15 @@ async function main() {
     });
     assert.strictEqual(response.status, 302);
 
+    failLoginMail = true;
+    response = await request(server, 'POST', '/admin/login', {
+      body: { email: 'admin@example.com', password: 'correct horse battery staple' },
+    });
+    const failedCookie = sessionCookie(response);
+    assert.equal((await request(server, 'GET', '/admin/bulk-mail', { cookie: failedCookie })).status, 302);
+    assert.equal(app.locals.adminChallengeStore.memory.size, 0, 'メール送信失敗時は認証コードを破棄');
+    failLoginMail = false;
+
     response = await request(server, 'POST', '/admin/login', {
       body: {
         email: 'ADMIN@example.com',
@@ -163,8 +179,27 @@ async function main() {
       },
     });
     assert.strictEqual(response.status, 302);
-    const cookie = sessionCookie(response);
+    let cookie = sessionCookie(response);
     assert.ok(cookie);
+
+    response = await request(server, 'GET', '/admin/bulk-mail', { cookie });
+    assert.equal(response.status, 302, 'パスワードだけでは管理画面へ入れない');
+    for (const url of ['/admin/mojidas-partners', '/admin/udtalk-word-account-claims']) {
+      assert.equal((await request(server, 'GET', url, { cookie })).status, 302);
+    }
+    response = await request(server, 'GET', '/admin', { cookie });
+    const otpCsrf = response.body.match(/name="csrf" value="([a-f0-9]+)"/)[1];
+    assert(!response.body.includes(loginCode));
+    assert.equal((await request(server, 'POST', '/admin/verify-code', { cookie, body: { code: loginCode } })).status, 403);
+    const wrongCode = loginCode === '000000' ? '111111' : '000000';
+    await request(server, 'POST', '/admin/verify-code', { cookie, body: { code: wrongCode, csrf: otpCsrf } });
+    assert.equal((await request(server, 'GET', '/admin/bulk-mail', { cookie })).status, 302);
+    response = await request(server, 'POST', '/admin/verify-code', { cookie, body: { code: loginCode, csrf: otpCsrf } });
+    assert.equal(response.status, 302);
+    const pendingCookie = cookie;
+    cookie = sessionCookie(response);
+    assert(cookie && cookie !== pendingCookie, '認証完了後にセッションIDを更新する');
+    assert.equal((await request(server, 'GET', '/admin/bulk-mail', { cookie: pendingCookie })).status, 302);
 
     response = await request(server, 'GET', '/admin', { cookie });
     assert.strictEqual(response.status, 200);
@@ -304,6 +339,16 @@ async function main() {
 
     response = await request(server, 'GET', '/admin/bulk-mail', { cookie });
     assert.strictEqual(response.status, 200);
+
+    const idle = require('../modules/auth/admin_second_factor').IDLE_MS;
+    const base = Date.now();
+    app.locals.adminAuthNow = () => base + idle - 1000;
+    assert.equal((await request(server, 'GET', '/admin/bulk-mail', { cookie })).status, 200);
+    app.locals.adminAuthNow = () => base + 2 * idle - 2000;
+    assert.equal((await request(server, 'GET', '/admin/mojidas', { cookie })).status, 200, 'アクセスで3日の期限を更新');
+    app.locals.adminAuthNow = () => base + 3 * idle - 2000;
+    assert.equal((await request(server, 'GET', '/admin/udtalk-word-account-claims', { cookie })).status, 302, '最終アクセスから3日で失効');
+    delete app.locals.adminAuthNow;
 
     response = await request(server, 'POST', '/admin/logout', { cookie });
     assert.strictEqual(response.status, 200);
