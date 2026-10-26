@@ -11,6 +11,7 @@ macOS / Windows版Mojidasから利用する、メールアドレス＋パスワ�
 - Content-Type: `application/json`
 - Request body上限: 1 MiB
 - 本番環境ではHTTPS必須
+- 対象アカウントのログインを維持した費用操作の制限と監査は[利用制限・監査仕様](MOJIDAS_SECURITY_OBSERVATION.md)を参照。拒否は `403 / USAGE_RESTRICTED`。既存の予約終了・精算は継続する。
 - メールで届く6桁の認証コードの確認が完了するまでログイン不可
 - IDトークンの有効期間はFirebase応答の `expiresIn` を参照
 - 更新トークンはOSの資格情報ストア（macOS Keychain / Windows DPAPI）へ保存

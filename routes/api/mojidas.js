@@ -14,6 +14,7 @@ const {
 } = require('../../modules/auth/mojidas_account_deletion');
 const { isInvitedUnlimited } = require('../../modules/auth/mojidas_access_policy');
 const { createMemoryRateLimiter } = require('../../modules/auth/memory_rate_limiter');
+const { mojidasSecurityPolicy } = require('../../modules/auth/mojidas_security_policy');
 const {
   ACPApiKeyIssuer,
 } = require('../../modules/acp/api_key_issuer');
@@ -54,6 +55,7 @@ function createMojidasRouter({
   translationService,
   translationOptions,
   formalTranslationJobStore,
+  securityPolicy = mojidasSecurityPolicy,
   allowedHosts,
   allowLocalhost = true,
 } = {}) {
@@ -158,6 +160,7 @@ function createMojidasRouter({
     keyGenerator: authenticatedUserRateLimitKey,
   });
 
+  router.use(securityPolicy.observe);
   router.use(createHostGuard({ allowedHosts, allowLocalhost }));
 
   router.get('/configuration', function (req, res) {
@@ -209,6 +212,7 @@ function createMojidasRouter({
       }
       await creditStore.activateSignupGift();
       const user = await client.register(email, password);
+      securityPolicy.identify(req, user, 'registered');
       return res.status(201).json({
         user,
         verificationRequired: true,
@@ -219,6 +223,7 @@ function createMojidasRouter({
   });
 
   async function recordClientInfo(req, session) {
+    securityPolicy.identify(req, session.user, 'authenticated');
     const platform = req.get('X-Mojidas-Platform');
     const version = req.get('X-Mojidas-Version');
     if (!['macos', 'windows'].includes(platform) || typeof version !== 'string'
@@ -435,6 +440,7 @@ function createMojidasRouter({
   router.post(
     '/translation/realtime',
     authenticate(client),
+    securityPolicy.requireUsageAccess,
     realtimeTranslationRateLimit,
     async function (req, res) {
       try {
@@ -467,6 +473,7 @@ function createMojidasRouter({
   router.post(
     '/translation/formal',
     authenticate(client),
+    securityPolicy.requireUsageAccess,
     formalTranslationRateLimit,
     async function (req, res) {
       try {
@@ -521,6 +528,7 @@ function createMojidasRouter({
     '/billing/checkout-session',
     checkoutRateLimit,
     authenticate(client),
+    securityPolicy.requireUsageAccess,
     async function (req, res) {
       try {
         if (await corporateAccount(req.mojidasUser)) {
@@ -554,7 +562,7 @@ function createMojidasRouter({
     }));
   });
 
-  router.post('/usage/reservations', authenticate(client), async function (req, res) {
+  router.post('/usage/reservations', authenticate(client), securityPolicy.requireUsageAccess, async function (req, res) {
     const operation = ['realtime', 'mediaFile'].includes(req.body.mode) ? req.body.mode : '';
     const clientSessionID = normalizeUUID(req.body.clientSessionID);
     const recognitionRunID = normalizeUUID(req.body.recognitionRunID);
@@ -633,6 +641,7 @@ function createMojidasRouter({
     '/acp/instant-appkey',
     authenticatedAppKeyRateLimit,
     authenticate(client),
+    securityPolicy.requireUsageAccess,
     async function (req, res) {
       const reservationID = normalizeIdentifier(req.body.reservationID);
       if (!reservationID) {

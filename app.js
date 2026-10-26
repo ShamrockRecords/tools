@@ -75,6 +75,8 @@ var createMojidasStripeWebhookHandler = require('./modules/billing/mojidas_strip
 //var signinRouter = require('./routes/signin');
 
 var app = express();
+// 対象IPの管理・法人画面への探索も記録する。Mojidas routerとの二重記録はしない。
+app.use(require('./modules/auth/mojidas_security_policy').mojidasSecurityPolicy.observe);
 
 // Mojidas用ホストのトップだけ公式サイトへ案内する。APIやtools側のトップは維持する。
 app.get('/', function (req, res, next) {

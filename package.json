@@ -14,7 +14,8 @@
     "test:udtalk-monitor": "node tests/udtalk_service_properties.test.js && node tests/udtalk_monitor_api.test.js",
     "monitor:udtalk-service": "node scripts/check_udtalk_service_properties.js",
     "test:udtalk-claims": "node tests/udtalk_claim_receipt.test.js && node tests/udtalk_word_account_claims.test.js",
-    "test:security": "node tests/security_hardening.test.js"
+    "test:security": "node tests/security_hardening.test.js && npm run test:mojidas-security",
+    "test:mojidas-security": "node tests/mojidas_security_policy.test.js"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.10.0",
