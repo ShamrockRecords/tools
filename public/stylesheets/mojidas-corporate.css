@@ -58,3 +58,20 @@ th { white-space: nowrap; }
 .member-checkbox { width: 20px; height: 20px; margin: 0; }
 .auto-enable-label { display: flex; align-items: center; gap: 10px; }
 .pagination { justify-content: space-between; margin-top: 16px; }
+.invoice-table td { vertical-align: top; min-width: 120px; }
+.invoice-detail { margin-top: 8px; min-width: 230px; max-width: 360px; }
+.invoice-detail summary { cursor: pointer; color: var(--action); }
+.invoice-detail dl { display: block; }
+.invoice-detail dt { margin-top: 8px; }
+.invoice-detail dd { margin-left: 0; font-weight: 600; }
+.invoice-status { font-weight: 600; white-space: nowrap; }
+.invoice-status.overdue { color: #b42318; }
+.invoice-pay { display: inline-block; margin-top: 12px; font-weight: 600; }
+@media (max-width: 900px) {
+  .invoice-table thead { display: none; }
+  .invoice-table, .invoice-table tbody, .invoice-table tr, .invoice-table td { display: block; }
+  .invoice-table tr { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .invoice-table td { min-width: 0; padding: 10px 0; border: 0; overflow-wrap: anywhere; }
+  .invoice-table td[data-label]::before { display: block; content: attr(data-label); color: var(--muted); font-size: .9rem; margin-bottom: 6px; }
+  .invoice-detail { min-width: 0; max-width: none; }
+}

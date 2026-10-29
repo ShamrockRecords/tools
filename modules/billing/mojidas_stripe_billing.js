@@ -1,6 +1,7 @@
 const mojidasCreditStore = require('../credit/mojidas_credit_store');
 const { PRODUCT_DEFINITIONS } = require('../mojidas_service_configuration');
 const { mojidasActivityNotifications } = require('../email/mojidas_activity_notifications');
+const { CorporateBillingService, INVOICE_EVENTS } = require('./corporate_billing_service');
 
 const CHECKOUT_EVENT_TYPES = new Set([
   'checkout.session.completed',
@@ -21,11 +22,13 @@ class MojidasStripeBillingService {
     creditStore = mojidasCreditStore,
     environment = process.env,
     activityNotifications = mojidasActivityNotifications,
+    corporateBillingService = null,
   } = {}) {
     this.creditStore = creditStore;
     this.activityNotifications = activityNotifications;
     this.environment = environment;
     this.stripeClient = stripeClient;
+    this.corporateBillingService = corporateBillingService;
   }
 
   get stripe() {
@@ -129,6 +132,12 @@ class MojidasStripeBillingService {
   }
 
   async processWebhookEvent(event) {
+    if (INVOICE_EVENTS.has(event?.type) && event.data?.object?.metadata?.mojidasCorporateInvoiceID) {
+      const service = this.corporateBillingService || new CorporateBillingService({
+        stripeClient: this.stripe, environment: this.environment,
+      });
+      return service.processWebhookEvent(event);
+    }
     if (!event || !CHECKOUT_EVENT_TYPES.has(event.type)) {
       return { handled: false, credited: false };
     }

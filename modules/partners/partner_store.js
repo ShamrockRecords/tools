@@ -6,11 +6,12 @@ const { normalizeDomain, isSharedDomain } = require('./domain_policy');
 const { createAdminPasswordHash, verifyPassword } = require('../auth/admin_credentials');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
 const { parseQuota, resetDay, boundary, quotaStatus, periodAt, planLimitHours } = require('./quota_policy');
-const { readQuota, saveQuota, totalUsage } = require('./quota_store');
+const { readQuota, saveQuota, totalUsage, quotaSettings } = require('./quota_store');
 const { monthAt } = require('./usage_policy');
 const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require('./domain_lifecycle');
 const { CorporatePortalStore, portalState } = require('./corporate_portal_store');
 const { enrollMember } = require('./corporate_membership');
+const { prepareContractChange } = require('../billing/corporate_billing_contracts');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -120,8 +121,10 @@ class PartnerStore {
       const data = { domain, partnerID, organizationName, contactEmail: emailValue(input.contactEmail),
         ...lifecycle, ...initialQuota, status: lifecycle.hasValidityPeriod && createdAt >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status, createdAt, approvedAt: createdAt,
         resetDay: resetDay({ approvedAt: createdAt }), createdBy: adminEmail };
+      const recordBilling = await prepareContractChange(this.provider(), tx, data, createdAt, { fromCreation: true });
       const portal = this.portal ? await this.portal.provision(tx, data) : {};
       tx.set(ref, { ...data, ...portal });
+      recordBilling({ ...data, ...portal });
     });
     if (this.portal) await this.portal.deliverForDomain(domain);
   }
@@ -139,11 +142,13 @@ class PartnerStore {
         throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ有効にできます。');
       if (status === 'approved' && snapshot.data().hasValidityPeriod && this.now() >= snapshot.data().validityEndsAt)
         throw fail('INVALID_STATUS', '有効期間が終了しているため有効にできません。');
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...snapshot.data(), domain }, this.now());
       const portal = this.portal ? await this.portal.provision(tx, { ...snapshot.data(), status }) : {};
       tx.update(ref, { ...portal, status, reviewedBy: adminEmail, reviewedAt: this.now(),
         ...(status === 'approved' && !snapshot.data().approvedAt
           ? { resetDay: snapshot.data().resetDay || resetDay({ approvedAt: this.now() }) } : {}),
         approvedAt: status === 'approved' ? (snapshot.data().approvedAt || this.now()) : snapshot.data().approvedAt });
+      recordBilling({ ...snapshot.data(), ...portal, domain, status });
     });
     if (this.portal && status === 'approved') await this.portal.deliverForDomain(domain);
   }
@@ -202,6 +207,7 @@ class PartnerStore {
           throw fail('FORBIDDEN', '販売店が無効です。');
       }
       const nextStatus = lifecycle ? (lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status) : requestedStatus;
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, this.now());
       const portal = this.portal && partnerID === null
         ? await this.portal.provision(tx, { ...row.data(), contactEmail: email, status: nextStatus }) : {};
       // 過去の利用台帳・集計と承認日は変更しない。契約設定は同じトランザクションで保存する。
@@ -213,13 +219,15 @@ class PartnerStore {
           resetDay: resetDay(previous), transferredAt: this.now(), status: 'suspended',
         });
       }
-      tx.update(ref, { ...portal, ...(section === 'plan' ? {} : { organizationName: name, contactEmail: email, notes }),
+      const patch = { ...portal, ...(section === 'plan' ? {} : { organizationName: name, contactEmail: email, notes }),
         ...(lifecycle ? { ...lifecycle, status: lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status } : {}),
         ...(input.status !== undefined ? { status: nextStatus } : {}),
         ...(partnerID === null && input.partnerID !== undefined ? { partnerID: targetPartner } : {}),
         ...(quota || {}),
         ...(Object.entries({ ...(quota || {}), ...(lifecycle || {}) }).some(([key, value]) => row.data()[key] !== value)
-          ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) });
+          ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) };
+      tx.update(ref, patch);
+      recordBilling({ ...row.data(), ...patch, domain });
     });
     if (this.portal && partnerID === null) await this.portal.deliverForDomain(domain);
   }
@@ -249,12 +257,14 @@ class PartnerStore {
       const members = await tx.get(this.collection('corporateMembers').where('domain', '==', domain));
       const periods = await tx.get(this.collection('corporateQuotaPeriods'));
       const notifications = await tx.get(this.collection('corporateQuotaNotifications'));
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, this.now());
       const docs = [...history.docs, ...members.docs, ...state.ledger.docs, ...state.months.docs,
         ...periods.docs.filter(doc => doc.id.startsWith(`${domain}_`)),
         ...notifications.docs.filter(doc => doc.id.startsWith(`${domain}_`))];
       if (docs.length > 400) throw fail('TOO_MANY_RECORDS', '管理者による個別対応が必要です。');
       for (const doc of docs) tx.delete(doc.ref);
       tx.delete(ref);
+      recordBilling({ ...row.data(), domain, status: 'suspended' });
     });
   }
   async dashboard(partnerID, month) {
@@ -292,7 +302,7 @@ class PartnerStore {
       }
       return { ...quota.settings, portalStatus, canDelete, historical: !!quota.settings.historical, displayState: displayState(quota.settings, this.now()), resetDay: resetDay(quota.settings), id,
         usage, periodStart: quota.period.start, periodEnd: quota.period.end,
-        ...quotaStatus(quota.settings, totalUsage(quota.usage)) };
+        ...quotaStatus(quotaSettings(quota.settings, quota), totalUsage(quota.usage)) };
     }));
   }
   async yearlyUsage(partnerID, year) {

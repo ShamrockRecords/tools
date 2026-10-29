@@ -39,6 +39,26 @@
     <dt>状態</dt><dd><%= ({ active: '有効', inactive: '無効', scheduled: '開始前' })[row.status] || '無効' %></dd></dl>
   </article><% }) %></div><% if (!rows.length) { %><p>現在、このアカウントに紐づく法人ドメインはありません。管理者へお問い合わせください。</p><% } %>
   </section>
+  <% if (typeof invoices !== 'undefined') { %>
+  <section class="management-section" aria-labelledby="invoice-heading">
+    <h2 id="invoice-heading"><%= billingText.history %></h2>
+    <p><%= billingText.paymentHelp %></p>
+    <% const billDate = value => value ? new Date(value).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
+       const billStatus = { open: '未払い', overdue: '支払期限超過', paid: '支払済み', void: '取消', uncollectible: '回収不能' }; %>
+    <div class="table-scroll"><table class="invoice-table"><thead><tr><th>対象月・契約</th><th>請求金額（税込）</th><th>発行日／支払期限</th><th>状態</th><th>請求書・支払い</th></tr></thead><tbody>
+    <% invoices.forEach(bill => { %><tr>
+      <td data-label="対象月・契約"><strong><%= bill.month %>利用分</strong><br><%= bill.organizationName %><br><small><%= bill.domain %><br><%= bill.number %></small></td>
+      <td data-label="請求金額（税込）"><strong><%= bill.totalJPY.toLocaleString('ja-JP') %>円</strong><details class="invoice-detail"><summary>内訳を表示</summary><dl>
+        <% bill.lines.forEach(line => { %><dt><%= line.label %></dt><dd><%= line.amount.toLocaleString('ja-JP') %>円</dd><% }) %>
+        </dl><p>利用時間 <%= (bill.usedMilliseconds / 3600000).toLocaleString('ja-JP', { maximumFractionDigits: 3 }) %>時間<br>含まれる利用枠 <%= (bill.includedMilliseconds / 3600000).toLocaleString('ja-JP', { maximumFractionDigits: 3 }) %>時間<br>従量・超過分 <%= bill.billableMinutes %>分</p><p class="help">時間は月合計から利用枠を差し引き1分未満切り上げ、金額は合計時に1円未満切り捨て。内訳の端数調整は、各明細の円未満を合算した差額です。</p></details></td>
+      <td data-label="発行日／支払期限"><%= billDate(bill.issuedAt) %><br>期限：<%= billDate(bill.dueAt) %></td>
+      <td data-label="状態"><span class="invoice-status <%= bill.state === 'overdue' ? 'overdue' : bill.state === 'paid' ? 'enabled' : '' %>"><%= billStatus[bill.state] || '確認中' %></span><% if (bill.paidAt) { %><br><small><%= billDate(bill.paidAt) %></small><% } %></td>
+      <td data-label="請求書・支払い"><a href="/corporate/invoices/<%= encodeURIComponent(bill.id) %>/pdf" target="_blank" rel="noopener noreferrer"><%= billingText.pdf %></a><% if (['open', 'overdue'].includes(bill.state)) { %><br><a class="invoice-pay" href="/corporate/invoices/<%= encodeURIComponent(bill.id) %>/pay" target="_blank" rel="noopener noreferrer"><%= billingText.pay %></a><% } %></td>
+    </tr><% }) %>
+    <% if (!invoices.length) { %><tr><td colspan="5"><%= billingText.empty %></td></tr><% } %>
+    </tbody></table></div>
+  </section>
+  <% } %>
   <% if (overview) { const o = overview; const hours = ms => (ms / 3600000).toLocaleString('ja-JP', { maximumFractionDigits: 2 }); const yen = value => value == null ? '個別契約' : value.toLocaleString('ja-JP', { maximumFractionDigits: 1 }) + '円'; const pageURL = page => '/corporate?' + new URLSearchParams({ domain: o.domain, month: o.month, q: o.query, page: String(page) }); %>
   <section class="management-section">
     <h2>利用状況</h2>
@@ -46,13 +66,13 @@
       <label>法人ドメイン<select name="domain"><% rows.forEach(row => { %><option value="<%= row.domain %>" <%= row.domain === o.domain ? 'selected' : '' %>><%= row.organizationName %>（<%= row.domain %>）</option><% }) %></select></label>
       <label>対象月（日本時間）<input type="month" name="month" value="<%= o.month %>" required></label><button>表示</button>
     </form>
-    <p><%= o.plan === 'trial' ? 'トライアルは対象月ではなく、有効期間全体の利用を集計します。' : '選択した暦月の利用を集計します。月途中の開始でも上限は日割りしません。' %></p>
+    <p><%= o.plan === 'trial' ? 'トライアルは対象月ではなく、有効期間全体の利用を集計します。' : o.billing ? '選択した暦月の利用を集計します。開始・再開月は当日を含む残り日数で料金と利用枠を日割りします。' : '選択した暦月の利用を集計します。契約履歴が未確認の場合は現在の設定を参考表示します。' %></p>
     <div class="metrics">
       <article><h3>合計利用時間</h3><strong><%= hours(o.quota.usedMilliseconds) %> 時間</strong><p>リアルタイム <%= hours(o.usage.realtime) %> ／ ファイル <%= hours(o.usage.mediaFile) %> ／ 正式翻訳 <%= hours(o.usage.formalTranslation) %> 時間</p></article>
       <article><h3><%= o.plan === 'trial' ? '有効期間内の上限' : '月間上限' %></h3><strong><%= o.quota.limitMilliseconds == null ? '上限なし' : hours(o.quota.limitMilliseconds) + ' 時間' %></strong><p>超過 <%= hours(o.quota.excessMilliseconds) %> 時間</p></article>
       <article><h3>料金概算（税込）</h3><strong><%= yen(o.estimate.total) %></strong><p>月額 <%= yen(o.estimate.base) %> ／ 超過分 <%= yen(o.estimate.excess) %></p></article>
     </div>
-    <p class="help">正式翻訳は対象時間の50％を利用時間として表示します。利用報告の受信・確定時点で集計されます。料金は現在のプランを選択月に適用した参考額で、確定請求額ではありません。トライアルは無料、その他の超過は月合計を1分単位に切り上げて5.5円／分で計算（円の端数は保持）します。月額の日割りは含みません。カスタムの月額・合計は個別契約です。</p>
+    <p class="help">正式翻訳は対象時間の50％を利用時間として表示します。利用報告の受信・確定時点で集計されます。確定した請求額は「請求履歴」をご確認ください。<%= o.billing ? '料金概算は対象月の契約履歴と日割りを反映し、従量・超過分を1分単位に切り上げ、最終合計の1円未満を切り捨てています。' : 'この料金概算は現在の設定を選択月に適用した参考額で、日割りを含みません。トライアルは無料、カスタムの月額・合計は個別契約です。' %></p>
   </section>
   <section class="management-section">
     <h2>新しくログインしたアカウントの扱い</h2>

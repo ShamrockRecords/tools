@@ -3,6 +3,7 @@ const { normalizeDomain } = require('./domain_policy');
 const { periodAt, quotaStatus, boundary } = require('./quota_policy');
 const { monthAt } = require('./usage_policy');
 const { memberRef, enrollMember } = require('./corporate_membership');
+const { readBilling } = require('../billing/corporate_billing_contracts');
 
 const emailDomain = email => normalizeDomain(String(email || '').split('@')[1]);
 const fail = () => { throw new Error('この法人ドメインまたはアカウントは操作できません。'); };
@@ -55,6 +56,8 @@ class CorporateManagementStore {
     const query = typeof input.q === 'string' ? input.q.trim().toLowerCase().slice(0, 254) : '';
     const [year, number] = month.split('-').map(Number);
     const period = periodAt(boundary(year, number - 1, 1), data);
+    const billingWindow = await readBilling(this.provider(), ref => ref.get(), { ...data, domain }, month);
+    if (billingWindow) period.start = Math.max(period.start, billingWindow.billingStart);
     const ledger = await this.collection('corporateUsageLedger').where('domain', '==', domain)
       .where('occurredAt', '>=', new Date(period.start)).where('occurredAt', '<', new Date(period.end)).get();
     const usage = { realtime: 0, mediaFile: 0, formalTranslation: 0 }, perUser = new Map(), reservations = new Map();
@@ -91,12 +94,16 @@ class CorporateManagementStore {
     const filtered = users.filter(user => user.email.toLowerCase().includes(query));
     const pages = Math.max(1, Math.ceil(filtered.length / 50));
     const page = Math.min(pages, Math.max(1, Math.floor(Number(input.page) || 1)));
-    const used = Object.values(usage).reduce((sum, value) => sum + value, 0), quota = quotaStatus(data, used);
+    const used = Object.values(usage).reduce((sum, value) => sum + value, 0);
+    const billing = await readBilling(this.provider(), ref => ref.get(), { ...data, domain }, month, usage);
+    const quota = quotaStatus(billing ? { ...data, limitMilliseconds: Math.floor(billing.includedMilliseconds) } : data, used);
     return { domain, organizationName: data.organizationName, plan: data.plan || 'custom', month, query, page, pages,
       totalAccounts: users.length, matches: filtered.length, users: filtered.slice((page - 1) * 50, page * 50),
       autoEnable: data.autoEnableMembers !== false, usage, quota, period,
       unattributed: Math.max(0, used - users.reduce((sum, user) => sum + user.used, 0)),
-      estimate: estimate(data.plan || 'custom', quota.excessMilliseconds) };
+      billing, estimate: billing ? { base: (billing.plan === 'metered' ? 2200 : billing.plan === 'light' ? 13200 : 24200)
+        * billing.days / billing.monthDays, excess: billing.billableMinutes * 5.5, total: billing.totalJPY }
+        : estimate(data.plan || 'custom', quota.excessMilliseconds) };
   }
 }
 module.exports = { CorporateManagementStore, estimate };

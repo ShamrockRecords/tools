@@ -1,4 +1,13 @@
 {
+	"corporateBilling": {
+		"empty": "No invoices have been issued yet.",
+		"history": "Invoice history",
+		"historyError": "Invoice history could not be loaded. Please try again later.",
+		"linkError": "The invoice could not be opened. Please try again later.",
+		"pay": "Pay by card",
+		"paymentHelp": "Please pay by credit card on the payment page by the end of the invoice issue month.",
+		"pdf": "Invoice PDF"
+	},
 	"mojidasIntroDescription": "Transcribe video and audio files, edit transcripts, and export subtitle files with Mojidas, a speech recognition app for Mac and Windows.",
 	"mojidasIntroHeading": "Transcription and subtitles with Mojidas",
 	"mojidasIntroLink": "Visit Mojidas (opens in a new tab)",

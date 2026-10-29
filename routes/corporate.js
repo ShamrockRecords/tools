@@ -1,10 +1,11 @@
 const express = require('express');
+const billingText = require('../locales/ja.json').corporateBilling;
 const crypto = require('crypto');
 const { corporatePortalStore } = require('../modules/partners/corporate_portal_store');
 const { LOGIN_DURATION_MS } = require('../modules/auth/persistent_session_store');
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 
-function createCorporateRouter({ store = corporatePortalStore, now = Date.now } = {}) {
+function createCorporateRouter({ store = corporatePortalStore, now = Date.now, billingService = store.billing } = {}) {
   const router = express.Router();
   const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
   const regenerate = req => new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()));
@@ -41,10 +42,24 @@ function createCorporateRouter({ store = corporatePortalStore, now = Date.now } 
       try { overview = await store.management.overview(user, { ...req.query, domain }); }
       catch (_) { error = error || '一覧を取得できませんでした。対象ドメイン・対象月を確認し、再度お試しください。'; status = 400; }
     }
-    return res.status(status).render('corporate/index', { user, mode, error, overview,
+    let invoices = [];
+    if (mode === 'dashboard' && billingService) {
+      try { invoices = await billingService.history(user); }
+      catch (_) { error = error || billingText.historyError; }
+    }
+    return res.status(status).render('corporate/index', { user, mode, error, overview, invoices, billingText,
       csrf: req.session.corporateCSRF, rows });
   }
   router.get('/', wrap((req, res) => render(req, res)));
+  router.get('/invoices/:id/:kind', wrap(async (req, res) => {
+    const user = await current(req);
+    if (!user || user.mustChangePassword || !billingService || !['pay', 'pdf'].includes(req.params.kind)) return res.sendStatus(403);
+    try { return res.redirect(303, await billingService.link(user, req.params.id, req.params.kind)); }
+    catch (error) {
+      if (error.code === 'FORBIDDEN') return res.sendStatus(404);
+      return res.status(503).type('text').send(billingText.linkError);
+    }
+  }));
   const resetView = (req, res, mode, error = '', status = 200) => res.status(status).render('corporate/reset', {
     mode, error, csrf: req.session.corporateCSRF,
   });

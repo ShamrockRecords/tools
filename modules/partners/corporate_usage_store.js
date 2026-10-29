@@ -4,7 +4,7 @@ const { mojidasCollection } = require('../mojidas_firestore');
 const { nextUsage, monthAt } = require('./usage_policy');
 const { UNLIMITED_AVAILABLE_MILLISECONDS } = require('../credit/mojidas_credit_store');
 const { quotaStatus } = require('./quota_policy');
-const { readQuota, saveQuota, totalUsage, notifyQuota } = require('./quota_store');
+const { readQuota, saveQuota, totalUsage, notifyQuota, quotaSettings } = require('./quota_store');
 const { SELF_PARTNER_ID, inPeriod, refreshDomain } = require('./domain_lifecycle');
 const { membershipAllowed } = require('./corporate_membership');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
@@ -27,7 +27,7 @@ class CorporateUsageStore {
       const row = snapshot.exists ? snapshot.data() : {};
       const quota = await readQuota(this.provider(), tx, corporate.domain, row, this.now());
       if (quota.missing) saveQuota(tx, quota);
-      return { row, quota, status: quotaStatus(row, totalUsage(quota.usage)) };
+      return { row, quota, status: quotaStatus(quotaSettings(row, quota), totalUsage(quota.usage)) };
     });
     if (result.quota) await this.notify(corporate.domain, result.row, result.quota);
     return current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')
@@ -82,7 +82,7 @@ class CorporateUsageStore {
       const settings = domain.exists ? domain.data() : {};
       if (settings.limitMilliseconds != null) {
         const quota = await readQuota(this.provider(), tx, corporate.domain, settings, this.now());
-        if (!quotaStatus(settings, totalUsage(quota.usage)).usageAllowed) fail('CORPORATE_LIMIT_REACHED');
+        if (!quotaStatus(quotaSettings(settings, quota), totalUsage(quota.usage)).usageAllowed) fail('CORPORATE_LIMIT_REACHED');
         if (quota.missing) saveQuota(tx, quota);
       }
       const row = { userID: args.userID, corporate, operation: args.operation, clientSessionID: args.clientSessionID,
@@ -95,15 +95,16 @@ class CorporateUsageStore {
   }
   async settle(args, finish) {
     const outcome = await this.provider().runTransaction(async tx => {
+      const settledAt = this.now();
       const ref = this.collection('corporateReservations').doc(args.reservationID), snapshot = await tx.get(ref);
       if (!snapshot.exists) fail('RESERVATION_NOT_FOUND');
       const result = nextUsage(snapshot.data(), { ...args, finish });
-      const row = result.row, month = monthAt(this.now());
+      const row = result.row, month = monthAt(settledAt);
       if (!result.changed && ['completed', 'cancelled'].includes(row.status))
         return { reservation: present(ref.id, row), domain: row.corporate.domain };
       const domain = await tx.get(this.collection('corporateDomains').doc(row.corporate.domain));
       const settings = domain.exists ? domain.data() : {};
-      const quota = await readQuota(this.provider(), tx, row.corporate.domain, settings, this.now());
+      const quota = await readQuota(this.provider(), tx, row.corporate.domain, settings, settledAt);
       // 利用確定時点の販売店へ計上する。再送はdelta=0のため移管後も二重計上しない。
       const reportingPartnerID = settings.partnerID || row.corporate.partnerID;
       const statsRef = this.collection('corporateUsageMonths').doc(`${reportingPartnerID}_${row.corporate.domain}_${month}`);
@@ -112,7 +113,7 @@ class CorporateUsageStore {
       if (result.changed) tx.set(ref, updated);
       if (quota) {
         // 期間外の精算も台帳には残すが、トライアルの期間内利用には加えない。
-        if (this.now() >= quota.period.start && this.now() < quota.period.end)
+        if (settledAt >= quota.period.start && settledAt < quota.period.end)
           quota.usage[row.operation] += result.delta;
         saveQuota(tx, quota);
       }
@@ -124,7 +125,7 @@ class CorporateUsageStore {
           month, [row.operation]: total });
         tx.set(this.collection('corporateUsageLedger').doc(`${ref.id}_${row.consumedMilliseconds}`), {
           reservationID: ref.id, userID: row.userID, domain: row.corporate.domain, partnerID: reportingPartnerID,
-          operation: row.operation, month, milliseconds: result.delta, occurredAt: new Date(this.now()),
+          operation: row.operation, month, milliseconds: result.delta, occurredAt: new Date(settledAt),
         });
       }
       return { reservation: present(ref.id, result.changed ? updated : row), settings, quota, domain: row.corporate.domain };
@@ -136,7 +137,7 @@ class CorporateUsageStore {
     if (outcome.quota) {
       await this.notify(outcome.domain, outcome.settings, outcome.quota);
       // 利用確定を先にcommitする。エラーで台帳を巻き戻さず、終了時の精算も許可する。
-      if (!finish && !quotaStatus(outcome.settings, totalUsage(outcome.quota.usage)).usageAllowed)
+      if (!finish && !quotaStatus(quotaSettings(outcome.settings, outcome.quota), totalUsage(outcome.quota.usage)).usageAllowed)
         fail('CORPORATE_LIMIT_REACHED');
     }
     return outcome.reservation;

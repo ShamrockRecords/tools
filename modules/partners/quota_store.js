@@ -1,10 +1,17 @@
 const { mojidasCollection } = require('../mojidas_firestore');
 const { periodAt, quotaStatus, HOUR } = require('./quota_policy');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
+const { readBilling } = require('../billing/corporate_billing_contracts');
+const { monthAt } = require('./usage_policy');
 
 // 呼び出し元の利用確定transactionへ参加する。キャッシュ作成時だけ台帳を再集計する。
 async function readQuota(db, tx, domain, row, now) {
   const period = periodAt(now, row);
+  const billing = await readBilling(db, value => tx.get(value), { ...row, domain }, monthAt(now));
+  if (billing && billing.billingStart > period.start) {
+    period.start = billing.billingStart;
+    period.key += `_paid_${billing.billingStart}`;
+  }
   const ref = mojidasCollection(db, 'corporateQuotaPeriods').doc(`${domain}_${period.key}_${row.quotaRevision || 0}`);
   const snapshot = await tx.get(ref);
   let usage = snapshot.exists ? { ...snapshot.data().usage } : { realtime: 0, mediaFile: 0, formalTranslation: 0 };
@@ -17,8 +24,10 @@ async function readQuota(db, tx, domain, row, now) {
       if (Object.hasOwn(usage, data.operation)) usage[data.operation] += data.milliseconds;
     }
   }
-  return { ref, period, usage, missing: !snapshot.exists };
+  return { ref, period, usage, billing, missing: !snapshot.exists };
 }
+const quotaSettings = (row, quota) => quota?.billing
+  ? { ...row, limitMilliseconds: Math.floor(quota.billing.includedMilliseconds) } : row;
 const totalUsage = usage => Object.values(usage).reduce((sum, value) => sum + value, 0);
 function saveQuota(tx, quota) {
   tx.set(quota.ref, { usage: quota.usage, start: new Date(quota.period.start), end: new Date(quota.period.end) });
@@ -27,7 +36,7 @@ function saveQuota(tx, quota) {
 // 送信前に宛先別のリースを取得し、同時報告による重複メールを抑止する。
 // 配送失敗は次の利用報告・残高取得で再試行する。利用確定は巻き戻さない。
 async function notifyQuota(db, domain, row, quota, now, mailer) {
-  const status = quotaStatus(row, totalUsage(quota.usage));
+  const status = quotaStatus(quotaSettings(row, quota), totalUsage(quota.usage));
   if (!row.notifyAtOneHour || status.remainingMilliseconds === null || status.remainingMilliseconds > HOUR) return;
   const partner = row.partnerID === 'self' ? null : await mojidasCollection(db, 'partners').doc(row.partnerID).get();
   const recipients = [...new Set([row.contactEmail, row.partnerID === 'self' ? 'app@mojidas.jp' : partner.exists && partner.data().email]
@@ -44,7 +53,7 @@ async function notifyQuota(db, domain, row, quota, now, mailer) {
     if (!claimed) continue;
     try {
       await sender.send({ to: recipient, subject: 'Mojidas 法人利用の残り時間が1時間以下になりました',
-        text: `${row.organizationName || domain}（${domain}）の法人利用時間が残り1時間以下になりました。\n上限：${row.limitMilliseconds / HOUR}時間\n利用時間：${(status.usedMilliseconds / HOUR).toFixed(2)}時間\n次回リセット：${new Date(quota.period.end).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\n${row.stopAtLimit ? '上限に達すると利用を停止します。' : '上限を超えても利用を継続します。'}`,
+        text: `${row.organizationName || domain}（${domain}）の法人利用時間が残り1時間以下になりました。\n上限：${(status.limitMilliseconds / HOUR).toFixed(3)}時間\n利用時間：${(status.usedMilliseconds / HOUR).toFixed(2)}時間\n次回リセット：${new Date(quota.period.end).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\n${row.stopAtLimit ? '上限に達すると利用を停止します。' : '上限を超えても利用を継続します。'}`,
         categories: ['mojidas-corporate-quota'] });
       await ref.set({ sent: true, sentAt: new Date(now), leaseUntil: 0 });
     } catch (error) {
@@ -53,4 +62,4 @@ async function notifyQuota(db, domain, row, quota, now, mailer) {
     }
   }
 }
-module.exports = { readQuota, saveQuota, totalUsage, notifyQuota };
+module.exports = { readQuota, saveQuota, totalUsage, notifyQuota, quotaSettings };

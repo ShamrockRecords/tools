@@ -1,4 +1,13 @@
 {
+	"corporateBilling": {
+		"empty": "発行済みの請求書はありません。",
+		"history": "請求履歴",
+		"historyError": "請求履歴を取得できませんでした。時間をおいて再度お試しください。",
+		"linkError": "請求書を開けませんでした。時間をおいて再度お試しください。",
+		"pay": "カードで支払う",
+		"paymentHelp": "請求書の発行月末までに、支払いページからクレジットカードでお支払いください。",
+		"pdf": "請求書PDF"
+	},
 	"mojidasIntroDescription": "動画・音声ファイルの文字起こしから、認識結果の編集、字幕ファイルの書き出しまで。Mac・Windows対応の音声認識アプリ「Mojidas」もご利用ください。",
 	"mojidasIntroHeading": "文字起こし・字幕づくりに、Mojidas",
 	"mojidasIntroLink": "Mojidas公式サイトへ（新しいタブ）",
