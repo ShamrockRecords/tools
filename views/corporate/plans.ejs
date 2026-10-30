@@ -1,0 +1,47 @@
+<% const p = row.plans;
+   const format = (text, values) => text.replace(/\{(\w+)\}/g, (_, key) => values[key]);
+   const label = plan => ({ trial: 'トライアル', metered: '従量制', light: 'ライト', standard: 'スタンダード', custom: 'カスタム' })[plan] || plan;
+   const content = plan => plan === 'metered' ? planText.metered : format(planText.hours, { hours: planOptions[plan].hours });
+   const price = plan => format(planText.fee, { fee: (planOptions[plan].base + planOptions[plan].fee).toLocaleString('ja-JP') });
+   const editorID = 'plan-editor-' + row.domain; %>
+<div class="plan-panels">
+  <section class="current-plan" aria-label="<%= format(planText.current, { month: Number(p.currentMonth.slice(5)) }) %>">
+    <h4><%= format(planText.current, { month: Number(p.currentMonth.slice(5)) }) %></h4>
+    <p class="plan-name"><%= label(row.plan) %></p>
+    <% if (p.standardPricing) { %>
+      <p class="plan-price"><%= price(row.plan) %></p>
+      <p><%= content(row.plan) %></p>
+      <% if (row.plan !== 'metered') { %><p class="help"><%= format(planText.feeDetail, { fee: planOptions[row.plan].fee.toLocaleString('ja-JP') }) %></p><% } %>
+      <p class="help"><%= planText.proration %></p>
+    <% } else { %>
+      <p><%= row.plan === 'trial' ? planText.trial : planText.custom %></p>
+      <p class="help"><%= p.limitMilliseconds == null ? planText.unlimited : format(planText.usageLimit, { hours: (p.limitMilliseconds / 3600000).toLocaleString('ja-JP') }) %></p>
+    <% } %>
+  </section>
+  <section class="next-plan" data-plan-panel>
+    <h4><%= format(planText.next, { month: Number(p.nextMonth.slice(5)) }) %></h4>
+    <p class="next-plan-name"><%= label(p.nextPlan) %></p>
+    <% if (p.canChange) { %>
+      <p class="plan-price"><%= price(p.nextPlan) %></p>
+      <p class="plan-badge"><%= p.reserved ? planText.reservation : planText.continue %></p>
+      <p class="help"><%= format(planText.rules, { date: p.nextMonth.replace('-', '/') + '/1' }) %></p>
+      <button type="button" data-plan-edit aria-expanded="false" aria-controls="<%= editorID %>"><%= planText.change %></button>
+      <form method="post" action="/corporate/plan" id="<%= editorID %>" data-plan-form hidden>
+        <input type="hidden" name="csrfToken" value="<%= csrf %>"><input type="hidden" name="domain" value="<%= row.domain %>">
+        <input type="hidden" name="month" value="<%= p.nextMonth %>"><input type="hidden" name="version" value="<%= p.version %>">
+        <input type="hidden" name="contract" value="<%= p.contract %>">
+        <label><%= planText.select %><select name="plan" data-plan-select aria-describedby="<%= editorID %>-description">
+          <% Object.entries(planOptions).forEach(([key, option]) => { %><option value="<%= key %>" <%= key === p.nextPlan ? 'selected' : '' %>><%= label(key) %> — <%= price(key) %></option><% }) %>
+        </select></label>
+        <div id="<%= editorID %>-description" aria-live="polite">
+          <% Object.keys(planOptions).forEach(key => { %><div data-plan-description="<%= key %>" <%= key === p.nextPlan ? '' : 'hidden' %>>
+            <p><%= content(key) %></p>
+            <% if (key !== 'metered') { %><p class="help"><%= format(planText.feeDetail, { fee: planOptions[key].fee.toLocaleString('ja-JP') }) %></p><% } %>
+            <% if (key === 'metered' && p.stopAtLimit) { %><p class="error"><%= planText.stopWarning %></p><% } %>
+          </div><% }) %>
+        </div>
+        <div class="plan-actions"><button type="submit"><%= planText.save %></button><button type="button" class="secondary" data-plan-cancel><%= planText.cancel %></button></div>
+      </form>
+    <% } else { %><p class="help"><%= planText.unavailable %></p><% } %>
+  </section>
+</div>

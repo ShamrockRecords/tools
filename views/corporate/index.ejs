@@ -8,6 +8,7 @@
     <form method="post" action="/corporate/logout"><input type="hidden" name="csrfToken" value="<%= csrf %>"><button>ログアウト</button></form>
   </nav></details><% } %></header>
   <% if (error) { %><p class="error" role="alert"><%= error %></p><% } %>
+  <% if (typeof planSaved !== 'undefined' && planSaved) { %><p class="success" role="status"><%= planText.saved %></p><% } %>
   <% if (mode === 'login') { %>
   <section class="auth-card"><h2>ログイン</h2><p>法人向けプランをご利用の管理者の方は、こちらからログインしてください。利用状況の確認や、法人プランの対象アカウントを管理できます。</p>
     <p class="help">※ Mojidasアプリのアカウントとは別の、法人向けポータル専用アカウントです。初めてログインする場合は、案内メールをご確認ください。</p>
@@ -34,9 +35,9 @@
   </section>
   <% } else { %>
   <section><h2>ダッシュボード</h2><p>法人プランの利用状況と対象アカウントを管理できます。</p>
-  <div class="domain-grid"><% rows.forEach(row => { %><article class="domain-card"><h3><%= row.organizationName %></h3><dl>
-    <dt>ドメイン</dt><dd><%= row.domain %></dd><dt>プラン</dt><dd><%= ({trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'})[row.plan] || row.plan %></dd>
-    <dt>状態</dt><dd><%= ({ active: '有効', inactive: '無効', scheduled: '開始前' })[row.status] || '無効' %></dd></dl>
+  <div class="domain-grid"><% rows.forEach(row => { %><article class="domain-card"><div class="domain-heading"><div><h3><%= row.organizationName %></h3><p class="muted"><%= row.domain %></p></div>
+    <span class="domain-state"><%= ({ active: '有効', inactive: '無効', scheduled: '開始前' })[row.status] || '無効' %></span></div>
+    <% if (row.plans) { %><%- include('plans', { row }) %><% } else { %><p><%= ({trial:'トライアル',metered:'従量制',light:'ライト',standard:'スタンダード',custom:'カスタム'})[row.plan] || row.plan %></p><% } %>
   </article><% }) %></div><% if (!rows.length) { %><p>現在、このアカウントに紐づく法人ドメインはありません。管理者へお問い合わせください。</p><% } %>
   </section>
   <% if (typeof invoices !== 'undefined') { %>

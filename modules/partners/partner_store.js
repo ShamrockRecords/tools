@@ -12,6 +12,7 @@ const { SELF_PARTNER_ID, parseLifecycle, displayState, refreshDomain } = require
 const { CorporatePortalStore, portalState } = require('./corporate_portal_store');
 const { enrollMember } = require('./corporate_membership');
 const { prepareContractChange } = require('../billing/corporate_billing_contracts');
+const { readCurrentDomain, runPlanTransaction, invalidatePlanReservation } = require('./corporate_plan_changes');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -133,8 +134,8 @@ class PartnerStore {
       throw fail('INVALID_STATUS', '有効または無効を選択してください。');
     // 既存の課金判定・利用期間との互換性を保つ保存値。
     const status = state === 'active' ? 'approved' : 'suspended';
-    await this.provider().runTransaction(async tx => {
-      const ref = this.collection('corporateDomains').doc(domain), snapshot = await tx.get(ref);
+    await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+      const ref = this.collection('corporateDomains').doc(domain), snapshot = await readCurrentDomain(tx, ref, at);
       if (!snapshot.exists) throw fail('NOT_FOUND', 'ドメインが登録されていません。');
       const self = snapshot.data().partnerID === SELF_PARTNER_ID;
       const partner = self ? null : await tx.get(this.collection('partners').doc(snapshot.data().partnerID));
@@ -142,9 +143,11 @@ class PartnerStore {
         throw fail('FORBIDDEN', '有効な販売店の独自ドメインのみ有効にできます。');
       if (status === 'approved' && snapshot.data().hasValidityPeriod && this.now() >= snapshot.data().validityEndsAt)
         throw fail('INVALID_STATUS', '有効期間が終了しているため有効にできません。');
-      const recordBilling = await prepareContractChange(this.provider(), tx, { ...snapshot.data(), domain }, this.now());
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...snapshot.data(), domain }, at);
       const portal = this.portal ? await this.portal.provision(tx, { ...snapshot.data(), status }) : {};
-      tx.update(ref, { ...portal, status, reviewedBy: adminEmail, reviewedAt: this.now(),
+      tx.update(ref, { ...portal, status,
+        ...invalidatePlanReservation({ ...snapshot.data(), domain }, { ...snapshot.data(), ...portal, domain, status }),
+        reviewedBy: adminEmail, reviewedAt: this.now(),
         ...(status === 'approved' && !snapshot.data().approvedAt
           ? { resetDay: snapshot.data().resetDay || resetDay({ approvedAt: this.now() }) } : {}),
         approvedAt: status === 'approved' ? (snapshot.data().approvedAt || this.now()) : snapshot.data().approvedAt });
@@ -169,9 +172,9 @@ class PartnerStore {
     if (input.status !== undefined && !['active', 'inactive'].includes(input.status))
       throw fail('INVALID_DOMAIN_SETTINGS', '有効／無効の設定を確認してください。');
     if (!domain) throw fail('INVALID_DOMAIN', 'ドメインを確認してください。');
-    await this.provider().runTransaction(async tx => {
+    await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
       const ref = this.collection('corporateDomains').doc(domain);
-      const row = await tx.get(ref);
+      const row = await readCurrentDomain(tx, ref, at);
       if (!row.exists || (partnerID !== null && row.data().partnerID !== partnerID))
         throw fail('FORBIDDEN', 'このドメインは編集できません。');
       const lifecycle = input.plan === undefined ? null : parseLifecycle({ ...input,
@@ -207,7 +210,7 @@ class PartnerStore {
           throw fail('FORBIDDEN', '販売店が無効です。');
       }
       const nextStatus = lifecycle ? (lifecycle.hasValidityPeriod && this.now() >= lifecycle.validityEndsAt ? 'suspended' : lifecycle.status) : requestedStatus;
-      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, this.now());
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, at);
       const portal = this.portal && partnerID === null
         ? await this.portal.provision(tx, { ...row.data(), contactEmail: email, status: nextStatus }) : {};
       // 過去の利用台帳・集計と承認日は変更しない。契約設定は同じトランザクションで保存する。
@@ -226,6 +229,7 @@ class PartnerStore {
         ...(quota || {}),
         ...(Object.entries({ ...(quota || {}), ...(lifecycle || {}) }).some(([key, value]) => row.data()[key] !== value)
           ? { quotaRevision: (row.data().quotaRevision || 0) + 1 } : {}) };
+      Object.assign(patch, invalidatePlanReservation({ ...row.data(), domain }, { ...row.data(), ...patch, domain }));
       tx.update(ref, patch);
       recordBilling({ ...row.data(), ...patch, domain });
     });
@@ -247,8 +251,8 @@ class PartnerStore {
   }
   async deleteDomain(domain) {
     if (!domain || normalizeDomain(domain) !== domain) throw fail('INVALID_DOMAIN', 'ドメインを確認してください。');
-    await this.provider().runTransaction(async tx => {
-      const ref = this.collection('corporateDomains').doc(domain), row = await tx.get(ref);
+    await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+      const ref = this.collection('corporateDomains').doc(domain), row = await readCurrentDomain(tx, ref, at);
       if (!row.exists) throw fail('NOT_FOUND', '登録情報はありません。');
       if (row.data().status !== 'suspended') throw fail('DOMAIN_ACTIVE', '先に登録を無効にしてください。');
       const state = await deletionState(this.provider(), domain, query => tx.get(query));
@@ -257,7 +261,7 @@ class PartnerStore {
       const members = await tx.get(this.collection('corporateMembers').where('domain', '==', domain));
       const periods = await tx.get(this.collection('corporateQuotaPeriods'));
       const notifications = await tx.get(this.collection('corporateQuotaNotifications'));
-      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, this.now());
+      const recordBilling = await prepareContractChange(this.provider(), tx, { ...row.data(), domain }, at);
       const docs = [...history.docs, ...members.docs, ...state.ledger.docs, ...state.months.docs,
         ...periods.docs.filter(doc => doc.id.startsWith(`${domain}_`)),
         ...notifications.docs.filter(doc => doc.id.startsWith(`${domain}_`))];
@@ -275,8 +279,8 @@ class PartnerStore {
       const id = data.domain;
       if (!data.historical) await refreshDomain(this.provider(), id, this.now());
       const [year, monthNumber] = month.split('-').map(Number);
-      const quota = await this.provider().runTransaction(async tx => {
-        const current = await tx.get(this.collection('corporateDomains').doc(id));
+      const quota = await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+        const current = await readCurrentDomain(tx, this.collection('corporateDomains').doc(id), at);
         const historical = data.historical || !current.exists || current.data().partnerID !== data.partnerID;
         const settings = historical ? { domain: id, partnerID: data.partnerID, organizationName: data.organizationName,
           resetDay: resetDay(data), status: 'suspended', historical: true } : current.data();

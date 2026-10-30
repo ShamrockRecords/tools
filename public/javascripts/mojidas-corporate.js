@@ -21,3 +21,21 @@ document.querySelectorAll('[data-auto-enable]').forEach(checkbox => {
     }
   });
 });
+
+document.querySelectorAll('[data-plan-panel]').forEach(panel => {
+  const edit = panel.querySelector('[data-plan-edit]'), form = panel.querySelector('[data-plan-form]');
+  if (!edit || !form) return;
+  const select = form.querySelector('[data-plan-select]');
+  const describe = () => form.querySelectorAll('[data-plan-description]').forEach(item => {
+    item.hidden = item.dataset.planDescription !== select.value;
+  });
+  edit.addEventListener('click', () => {
+    form.hidden = false; edit.hidden = true; edit.setAttribute('aria-expanded', 'true'); select.focus();
+  });
+  select.addEventListener('change', describe);
+  form.querySelector('[data-plan-cancel]').addEventListener('click', () => {
+    form.reset(); describe(); form.hidden = true; edit.hidden = false;
+    edit.setAttribute('aria-expanded', 'false'); edit.focus();
+  });
+  form.addEventListener('submit', () => { form.querySelector('[type="submit"]').disabled = true; });
+});

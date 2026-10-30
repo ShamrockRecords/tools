@@ -1,4 +1,5 @@
 const { mojidasCollection } = require('../mojidas_firestore');
+const { due, readCurrentDomain, runPlanTransaction } = require('./corporate_plan_changes');
 const SELF_PARTNER_ID = 'self';
 const PLANS = { trial: 'トライアル', metered: '従量制', light: 'ライト', standard: 'スタンダード', custom: 'カスタム' };
 const invalid = () => { throw Object.assign(new Error('プラン・有効期間・有効／無効の設定を確認してください。'), { code: 'INVALID_DOMAIN_SETTINGS' }); };
@@ -41,9 +42,9 @@ async function refreshDomain(db, domain, now) {
   const snapshot = await ref.get();
   if (!snapshot.exists) return null;
   const initial = snapshot.data();
-  if (!Object.keys(lifecyclePatch(initial, now)).length) return initial;
-  return db.runTransaction(async tx => {
-    const current = await tx.get(ref);
+  if (!due(initial, now) && !Object.keys(lifecyclePatch(initial, now)).length) return initial;
+  return runPlanTransaction(db, () => now, async tx => {
+    const current = await readCurrentDomain(tx, ref, now);
     if (!current.exists) return null;
     const row = current.data(), patch = lifecyclePatch(row, now);
     if (Object.keys(patch).length) tx.update(ref, patch);

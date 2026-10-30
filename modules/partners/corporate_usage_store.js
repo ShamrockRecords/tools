@@ -7,6 +7,7 @@ const { quotaStatus } = require('./quota_policy');
 const { readQuota, saveQuota, totalUsage, notifyQuota, quotaSettings } = require('./quota_store');
 const { SELF_PARTNER_ID, inPeriod, refreshDomain } = require('./domain_lifecycle');
 const { membershipAllowed } = require('./corporate_membership');
+const { readCurrentDomain, runPlanTransaction } = require('./corporate_plan_changes');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const runID = (uid, run) => crypto.createHash('sha256').update(`${uid}:${run}`).digest('hex').slice(0, 32);
 const lease = (row, now) => new Date(now + Math.max(600000, row.operation === 'mediaFile' ? row.requestedMilliseconds + 1800000 : 600000));
@@ -22,10 +23,10 @@ class CorporateUsageStore {
   collection(name) { return mojidasCollection(this.provider(), name); }
   async status(corporate) {
     const current = await refreshDomain(this.provider(), corporate.domain, this.now());
-    const result = await this.provider().runTransaction(async tx => {
-      const snapshot = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
+    const result = await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+      const snapshot = await readCurrentDomain(tx, this.collection('corporateDomains').doc(corporate.domain), at);
       const row = snapshot.exists ? snapshot.data() : {};
-      const quota = await readQuota(this.provider(), tx, corporate.domain, row, this.now());
+      const quota = await readQuota(this.provider(), tx, corporate.domain, row, at);
       if (quota.missing) saveQuota(tx, quota);
       return { row, quota, status: quotaStatus(quotaSettings(row, quota), totalUsage(quota.usage)) };
     });
@@ -40,7 +41,7 @@ class CorporateUsageStore {
   async selectBilling(args) {
     if (args.corporate) await refreshDomain(this.provider(), args.corporate.domain, this.now());
     const id = runID(args.userID, args.recognitionRunID);
-    return this.provider().runTransaction(async tx => {
+    return runPlanTransaction(this.provider(), this.now, async (tx, at) => {
       const ref = this.collection('billingRunKinds').doc(id), previous = await tx.get(ref);
       if (previous.exists) {
         const row = previous.data();
@@ -52,7 +53,7 @@ class CorporateUsageStore {
       const personal = await tx.get(this.collection('creditReservations').doc(`reservation_${id}`));
       let corporate = personal.exists ? null : args.corporate || null;
       if (corporate) {
-        const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
+        const domain = await readCurrentDomain(tx, this.collection('corporateDomains').doc(corporate.domain), at);
         const partner = corporate.partnerID === SELF_PARTNER_ID ? null : await tx.get(this.collection('partners').doc(corporate.partnerID));
         if (!domain.exists || domain.data().status !== 'approved' || domain.data().partnerID !== corporate.partnerID
             || !inPeriod(domain.data(), this.now())
@@ -67,9 +68,9 @@ class CorporateUsageStore {
     const current = await refreshDomain(this.provider(), corporate.domain, this.now());
     if (current?.hasValidityPeriod && (!inPeriod(current, this.now()) || current.status !== 'approved')) fail('CORPORATE_DISABLED');
     const id = `corporate_${runID(args.userID, args.recognitionRunID)}`;
-    return this.provider().runTransaction(async tx => {
+    return runPlanTransaction(this.provider(), this.now, async (tx, at) => {
       const ref = this.collection('corporateReservations').doc(id), snapshot = await tx.get(ref);
-      const domain = await tx.get(this.collection('corporateDomains').doc(corporate.domain));
+      const domain = await readCurrentDomain(tx, this.collection('corporateDomains').doc(corporate.domain), at);
       if (!domain.exists || !await membershipAllowed(this.provider(), corporate.domain, args.userID, domain.data(), tx)) fail('CORPORATE_DISABLED');
       if (snapshot.exists) {
         const row = snapshot.data();
@@ -81,7 +82,7 @@ class CorporateUsageStore {
       if (!domain.exists) fail('CORPORATE_DISABLED');
       const settings = domain.exists ? domain.data() : {};
       if (settings.limitMilliseconds != null) {
-        const quota = await readQuota(this.provider(), tx, corporate.domain, settings, this.now());
+        const quota = await readQuota(this.provider(), tx, corporate.domain, settings, at);
         if (!quotaStatus(quotaSettings(settings, quota), totalUsage(quota.usage)).usageAllowed) fail('CORPORATE_LIMIT_REACHED');
         if (quota.missing) saveQuota(tx, quota);
       }
@@ -89,20 +90,20 @@ class CorporateUsageStore {
         recognitionRunID: args.recognitionRunID, requestedMilliseconds: args.requestedMilliseconds,
         consumedMilliseconds: 0, sequence: 0, status: args.operation === 'realtime' ? 'consuming' : 'held',
         trackCount: args.trackCount, createdAt: new Date(this.now()) };
-      row.leaseExpiresAt = lease(row, this.now());
+      row.leaseExpiresAt = lease(row, at);
       tx.set(ref, row); return present(id, row);
     });
   }
   async settle(args, finish) {
-    const outcome = await this.provider().runTransaction(async tx => {
-      const settledAt = this.now();
+    const outcome = await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+      const settledAt = at;
       const ref = this.collection('corporateReservations').doc(args.reservationID), snapshot = await tx.get(ref);
       if (!snapshot.exists) fail('RESERVATION_NOT_FOUND');
       const result = nextUsage(snapshot.data(), { ...args, finish });
       const row = result.row, month = monthAt(settledAt);
       if (!result.changed && ['completed', 'cancelled'].includes(row.status))
         return { reservation: present(ref.id, row), domain: row.corporate.domain };
-      const domain = await tx.get(this.collection('corporateDomains').doc(row.corporate.domain));
+      const domain = await readCurrentDomain(tx, this.collection('corporateDomains').doc(row.corporate.domain), at);
       const settings = domain.exists ? domain.data() : {};
       const quota = await readQuota(this.provider(), tx, row.corporate.domain, settings, settledAt);
       // 利用確定時点の販売店へ計上する。再送はdelta=0のため移管後も二重計上しない。

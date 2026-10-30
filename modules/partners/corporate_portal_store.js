@@ -3,7 +3,8 @@ const { getFirestore } = require('../firestore');
 const { mojidasCollection } = require('../mojidas_firestore');
 const { createAdminPasswordHash, verifyPassword } = require('../auth/admin_credentials');
 const { SendGridMailer } = require('../email/sendgrid_mailer');
-const { displayState } = require('./domain_lifecycle');
+const { displayState, refreshDomain } = require('./domain_lifecycle');
+const { schedulePlan, planView } = require('./corporate_plan_changes');
 const { CorporateManagementStore } = require('./corporate_management_store');
 const { CorporateBillingService } = require('../billing/corporate_billing_service');
 
@@ -239,11 +240,16 @@ class CorporatePortalStore {
   }
   async dashboard(login) {
     const snapshot = await this.collection('corporateDomains').where('portalAccountID', '==', login.id).get();
-    return snapshot.docs.map(doc => {
-      const row = doc.data();
-      return { domain: doc.id, organizationName: row.organizationName, plan: row.plan || 'custom', status: displayState(row, this.now()) };
-    });
+    const at = this.now();
+    const rows = await Promise.all(snapshot.docs.map(async doc => {
+      const row = await refreshDomain(this.provider(), doc.id, at);
+      if (!row || row.portalAccountID !== login.id) return null;
+      return { domain: doc.id, organizationName: row.organizationName, plan: row.plan || 'custom',
+        status: displayState(row, at), plans: planView({ ...row, domain: doc.id }, at) };
+    }));
+    return rows.filter(Boolean);
   }
+  schedulePlan(login, input) { return schedulePlan(this.provider(), this.now, login, input); }
 }
 module.exports = { CorporatePortalStore };
 module.exports.portalState = portalState;

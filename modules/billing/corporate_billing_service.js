@@ -1,7 +1,8 @@
 const { getFirestore } = require('../firestore');
 const { mojidasCollection, mojidasRootPath } = require('../mojidas_firestore');
 const { prepareContractChange } = require('./corporate_billing_contracts');
-const { hash, fail, monthAt, period, monthsUntil, contractID, calculate } = require('./corporate_billing_policy');
+const { readCurrentDomain, runPlanTransaction, duePlanPatch } = require('../partners/corporate_plan_changes');
+const { hash, fail, monthAt, period, monthsUntil, contractID, calculate, terms } = require('./corporate_billing_policy');
 
 const INVOICE_EVENTS = new Set(['invoice.finalized', 'invoice.paid', 'invoice.payment_succeeded',
   'invoice.payment_failed', 'invoice.payment_action_required', 'invoice.voided',
@@ -31,11 +32,11 @@ class CorporateBillingService {
   async observeContracts() {
     const domains = await this.collection('corporateDomains').get();
     for (const doc of domains.docs) {
-      await this.provider().runTransaction(async tx => {
-        const current = await tx.get(doc.ref);
+      await runPlanTransaction(this.provider(), this.now, async (tx, at) => {
+        const current = await readCurrentDomain(tx, doc.ref, at);
         if (!current.exists) return;
         const row = { ...current.data(), domain: doc.id };
-        const write = await prepareContractChange(this.provider(), tx, row, this.now());
+        const write = await prepareContractChange(this.provider(), tx, row, at);
         write(row);
       });
     }
@@ -76,6 +77,15 @@ class CorporateBillingService {
       const statsRef = this.collection('corporateUsageMonths').doc(`self_${contract.data().domain}_${month}`);
       const stats = await tx.get(statsRef), source = stats.exists ? stats.data() : {};
       const basis = { ...contract.data(), id };
+      const domainDoc = await tx.get(this.collection('corporateDomains').doc(basis.domain));
+      const current = domainDoc.exists ? { ...domainDoc.data(), domain: basis.domain } : null;
+      const pendingPatch = current && contractID(current) === id ? duePlanPatch(current, this.now()) : null;
+      // dry-runでも未適用の予約を参照するが、契約・利用実績には書き込まない。
+      if (pendingPatch?.plan) {
+        const at = current.pendingPlanChange.effectiveAt;
+        if (basis.events.at(-1)?.at > at) fail('BILLING_CLOCK_REVERSED');
+        basis.events = [...basis.events, { at, terms: terms({ ...current, ...pendingPatch }) }];
+      }
       const window = calculate(basis, month, {});
       if (!window) return null;
       let usage = source;
@@ -91,8 +101,6 @@ class CorporateBillingService {
       }
       const result = calculate(basis, month, usage);
       if (!result) return null;
-      const domainDoc = await tx.get(this.collection('corporateDomains').doc(result.domain));
-      const current = domainDoc.exists ? { ...domainDoc.data(), domain: result.domain } : null;
       // 料金は対象月の履歴、送付先は確定時の同じ直販契約から固定する。
       const contact = current && current.partnerID === 'self' && contractID(current) === id ? current : result.terms;
       if (!contact.portalAccountID || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)) fail('BILLING_CONTACT_REQUIRED');

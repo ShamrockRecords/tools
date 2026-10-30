@@ -1,5 +1,7 @@
 const express = require('express');
 const billingText = require('../locales/ja.json').corporateBilling;
+const planText = require('../locales/ja.json').corporatePlans;
+const { PLANS } = require('../modules/billing/corporate_billing_policy');
 const crypto = require('crypto');
 const { corporatePortalStore } = require('../modules/partners/corporate_portal_store');
 const { LOGIN_DURATION_MS } = require('../modules/auth/persistent_session_store');
@@ -47,10 +49,20 @@ function createCorporateRouter({ store = corporatePortalStore, now = Date.now, b
       try { invoices = await billingService.history(user); }
       catch (_) { error = error || billingText.historyError; }
     }
-    return res.status(status).render('corporate/index', { user, mode, error, overview, invoices, billingText,
+    const planSaved = req.session.corporatePlanSaved;
+    delete req.session.corporatePlanSaved;
+    return res.status(status).render('corporate/index', { user, mode, error, overview, invoices, billingText, planText, planOptions: PLANS, planSaved,
       csrf: req.session.corporateCSRF, rows });
   }
   router.get('/', wrap((req, res) => render(req, res)));
+  router.post('/plan', wrap(async (req, res) => {
+    const user = await current(req);
+    if (!user || user.mustChangePassword) return res.sendStatus(403);
+    try { await store.schedulePlan(user, req.body); }
+    catch (error) { return render(req, res, planText.errors[error.code] || planText.error, 400); }
+    req.session.corporatePlanSaved = true;
+    return redirect(req, res);
+  }));
   router.get('/invoices/:id/:kind', wrap(async (req, res) => {
     const user = await current(req);
     if (!user || user.mustChangePassword || !billingService || !['pay', 'pdf'].includes(req.params.kind)) return res.sendStatus(403);

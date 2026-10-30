@@ -97,7 +97,7 @@ class CorporateManagementStore {
     const used = Object.values(usage).reduce((sum, value) => sum + value, 0);
     const billing = await readBilling(this.provider(), ref => ref.get(), { ...data, domain }, month, usage);
     const quota = quotaStatus(billing ? { ...data, limitMilliseconds: Math.floor(billing.includedMilliseconds) } : data, used);
-    return { domain, organizationName: data.organizationName, plan: data.plan || 'custom', month, query, page, pages,
+    return { domain, organizationName: data.organizationName, plan: billing?.plan || data.plan || 'custom', month, query, page, pages,
       totalAccounts: users.length, matches: filtered.length, users: filtered.slice((page - 1) * 50, page * 50),
       autoEnable: data.autoEnableMembers !== false, usage, quota, period,
       unattributed: Math.max(0, used - users.reduce((sum, user) => sum + user.used, 0)),
