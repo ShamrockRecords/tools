@@ -8,6 +8,8 @@ const {
 const { createMemoryRateLimiter } = require('../modules/auth/memory_rate_limiter');
 const mojidasAdminUserStore = require('../modules/auth/mojidas_admin_user_store');
 const mojidasPaidBalanceStore = require('../modules/billing/mojidas_paid_balance_store');
+const mojidasCorporateInvoiceStore = require('../modules/billing/mojidas_corporate_invoice_store');
+const corporateInvoiceText = require('../locales/ja.json').corporateInvoiceHistory;
 const { validMonth } = require('../modules/billing/mojidas_daily_usage_report');
 const mojidasVersionStore = require('../modules/mojidas_version_store');
 const mojidasBroadcastService = require('../modules/email/mojidas_broadcast_service');
@@ -249,7 +251,22 @@ router.get('/', async function (req, res, next) {
 
 // Mojidas関連機能の入口。表示だけでは各機能の取得・更新処理を呼ばない。
 router.get('/mojidas', ensureAdmin, function (req, res) {
-  return res.render('admin/mojidas');
+  return res.render('admin/mojidas', { corporateInvoiceText });
+});
+
+router.get('/mojidas-invoices', ensureAdmin, async function (req, res, next) {
+  res.set('Cache-Control', 'no-store');
+  res.set('Referrer-Policy', 'no-referrer');
+  try {
+    let invoices = [], error = null;
+    try { invoices = await (req.app.locals.mojidasCorporateInvoiceStore || mojidasCorporateInvoiceStore).listIssued(); }
+    catch (_) { error = corporateInvoiceText.error; }
+    return res.status(error ? 503 : 200).render('admin/mojidas-invoices', {
+      user: await resolveUserRecord(req.adminUser), invoices, error, text: corporateInvoiceText,
+      formatDate: value => value === null ? '—' : formatAdminDate(value),
+      formatJPY: value => `${value.toLocaleString('ja-JP')}円`,
+    });
+  } catch (error) { return next(error); }
 });
 
 const broadcastStatusLabels = {

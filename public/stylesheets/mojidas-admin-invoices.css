@@ -1,0 +1,9 @@
+body { background-color: #f8f9fa; min-height: 100vh; }
+.invoice-history { max-width: 1500px; padding-inline: 24px; }
+.invoice-history-table th, .invoice-history-table td { padding: 16px; }
+.invoice-history-table thead th { white-space: nowrap; font-size: .9rem; }
+.invoice-history-table .invoice-customer { min-width: 210px; max-width: 320px; overflow-wrap: anywhere; }
+.invoice-history-table .invoice-number { min-width: 130px; max-width: 200px; overflow-wrap: anywhere; }
+.invoice-amount { font-variant-numeric: tabular-nums; }
+.invoice-history .table-responsive:focus-visible { outline: 3px solid #0d6efd; outline-offset: -3px; }
+@media (max-width: 600px) { .invoice-history { padding-inline: 16px; } }

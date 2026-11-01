@@ -8,6 +8,48 @@
 		"paymentHelp": "Please pay by credit card on the payment page by the end of the invoice issue month.",
 		"pdf": "Invoice PDF"
 	},
+	"corporateInvoiceHistory": {
+		"admin": "Administrator",
+		"back": "Back to Mojidas administration",
+		"columns": {
+			"amount": "Amount (tax included)",
+			"customer": "Customer",
+			"dates": "Issued / Due",
+			"document": "Invoice",
+			"month": "Usage month",
+			"number": "Invoice number",
+			"plan": "Plan",
+			"state": "Status"
+		},
+		"count": "{count} invoices",
+		"description": "All issued corporate plan invoices, across all periods and organizations, newest first.",
+		"due": "Due:",
+		"empty": "No corporate invoices have been issued.",
+		"error": "Unable to load invoice history. Please reload the page later.",
+		"help": "Amounts, customers and plans reflect the invoice at issuance. Payment status is updated through payment notifications and daily updates. Dates and times are in Japan Standard Time.",
+		"issued": "Issued:",
+		"list": "Corporate plan invoices",
+		"menuDescription": "View all corporate plan invoice amounts, payment statuses and invoice PDFs.",
+		"newTab": "(opens in a new tab)",
+		"paid": "Paid:",
+		"pdf": "PDF",
+		"plans": {
+			"custom": "Custom",
+			"light": "Light",
+			"metered": "Metered",
+			"standard": "Standard",
+			"trial": "Trial"
+		},
+		"states": {
+			"open": "Unpaid",
+			"overdue": "Overdue",
+			"paid": "Paid",
+			"uncollectible": "Uncollectible",
+			"void": "Void"
+		},
+		"title": "Mojidas invoice history",
+		"unknownState": "Checking"
+	},
 	"corporatePlans": {
 		"cancel": "Close",
 		"change": "Change plan",

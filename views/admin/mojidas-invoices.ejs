@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <%- include('../parts/head', { title: text.title }) %>
+  <link rel="stylesheet" href="/stylesheets/mojidas-admin-invoices.css">
+</head>
+<body>
+  <main class="container-fluid invoice-history py-5">
+    <a href="/admin/mojidas" class="text-decoration-none small"><i class="bi bi-arrow-left" aria-hidden="true"></i> <%= text.back %></a>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+      <h1 class="h3 fw-bold mb-0"><%= text.title %></h1><span class="small text-muted"><%= user.email || text.admin %></span>
+    </div>
+    <p class="text-muted mb-2"><%= text.description %></p>
+    <p class="small text-muted mb-4"><%= text.help %></p>
+    <% if (error) { %>
+      <div class="alert alert-danger" role="alert"><%= error %></div>
+    <% } else { %>
+      <div class="card shadow-sm overflow-hidden">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2 py-3">
+          <h2 class="h6 fw-bold mb-0"><%= text.list %></h2>
+          <span class="small text-muted"><%= text.count.replace('{count}', invoices.length.toLocaleString('ja-JP')) %></span>
+        </div>
+        <% if (!invoices.length) { %>
+          <p class="text-muted text-center my-0 p-5"><%= text.empty %></p>
+        <% } else { %>
+          <div class="table-responsive" tabindex="0" role="region" aria-label="<%= text.list %>">
+            <table class="table table-striped align-middle mb-0 invoice-history-table">
+              <thead class="table-light"><tr>
+                <% ['month', 'customer', 'plan', 'number', 'amount', 'dates', 'state', 'document'].forEach(key => { %><th scope="col" class="<%= key === 'amount' ? 'text-end' : '' %>"><%= text.columns[key] %></th><% }) %>
+              </tr></thead>
+              <tbody><% invoices.forEach(invoice => { %><tr>
+                <th scope="row" class="text-nowrap"><%= invoice.month || '—' %></th>
+                <td class="invoice-customer"><div class="fw-semibold"><%= invoice.organizationName || '—' %></div><div class="small text-muted"><%= invoice.domain %><br><%= invoice.email %></div></td>
+                <td class="text-nowrap"><%= text.plans[invoice.plan] || invoice.plan || '—' %></td>
+                <td class="invoice-number"><%= invoice.number || '—' %></td>
+                <td class="text-nowrap text-end fw-bold invoice-amount"><%= invoice.totalJPY === null ? '—' : formatJPY(invoice.totalJPY) %></td>
+                <td class="text-nowrap small"><div><%= text.issued %> <%= formatDate(invoice.issuedAt) %></div><div class="text-muted"><%= text.due %> <%= formatDate(invoice.dueAt) %></div></td>
+                <td class="text-nowrap"><span class="badge <%= ({ paid: 'bg-success', overdue: 'bg-danger', open: 'bg-warning text-dark', void: 'bg-secondary', uncollectible: 'bg-secondary' })[invoice.state] || 'bg-secondary' %>"><%= text.states[invoice.state] || text.unknownState %></span>
+                  <% if (invoice.paidAt !== null) { %><div class="small text-muted mt-2"><%= text.paid %> <%= formatDate(invoice.paidAt) %></div><% } %>
+                </td>
+                <td class="text-nowrap"><% if (invoice.pdfURL) { %><a href="<%= invoice.pdfURL %>" target="_blank" rel="noopener noreferrer"><%= text.pdf %><span class="visually-hidden"> <%= invoice.number %> <%= text.newTab %></span></a><% } else { %><span class="text-muted">—</span><% } %></td>
+              </tr><% }) %></tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

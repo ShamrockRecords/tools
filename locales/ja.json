@@ -8,6 +8,48 @@
 		"paymentHelp": "請求書の発行月末までに、支払いページからクレジットカードでお支払いください。",
 		"pdf": "請求書PDF"
 	},
+	"corporateInvoiceHistory": {
+		"admin": "管理者",
+		"back": "Mojidas管理へ戻る",
+		"columns": {
+			"amount": "請求金額（税込）",
+			"customer": "請求先",
+			"dates": "発行日／支払期限",
+			"document": "請求書",
+			"month": "対象月",
+			"number": "請求番号",
+			"plan": "プラン",
+			"state": "状態"
+		},
+		"count": "全{count}件",
+		"description": "法人向けプランの発行済み請求を、全期間・全法人まとめて新しい順に表示します。",
+		"due": "期限：",
+		"empty": "発行済みの法人請求はありません。",
+		"error": "請求履歴を取得できませんでした。時間をおいて再読み込みしてください。",
+		"help": "請求金額・請求先・プランは請求時の情報です。支払状況は決済通知・日次更新で反映されます。日時は日本時間です。",
+		"issued": "発行：",
+		"list": "法人向けプランの請求一覧",
+		"menuDescription": "法人向けプランの請求金額、支払状況、請求書を全件確認します。",
+		"newTab": "（新しいタブで開く）",
+		"paid": "支払：",
+		"pdf": "PDF",
+		"plans": {
+			"custom": "カスタム",
+			"light": "ライト",
+			"metered": "従量制",
+			"standard": "スタンダード",
+			"trial": "トライアル"
+		},
+		"states": {
+			"open": "未払い",
+			"overdue": "支払期限超過",
+			"paid": "支払済み",
+			"uncollectible": "回収不能",
+			"void": "取消"
+		},
+		"title": "Mojidas請求履歴",
+		"unknownState": "確認中"
+	},
 	"corporatePlans": {
 		"cancel": "閉じる",
 		"change": "プラン変更",
